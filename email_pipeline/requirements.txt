@@ -1,0 +1,11 @@
+# Core pipeline (ingest, db, report, run) uses only the Python standard library.
+# The packages below enable the networked Google stages (send/track/inbound/followup).
+
+# Config (optional - a stdlib fallback parser handles config.yaml without it)
+PyYAML>=6.0
+
+# Google Forms responses + Gmail send/read
+google-api-python-client>=2.0
+google-auth-oauthlib>=1.0
+google-auth-httplib2>=0.2
+gspread>=6.0

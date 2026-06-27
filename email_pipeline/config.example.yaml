@@ -1,0 +1,32 @@
+# Copy to config.yaml and fill in the REPLACE_* values.
+# Anything omitted falls back to pipeline/config.py:DEFAULTS.
+
+# --- data ---
+# Curated contact list (verified emails + attributes). Required columns:
+# organization, email. Optional: contact_name, role_title, phone, city, state, zip.
+source_csv: contacts.csv
+database: data/outreach.db
+report_path: data/status_report.md
+
+# --- survey (Google Form) ---
+# Build a prefilled link in the Form ("Get pre-filled link"), submit a dummy
+# value for the hidden "Clinic ID" question, and copy the entry.XXXX id below.
+survey_base_url: https://docs.google.com/forms/d/e/REPLACE_FORM_ID/viewform
+survey_clinic_id_entry: entry.000000000
+survey_responses_sheet_id: REPLACE_GOOGLE_SHEET_ID
+survey_clinic_id_column: Clinic ID
+
+# --- sending (Gmail API) ---
+sender_name: Virginia Tech CS5934 Capstone Team
+sender_email: REPLACE_SENDER@vt.edu
+sender_physical_address: Virginia Tech, Blacksburg, VA 24061
+send_throttle_seconds: 8
+gmail_credentials: credentials/gmail_oauth.json
+gmail_token: credentials/gmail_token.json
+
+# --- cadence / cutoff ---
+followup_offsets_days: [3, 7]
+max_followups: 2
+response_cutoff: 2026-06-24
+low_response_threshold: 0.15
+escalation_recipients: [jpfautz@theauthenticconsortium.com, drmaryclisbee@gmail.com]
