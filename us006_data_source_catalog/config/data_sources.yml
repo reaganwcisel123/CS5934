@@ -1,0 +1,636 @@
+# US-006 Data Source Catalog - single source of truth
+
+sources:
+  -
+    source_id: cdc_places
+    source_name: "CDC PLACES: Local Data for Better Health"
+    provider: Centers for Disease Control and Prevention
+    source_category: public_health_chronic_disease
+    access_method: CDC Data Portal / Socrata Open Data API / CSV download
+    access_url: "https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-County-Data-20/swc5-untb"
+    documentation_url: "https://www.cdc.gov/places/tools/data-portal.html"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - county
+      - place
+      - census_tract
+      - zcta
+    temporal_granularity: annual_release
+    refresh_cadence: annual / publisher release cadence
+    schema_version: "2025 release - verify dataset ID during ingestion"
+    join_keys:
+      - state_fips
+      - county_fips
+      - tract_fips
+      - zcta
+    fields_used:
+      - chronic_condition_prevalence_measures
+      - health_risk_behavior_measures
+      - preventive_service_measures
+      - health_status_measures
+    limitations:
+      - "Model-based estimates, not direct clinic observations."
+      - Measures and field names can change by release.
+      - "Small-area estimates should be interpreted with uncertainty."
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/cdc_places.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: cdc_nwss
+    source_name: CDC National Wastewater Surveillance System Public Wastewater Data
+    provider: Centers for Disease Control and Prevention
+    source_category: public_health_surveillance
+    access_method: CDC Data Portal / Socrata Open Data API / CSV download
+    access_url: "https://data.cdc.gov/Public-Health-Surveillance/CDC-Wastewater-Data-for-SARS-CoV-2/j9g8-acpt"
+    documentation_url: "https://www.cdc.gov/nwss/about-data.html"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - wastewater_treatment_plant
+      - county
+      - state
+    temporal_granularity: weekly
+    refresh_cadence: "weekly, generally Friday after CDC review"
+    schema_version: "CDC public wastewater schema - verify current columns during ingestion"
+    join_keys:
+      - wwtp_id
+      - county_fips
+      - state
+    fields_used:
+      - wwtp_id
+      - county_names
+      - state
+      - date_start
+      - date_end
+      - percentile
+      - detect_prop
+      - sample_location
+    limitations:
+      - Wastewater catchments do not always align cleanly with county boundaries.
+      - Site availability varies over time and by jurisdiction.
+      - Interpretation depends on sampling coverage and reporting continuity.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/cdc_nwss.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: cdc_nndss
+    source_name: CDC National Notifiable Diseases Surveillance System Tables
+    provider: Centers for Disease Control and Prevention
+    source_category: public_health_surveillance
+    access_method: "CDC NNDSS tables / CDC WONDER / Data.CDC.gov machine-readable tables"
+    access_url: "https://www.cdc.gov/nndss/infectious-disease/index.html"
+    documentation_url: "https://wonder.cdc.gov/nndss.html"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - national
+      - state
+      - territory
+    temporal_granularity:
+      - weekly_provisional
+      - annual_finalized
+    refresh_cadence: weekly provisional and annual finalized releases
+    schema_version: "NNDSS weekly/annual table version - verify disease table IDs"
+    join_keys:
+      - state
+      - mmwr_year
+      - mmwr_week
+      - condition
+    fields_used:
+      - condition
+      - mmwr_year
+      - mmwr_week
+      - state
+      - current_week_cases
+      - cumulative_cases
+    limitations:
+      - Weekly data are provisional and may change.
+      - Reporting practices can vary by condition and jurisdiction.
+      - "Mostly state-level; may not directly support county-level modeling."
+    privacy_classification: public_aggregate
+    ingestion_status: schema_reviewed
+    ingestion_script: src/ingestion/cdc_nndss.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: hrsa_hpsa
+    source_name: HRSA Health Professional Shortage Area Designations
+    provider: Health Resources and Services Administration
+    source_category: health_workforce_shortage
+    access_method: HRSA Data Warehouse download / dashboard / GIS REST services
+    access_url: "https://data.hrsa.gov/topics/health-workforce/shortage-areas/dashboard"
+    documentation_url: "https://data.hrsa.gov/tools/gis-developer-tools"
+    auth_required: maybe
+    api_key_env_var: HRSA_WEB_SERVICES_REGISTRATION
+    geographic_granularity:
+      - shortage_area
+      - county
+      - state
+      - geospatial_boundary
+    temporal_granularity: current_designation_snapshot
+    refresh_cadence: "publisher-specific; verify per HRSA dataset metadata"
+    schema_version: "HRSA HPSA current public release - verify during ingestion"
+    join_keys:
+      - state
+      - county_fips
+      - hpsa_id
+      - designation_id
+    fields_used:
+      - hpsa_id
+      - designation_type
+      - discipline_class
+      - hpsa_score
+      - designation_status
+      - state
+      - county
+    limitations:
+      - HPSA boundaries may not match simple county boundaries.
+      - Designation status changes over time.
+      - Some HRSA web services may require registration.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/hrsa_hpsa.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: hrsa_uds
+    source_name: HRSA Health Center Program Uniform Data System
+    provider: Health Resources and Services Administration
+    source_category: health_center_reporting
+    access_method: HRSA UDS dashboard downloads / CSV / XLSX
+    access_url: "https://data.hrsa.gov/tools/data-reporting/program-data"
+    documentation_url: "https://data.hrsa.gov/tools/data-reporting/program-data/national"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - health_center
+      - state
+      - national
+    temporal_granularity: annual
+    refresh_cadence: annual UDS release
+    schema_version: "2024 UDS public report - verify latest year during ingestion"
+    join_keys:
+      - health_center_id
+      - state
+      - grant_number
+    fields_used:
+      - patients_total
+      - visits_total
+      - payer_mix
+      - clinical_quality_measures
+      - service_delivery_sites
+    limitations:
+      - "Health-center-level reporting may not map directly to individual clinics."
+      - "Annual cadence is not real-time."
+      - Column layouts may differ between national and state downloads.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/hrsa_uds.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: cms_medicare_puf
+    source_name: CMS Medicare Public Use Files and Program Datasets
+    provider: "Centers for Medicare & Medicaid Services"
+    source_category: medicare_utilization_public_use
+    access_method: data.cms.gov API / CSV download / dataset pages
+    access_url: "https://data.cms.gov/"
+    documentation_url: "https://data.cms.gov/api-docs"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - provider
+      - npi
+      - facility
+      - county
+      - state
+    temporal_granularity: dataset_specific
+    refresh_cadence: "dataset-specific; often annual or quarterly"
+    schema_version: "CMS dataset schema ID - specify exact dataset during ingestion"
+    join_keys:
+      - npi
+      - ccn
+      - state
+      - county_fips
+      - zip
+    fields_used:
+      - provider_id_or_npi
+      - service_count
+      - allowed_amount
+      - submitted_charge
+      - beneficiary_count
+    limitations:
+      - "Suppression rules may remove low-count data."
+      - PUF datasets are often lagged.
+      - Exact schema depends on the selected CMS public use file.
+    privacy_classification: public_aggregate_deidentified
+    ingestion_status: schema_reviewed
+    ingestion_script: src/ingestion/cms_medicare_puf.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: cms_mips_qpp
+    source_name: CMS Quality Payment Program / MIPS Public Resources
+    provider: "Centers for Medicare & Medicaid Services"
+    source_category: quality_payment_program
+    access_method: QPP resource downloads and public APIs where available
+    access_url: "https://qpp.cms.gov/resources/resource-library"
+    documentation_url: "https://qpp.cms.gov/resources/performance-data"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - clinician
+      - group
+      - practice
+      - state
+    temporal_granularity: annual_performance_year
+    refresh_cadence: annual / CMS release cadence
+    schema_version: "QPP performance year - specify exact public file"
+    join_keys:
+      - npi
+      - tin
+      - performance_year
+      - state
+    fields_used:
+      - performance_year
+      - clinician_or_group_identifier
+      - quality_score
+      - improvement_activity_score
+      - payment_adjustment
+    limitations:
+      - Publicly available QPP data may be lagged.
+      - Clinician/group identifiers require careful handling.
+      - Exact public data format must be confirmed before ingestion.
+    privacy_classification: public_aggregate
+    ingestion_status: not_started
+    ingestion_script: src/ingestion/cms_mips_qpp.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: cms_quality_stars
+    source_name: CMS Provider Data Catalog Quality Star Ratings
+    provider: "Centers for Medicare & Medicaid Services"
+    source_category: provider_quality
+    access_method: CMS Provider Data Catalog Open Data API / CSV download
+    access_url: "https://data.cms.gov/provider-data"
+    documentation_url: "https://data.cms.gov/provider-data/docs"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - facility
+      - hospital
+      - nursing_home
+      - home_health
+      - state
+    temporal_granularity: quarterly_or_dataset_specific
+    refresh_cadence: CMS scheduled refresh; verify Data Updates dataset
+    schema_version: "Provider Data Catalog dataset-specific schema"
+    join_keys:
+      - ccn
+      - provider_id
+      - state
+      - zip
+    fields_used:
+      - provider_id
+      - provider_name
+      - overall_star_rating
+      - quality_measure_score
+      - state
+      - zip
+    limitations:
+      - Rating methodologies differ by provider type.
+      - Refresh timing and measures vary by dataset.
+      - Facilities without enough data may have missing ratings.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/cms_quality_stars.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: census_acs_sdoh
+    source_name: U.S. Census American Community Survey SDoH Variables
+    provider: U.S. Census Bureau
+    source_category: social_determinants_of_health
+    access_method: Census Data API
+    access_url: "https://api.census.gov/data/2024/acs/acs5"
+    documentation_url: "https://www.census.gov/data/developers/data-sets/acs-5year.html"
+    auth_required: optional_key_recommended
+    api_key_env_var: CENSUS_API_KEY
+    geographic_granularity:
+      - state
+      - county
+      - tract
+      - block_group_select_tables
+    temporal_granularity: annual_release
+    refresh_cadence: annual ACS release
+    schema_version: "2024 ACS 5-year - verify variable names by release"
+    join_keys:
+      - state_fips
+      - county_fips
+      - tract_fips
+      - geoid
+    fields_used:
+      - poverty_rate
+      - uninsured_rate
+      - median_household_income
+      - vehicle_access
+      - internet_access
+      - education_attainment
+      - housing_cost_burden
+    limitations:
+      - ACS estimates have margins of error.
+      - Variable IDs may change across releases.
+      - Some geographies are limited depending on ACS table type.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/census_acs_sdoh.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: epa_ejscreen
+    source_name: EPA EJSCREEN Environmental Justice Indicators
+    provider: U.S. Environmental Protection Agency
+    source_category: environmental_justice
+    access_method: historical EPA download / archived documentation / data mirror if official access unavailable
+    access_url: "https://19january2021snapshot.epa.gov/ejscreen/overview-environmental-indicators-ejscreen_.html"
+    documentation_url: "https://19january2021snapshot.epa.gov/ejscreen/download-ejscreen-data_.html"
+    auth_required: unknown_verify_current_access
+    api_key_env_var: null
+    geographic_granularity:
+      - census_block_group
+      - tract
+      - county
+    temporal_granularity: annual_release_historical
+    refresh_cadence: historically annual; current official refresh status requires verification
+    schema_version: "EJSCREEN release version - TODO verify official/current source"
+    join_keys:
+      - block_group_geoid
+      - tract_fips
+      - county_fips
+    fields_used:
+      - environmental_index_percentiles
+      - demographic_index
+      - pollution_burden_indicators
+      - traffic_proximity
+      - pm25
+      - ozone
+    limitations:
+      - Official access and current availability must be verified before production use.
+      - "Indicators are screening-level, not causal risk measures."
+      - Data vintages differ across environmental and demographic indicators.
+    privacy_classification: public_aggregate
+    ingestion_status: verified
+    ingestion_script: src/ingestion/epa_ejscreen.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: aspr_hospital_capacity
+    source_name: HHS/ASPR Hospital Capacity and Utilization Data
+    provider: U.S. Department of Health and Human Services / ASPR
+    source_category: hospital_capacity
+    access_method: HealthData.gov / HHS public data portal / CSV or Socrata API
+    access_url: "https://healthdata.gov/Hospital/COVID-19-Reported-Patient-Impact-and-Hospital-Capa/anag-cw7u"
+    documentation_url: "https://healthdata.gov/stories/s/COVID-19-Reported-Patient-Impact-and-Hospital-Capa/nhgk-5gpv/"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - facility
+      - state
+    temporal_granularity: weekly_historical
+    refresh_cadence: "historical; COVID hospital reporting dataset stopped updating after 2024-05-03"
+    schema_version: "HealthData.gov dataset-specific schema - verify current replacement if needed"
+    join_keys:
+      - ccn
+      - hospital_pk
+      - state
+      - zip
+    fields_used:
+      - hospital_name
+      - state
+      - collection_week
+      - inpatient_beds
+      - inpatient_beds_used
+      - icu_beds
+      - icu_beds_used
+      - total_adult_patients_hospitalized_confirmed_covid
+    limitations:
+      - "Original COVID-era reporting feed is historical and no longer current."
+      - Use only for historical context unless a current replacement source is selected.
+      - Facility identifiers may need mapping to CMS CCN/provider IDs.
+    privacy_classification: public_aggregate
+    ingestion_status: deprecated_or_historical
+    ingestion_script: src/ingestion/aspr_hospital_capacity.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: usda_food_access
+    source_name: USDA Food Access Research Atlas
+    provider: U.S. Department of Agriculture Economic Research Service
+    source_category: food_access_sdoh
+    access_method: Excel download / map services / documentation
+    access_url: "https://www.ers.usda.gov/data-products/food-access-research-atlas/download-the-data"
+    documentation_url: "https://www.ers.usda.gov/data-products/food-access-research-atlas/documentation"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - census_tract
+    temporal_granularity: release_based
+    refresh_cadence: "publisher-specific / irregular release"
+    schema_version: "current FARA download - verify vintage during ingestion"
+    join_keys:
+      - tract_fips
+      - geoid
+    fields_used:
+      - low_income_low_access_flags
+      - population_low_access
+      - housing_units_no_vehicle
+      - rural_urban_indicator
+      - distance_threshold_flags
+    limitations:
+      - "Often released as workbook files rather than API-native tables."
+      - "Food-access vintages may lag current conditions."
+      - Tract boundaries and vintages must be aligned with ACS/Census joins.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/usda_food_access.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: hud_housing
+    source_name: HUD Housing Affordability and Fair Market Rent Data
+    provider: U.S. Department of Housing and Urban Development
+    source_category: housing_sdoh
+    access_method: HUD USER API / HUD open data downloads
+    access_url: "https://www.huduser.gov/portal/dataset/fmr-api.html"
+    documentation_url: "https://www.huduser.gov/portal/pdrdatas_landing.html"
+    auth_required: yes_for_huduser_api_token
+    api_key_env_var: HUD_API_TOKEN
+    geographic_granularity:
+      - county
+      - metro_area
+      - zip_code
+      - state
+    temporal_granularity: fiscal_year
+    refresh_cadence: "annual for FMR/Income Limits; dataset-specific for other HUD data"
+    schema_version: "HUD FMR/Income Limits API version - verify fiscal year"
+    join_keys:
+      - state_fips
+      - county_fips
+      - cbsa
+      - zip
+    fields_used:
+      - fair_market_rent_efficiency
+      - fair_market_rent_1br
+      - fair_market_rent_2br
+      - income_limit_very_low
+      - income_limit_low
+    limitations:
+      - HUD USER APIs may require a free access token.
+      - FMR areas may not align exactly with counties in metropolitan regions.
+      - Housing affordability variables may need normalization before modeling.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/hud_housing.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: grants_gov
+    source_name: Grants.gov Public Funding Opportunity Search
+    provider: Grants.gov
+    source_category: funding_opportunities
+    access_method: REST API
+    access_url: "https://api.grants.gov/v1/api/search2"
+    documentation_url: "https://www.grants.gov/api"
+    auth_required: no_for_search2_and_fetchOpportunity
+    api_key_env_var: null
+    geographic_granularity:
+      - opportunity
+      - agency
+      - assistance_listing
+      - eligibility
+    temporal_granularity: near_real_time_published_opportunities
+    refresh_cadence: "publisher-driven; new opportunities added as agencies post"
+    schema_version: Grants.gov v1 API search2/fetchOpportunity
+    join_keys:
+      - opportunity_id
+      - opportunity_number
+      - assistance_listing_number
+      - agency_code
+    fields_used:
+      - opportunity_id
+      - opportunity_number
+      - title
+      - agency_code
+      - open_date
+      - close_date
+      - eligibility
+      - assistance_listing_number
+    limitations:
+      - Search results need filtering for rural health relevance.
+      - Eligibility and award information may require fetchOpportunity detail call.
+      - "Grant postings are operational opportunities, not health outcome measures."
+    privacy_classification: public
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/grants_gov.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: state_health_department_feeds
+    source_name: State Health Department Public Feeds
+    provider: State and territorial health departments
+    source_category: state_public_health_surveillance
+    access_method: "state-specific API / dashboard export / RSS / Socrata / ArcGIS Hub"
+    access_url: TBD per target state
+    documentation_url: TBD per target state
+    auth_required: varies_by_state
+    api_key_env_var: STATE_HEALTH_API_KEY_OPTIONAL
+    geographic_granularity:
+      - state
+      - county
+      - local_health_district
+    temporal_granularity: varies_by_feed
+    refresh_cadence: varies by state and feed; document per state before ingestion
+    schema_version: "state-specific - TODO define target states and schemas"
+    join_keys:
+      - state
+      - county_fips
+      - local_health_district
+      - date
+    fields_used:
+      - outbreak_indicator
+      - case_rate
+      - vaccination_rate
+      - respiratory_activity
+      - public_health_alerts
+    limitations:
+      - No single national schema for state feeds.
+      - "Availability, update cadence, and archive depth vary widely."
+      - "Must avoid ingesting any patient-level or PHI data."
+    privacy_classification: public_aggregate_only
+    ingestion_status: not_started
+    ingestion_script: src/ingestion/state_health_department_feeds.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: county_population_estimates
+    source_name: Census Population Estimates Program County Population Estimates
+    provider: U.S. Census Bureau
+    source_category: population_denominators
+    access_method: Census Data API / CSV download
+    access_url: "https://api.census.gov/data/2023/pep/charv"
+    documentation_url: "https://www.census.gov/programs-surveys/popest.html"
+    auth_required: optional_key_recommended
+    api_key_env_var: CENSUS_API_KEY
+    geographic_granularity:
+      - county
+      - state
+      - nation
+    temporal_granularity: annual_estimate
+    refresh_cadence: annual / rolling release by Census Population Division
+    schema_version: "PEP vintage year - verify current API endpoint"
+    join_keys:
+      - state_fips
+      - county_fips
+      - year
+    fields_used:
+      - population_total
+      - age_group
+      - sex
+      - race
+      - hispanic_origin
+      - estimate_year
+    limitations:
+      - Population estimates are revised by vintage.
+      - "Use a consistent vintage across all denominator-based rates."
+      - "County-equivalent handling must be tested for territories and independent cities."
+    privacy_classification: public_aggregate
+    ingestion_status: schema_reviewed
+    ingestion_script: src/ingestion/county_population_estimates.py
+    last_verified_date: "2026-06-29"
+  -
+    source_id: synthetic_clinical_dataset
+    source_name: "Project Synthetic Non-PHI Clinical Dataset"
+    provider: Project team
+    source_category: synthetic_clinical
+    access_method: repo file / generated artifact
+    access_url: data/synthetic/synthetic_clinical_dataset.csv
+    documentation_url: docs/synthetic_clinical_dataset.md
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - synthetic_patient
+      - clinic
+      - county
+    temporal_granularity: synthetic_encounter_date_or_reporting_period
+    refresh_cadence: regenerate as needed; version every generated release
+    schema_version: "v0.1 placeholder - set when generated"
+    join_keys:
+      - synthetic_patient_id
+      - clinic_id
+      - county_fips
+    fields_used:
+      - synthetic_patient_id
+      - clinic_id
+      - county_fips
+      - age_band
+      - risk_score
+      - preventable_hospitalization_flag
+      - sdoh_need_flags
+    limitations:
+      - Synthetic data is for development/testing and must not be represented as real patient data.
+      - No PHI should be stored in the repo.
+      - Generation logic must be documented and versioned for reproducibility.
+    privacy_classification: synthetic_non_phi
+    ingestion_status: not_started
+    ingestion_script: src/ingestion/synthetic_clinical_dataset.py
+    last_verified_date: "2026-06-29"
