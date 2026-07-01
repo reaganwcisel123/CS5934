@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Validate the US-006 data source catalog and field lineage files.
+Validate the data source catalog and field lineage files.
 
-Usage:
-    python scripts/validate_data_catalog.py
+Usage (from the repo root):
+    uv run python data_source_catalog/scripts/validate_data_catalog.py
 
 This script validates:
 1. Required fields are present for every source.
@@ -14,13 +14,14 @@ This script validates:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_SOURCES_JSON = ROOT / "config" / "data_sources.json"
-FIELD_LINEAGE_JSON = ROOT / "config" / "field_lineage.json"
+# Import the shared catalog loader (src/catalog.py) so this validator reads the
+# exact same YAML/JSON the ingestion code does: one loader, one source of truth.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+from src.catalog import Catalog  # noqa: E402
 
 REQUIRED_SOURCE_FIELDS = [
     "source_id",
@@ -59,12 +60,6 @@ ALLOWED_STATUSES = {
     "validated",
     "deprecated_or_historical",
 }
-
-
-def load_json(path: Path) -> dict:
-    if not path.exists():
-        raise FileNotFoundError(f"Missing required file: {path}")
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def validate_sources(sources: list[dict]) -> list[str]:
@@ -117,17 +112,15 @@ def validate_lineage(fields: list[dict], valid_source_ids: set[str]) -> list[str
 
         source_id = field.get("source_id")
         if source_id and source_id not in valid_source_ids:
-            errors.append(f"{final_field}: source_id '{source_id}' does not exist in data_sources.json")
+            errors.append(f"{final_field}: source_id '{source_id}' does not exist in data_sources.yml")
 
     return errors
 
 
 def main() -> int:
-    source_doc = load_json(DATA_SOURCES_JSON)
-    lineage_doc = load_json(FIELD_LINEAGE_JSON)
-
-    sources = source_doc.get("sources", [])
-    fields = lineage_doc.get("fields", [])
+    catalog = Catalog.load()
+    sources = catalog.sources
+    fields = catalog.lineage
 
     errors = []
     errors.extend(validate_sources(sources))
@@ -135,12 +128,12 @@ def main() -> int:
     errors.extend(validate_lineage(fields, source_ids))
 
     if errors:
-        print("US-006 catalog validation failed:\n")
+        print("Catalog validation failed:\n")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print(f"US-006 catalog validation passed.")
+    print("Catalog validation passed.")
     print(f"- Sources validated: {len(sources)}")
     print(f"- Field lineage rows validated: {len(fields)}")
     return 0

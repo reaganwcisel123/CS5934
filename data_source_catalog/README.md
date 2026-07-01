@@ -1,12 +1,13 @@
-# US-006: Author the Data Source Catalog
+# Data Source Catalog
 
-This folder contains starter files for US-006. The goal is to make every data source auditable and reproducible before ingestion code depends on it.
+This folder contains the data source catalog. The goal is to make every data source auditable and reproducible so ingestion code can depend on it.
 
-Since we did this more as a source verification mock and not a fully functional service ingestion scripts aren't included in this PR. If writing those and
-building out a pipleine is a future we would want to explore a follow-up story would need to be written up to address. 
+Ingestion now reads this catalog: each source in `src/ingestion/` looks up its entry here, and `src/build_dataset.py` assembles the dashboard dataset from it. Six sources are wired to real/synthetic data; the rest remain catalogued stubs. See the repo-root `README.md` for how to build and run.
+
+Validate the catalog (from the repo root):
 
 ```bash
-python scripts/validate_data_catalog.py
+uv run python data_source_catalog/scripts/validate_data_catalog.py
 ```
 
 ## How ingestion code should use the catalog

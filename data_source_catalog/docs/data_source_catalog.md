@@ -1,4 +1,4 @@
-# US-006 Data Source Catalog
+# Data Source Catalog
 
 ## Purpose
 
