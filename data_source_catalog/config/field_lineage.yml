@@ -1,4 +1,4 @@
-# US-006 Field Lineage Catalog
+# Field Lineage Catalog
 # Every final dataset field should map to one source_id in config/data_sources.yml.
 
 fields:

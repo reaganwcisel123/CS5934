@@ -1,4 +1,4 @@
-# US-006 Data Source Catalog - single source of truth
+# Data Source Catalog - single source of truth
 
 sources:
   -
@@ -375,7 +375,7 @@ sources:
       - "Indicators are screening-level, not causal risk measures."
       - Data vintages differ across environmental and demographic indicators.
     privacy_classification: public_aggregate
-    ingestion_status: verified
+    ingestion_status: needs_verification
     ingestion_script: src/ingestion/epa_ejscreen.py
     last_verified_date: "2026-06-29"
   -

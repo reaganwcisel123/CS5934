@@ -1,0 +1,25 @@
+county_fips,county_name,region,district
+51059,Fairfax County,Northern,Fairfax
+51107,Loudoun County,Northern,Loudoun
+51153,Prince William County,Northern,Prince William
+51013,Arlington County,Northern,Arlington
+51760,Richmond city,Central,Richmond City
+51087,Henrico County,Central,Henrico
+51041,Chesterfield County,Central,Chesterfield
+51143,Pittsylvania County,Central,Pittsylvania-Danville
+51590,Danville city,Central,Pittsylvania-Danville
+51015,Augusta County,Valley,Central Shenandoah
+51660,Harrisonburg city,Valley,Central Shenandoah
+51165,Rockingham County,Valley,Central Shenandoah
+51161,Roanoke County,Valley,Roanoke Valley
+51770,Roanoke city,Valley,Roanoke Valley
+51185,Tazewell County,Southwest,Cumberland Plateau
+51195,Wise County,Southwest,Lenowisco
+51169,Scott County,Southwest,Lenowisco
+51105,Lee County,Southwest,Lenowisco
+51001,Accomack County,Tidewater,Eastern Shore
+51131,Northampton County,Tidewater,Eastern Shore
+51550,Chesapeake city,Tidewater,Chesapeake
+51810,Virginia Beach city,Tidewater,Virginia Beach
+51700,Newport News city,Tidewater,Peninsula
+51710,Norfolk city,Tidewater,Norfolk

@@ -1,0 +1,29 @@
+[project]
+name = "cs5934-clinic-needs-atlas"
+version = "0.1.0"
+description = "Catalog-driven data pipeline feeding the Clinic Needs Atlas dashboard, plus the survey email pipeline."
+readme = "data_source_catalog/README.md"
+requires-python = ">=3.11"
+
+# Core: the catalog -> real data -> dashboard pipeline (src/).
+dependencies = [
+    "requests>=2.31",   # HTTP calls to CDC Socrata, Census, HRSA, USDA
+    "pandas>=2.0",      # tabular transforms and county-level joins
+    "PyYAML>=6.0",      # read data_sources.yml + email config.yaml
+    "openpyxl>=3.1",    # read the USDA Food Access Atlas .xlsx workbook
+]
+
+[project.optional-dependencies]
+# Networked Google stages of the survey email pipeline (email_pipeline/).
+# Install with:  uv sync --extra email
+email = [
+    "google-api-python-client>=2.0",
+    "google-auth-oauthlib>=1.0",
+    "google-auth-httplib2>=0.2",
+    "gspread>=6.0",
+]
+
+[tool.uv]
+# This repo is an application, not a distributable package, so uv should not
+# try to build/install the project itself -- only manage its dependencies.
+package = false
