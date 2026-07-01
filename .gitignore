@@ -3,6 +3,12 @@
 data/raw/*
 !data/raw/.gitkeep
 
+# Generated dashboard dataset (build output of src/build_dataset.py).
+# Regenerate with `uv run python src/build_dataset.py`; the live dashboard
+# falls back to synthetic data when it is absent.
+dashboard/data/clinic_atlas.json
+!dashboard/data/.gitkeep
+
 # Python
 __pycache__/
 *.pyc
