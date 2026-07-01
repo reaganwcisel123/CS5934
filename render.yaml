@@ -1,0 +1,20 @@
+# Render Blueprint: the Clinic Needs Atlas as a static site whose build step
+# runs the data pipeline. There is no always-on server; the dashboard is static
+# and the ETL runs at build time.
+#
+# Deploy: in Render, New > Blueprint, connect this repo. Prod tracks `main`.
+services:
+  - type: web
+    name: clinic-needs-atlas
+    runtime: static
+    branch: main                       # prod deploys from main
+    buildCommand: bash scripts/build-site.sh
+    staticPublishPath: ./dashboard     # serves index.html + clinic_atlas.json
+    pullRequestPreviewsEnabled: true   # each PR gets a preview URL
+    envVars:
+      - key: CENSUS_API_KEY            # set as a secret in the Render dashboard;
+        sync: false                    # without it, Census fields degrade to stubs
+    headers:
+      - path: /data/*
+        name: Cache-Control
+        value: "public, max-age=3600"
