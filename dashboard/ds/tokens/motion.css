@@ -1,0 +1,18 @@
+/* Triad Health Engine — Motion
+   Quick, functional, ease-out. No bounce/overshoot — this is a serious tool.
+   Fades + short slides only. Respect prefers-reduced-motion in components. */
+
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* @kind other */
+
+  --dur-fast: 120ms; /* @kind other */
+  --dur-base: 180ms; /* @kind other */
+  --dur-slow: 260ms; /* @kind other */
+
+  --transition-control: background-color var(--dur-fast) var(--ease-out),
+                        border-color var(--dur-fast) var(--ease-out),
+                        color var(--dur-fast) var(--ease-out),
+                        box-shadow var(--dur-fast) var(--ease-out);
+}

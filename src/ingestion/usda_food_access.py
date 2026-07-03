@@ -28,6 +28,7 @@ class UsdaFoodAccess(RealSource):
     def extract(self) -> pd.DataFrame:
         # Aggregate tract LILA flags to a county share (0-100%).
         df = pd.read_excel(self.raw_path, sheet_name=SHEET, dtype={TRACT_COL: str})
+        df = df[[TRACT_COL, LILA_COL]].copy()  # drop the Atlas's ~150 other columns
         df["county_fips"] = df[TRACT_COL].str.zfill(11).str[:5]
         df = df[df["county_fips"].str.startswith(TARGET_STATE_FIPS)]
         df[LILA_COL] = pd.to_numeric(df[LILA_COL], errors="coerce")

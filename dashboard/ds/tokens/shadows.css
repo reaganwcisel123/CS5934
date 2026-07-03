@@ -1,0 +1,15 @@
+/* Triad Health Engine — Elevation
+   Soft, cool-tinted shadows layered on slate. Low elevation by default —
+   this is a data tool, not a playful consumer app. */
+
+:root {
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.10), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.12), 0 4px 8px -4px rgba(15, 23, 42, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
+
+  /* Focus + brand glows */
+  --shadow-focus: 0 0 0 3px var(--violet-200);
+  --shadow-inset: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}

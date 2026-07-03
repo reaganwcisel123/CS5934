@@ -1,0 +1,13 @@
+/* Triad Health Engine — Corner radii
+   Moderate, precise. Cards 12px, controls 8px, pills full. */
+
+:root {
+  --radius-none: 0;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;    /* buttons, inputs */
+  --radius-lg: 12px;   /* cards */
+  --radius-xl: 16px;   /* panels, modals */
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+}

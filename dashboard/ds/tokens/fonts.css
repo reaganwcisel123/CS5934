@@ -1,0 +1,11 @@
+/* Triad Health Engine — Webfonts
+   IBM Plex Sans: UI + display. Institutional but modern; reads as trustworthy,
+   government-adjacent, precise — fits a federal-data / clinical / billing product.
+   IBM Plex Mono: data, metrics, CPT/HCPCS codes, claim numbers, coordinates.
+
+   SUBSTITUTION NOTE: Triad's real production webfonts were not provided. IBM Plex
+   (SIL Open Font License) is a deliberate, defensible stand-in. Swap the @font-face
+   / @import below if the brand's true faces are supplied. Fonts load from Google's
+   CDN; self-host the woff2 files for production/offline use. */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');

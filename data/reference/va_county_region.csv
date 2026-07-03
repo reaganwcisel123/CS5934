@@ -1,25 +1,134 @@
 county_fips,county_name,region,district
-51059,Fairfax County,Northern,Fairfax
-51107,Loudoun County,Northern,Loudoun
-51153,Prince William County,Northern,Prince William
-51013,Arlington County,Northern,Arlington
-51760,Richmond city,Central,Richmond City
-51087,Henrico County,Central,Henrico
-51041,Chesterfield County,Central,Chesterfield
-51143,Pittsylvania County,Central,Pittsylvania-Danville
-51590,Danville city,Central,Pittsylvania-Danville
-51015,Augusta County,Valley,Central Shenandoah
-51660,Harrisonburg city,Valley,Central Shenandoah
-51165,Rockingham County,Valley,Central Shenandoah
-51161,Roanoke County,Valley,Roanoke Valley
-51770,Roanoke city,Valley,Roanoke Valley
-51185,Tazewell County,Southwest,Cumberland Plateau
-51195,Wise County,Southwest,Lenowisco
-51169,Scott County,Southwest,Lenowisco
-51105,Lee County,Southwest,Lenowisco
 51001,Accomack County,Tidewater,Eastern Shore
+51003,Albemarle County,Central,
+51005,Alleghany County,Valley,
+51007,Amelia County,Central,
+51009,Amherst County,Valley,
+51011,Appomattox County,Valley,
+51013,Arlington County,Northern,Arlington
+51015,Augusta County,Valley,Central Shenandoah
+51017,Bath County,Valley,
+51019,Bedford County,Valley,
+51021,Bland County,Southwest,
+51023,Botetourt County,Valley,
+51025,Brunswick County,Central,
+51027,Buchanan County,Southwest,
+51029,Buckingham County,Central,
+51031,Campbell County,Valley,
+51033,Caroline County,Central,
+51035,Carroll County,Southwest,
+51036,Charles City County,Tidewater,
+51037,Charlotte County,Central,
+51041,Chesterfield County,Central,Chesterfield
+51043,Clarke County,Northern,
+51045,Craig County,Southwest,
+51047,Culpeper County,Central,
+51049,Cumberland County,Central,
+51051,Dickenson County,Southwest,
+51053,Dinwiddie County,Central,
+51057,Essex County,Tidewater,
+51059,Fairfax County,Northern,Fairfax
+51061,Fauquier County,Northern,
+51063,Floyd County,Southwest,
+51065,Fluvanna County,Central,
+51067,Franklin County,Valley,
+51069,Frederick County,Northern,
+51071,Giles County,Southwest,
+51073,Gloucester County,Tidewater,
+51075,Goochland County,Central,
+51077,Grayson County,Southwest,
+51079,Greene County,Central,
+51081,Greensville County,Central,
+51083,Halifax County,Valley,
+51085,Hanover County,Central,
+51087,Henrico County,Central,Henrico
+51089,Henry County,Valley,
+51091,Highland County,Valley,
+51093,Isle of Wight County,Tidewater,
+51095,James City County,Tidewater,
+51097,King and Queen County,Tidewater,
+51099,King George County,Tidewater,
+51101,King William County,Tidewater,
+51103,Lancaster County,Tidewater,
+51105,Lee County,Southwest,Lenowisco
+51107,Loudoun County,Northern,Loudoun
+51109,Louisa County,Central,
+51111,Lunenburg County,Central,
+51113,Madison County,Central,
+51115,Mathews County,Tidewater,
+51117,Mecklenburg County,Central,
+51119,Middlesex County,Tidewater,
+51121,Montgomery County,Southwest,
+51125,Nelson County,Valley,
+51127,New Kent County,Tidewater,
 51131,Northampton County,Tidewater,Eastern Shore
+51133,Northumberland County,Tidewater,
+51135,Nottoway County,Central,
+51137,Orange County,Central,
+51139,Page County,Central,
+51141,Patrick County,Southwest,
+51143,Pittsylvania County,Central,Pittsylvania-Danville
+51145,Powhatan County,Central,
+51147,Prince Edward County,Central,
+51149,Prince George County,Central,
+51153,Prince William County,Northern,Prince William
+51155,Pulaski County,Southwest,
+51157,Rappahannock County,Central,
+51159,Richmond County,Tidewater,
+51161,Roanoke County,Valley,Roanoke Valley
+51163,Rockbridge County,Valley,
+51165,Rockingham County,Valley,Central Shenandoah
+51167,Russell County,Southwest,
+51169,Scott County,Southwest,Lenowisco
+51171,Shenandoah County,Northern,
+51173,Smyth County,Southwest,
+51175,Southampton County,Tidewater,
+51177,Spotsylvania County,Central,
+51179,Stafford County,Central,
+51181,Surry County,Tidewater,
+51183,Sussex County,Central,
+51185,Tazewell County,Southwest,Cumberland Plateau
+51187,Warren County,Northern,
+51191,Washington County,Southwest,
+51193,Westmoreland County,Tidewater,
+51195,Wise County,Southwest,Lenowisco
+51197,Wythe County,Southwest,
+51199,York County,Tidewater,
+51510,Alexandria city,Northern,
+51520,Bristol city,Southwest,
+51530,Buena Vista city,Valley,
+51540,Charlottesville city,Central,
 51550,Chesapeake city,Tidewater,Chesapeake
-51810,Virginia Beach city,Tidewater,Virginia Beach
+51570,Colonial Heights city,Central,
+51580,Covington city,Valley,
+51590,Danville city,Central,Pittsylvania-Danville
+51595,Emporia city,Central,
+51600,Fairfax city,Northern,
+51610,Falls Church city,Northern,
+51620,Franklin city,Tidewater,
+51630,Fredericksburg city,Central,
+51640,Galax city,Southwest,
+51650,Hampton city,Tidewater,
+51660,Harrisonburg city,Valley,Central Shenandoah
+51670,Hopewell city,Central,
+51678,Lexington city,Valley,
+51680,Lynchburg city,Valley,
+51683,Manassas city,Northern,
+51685,Manassas Park city,Northern,
+51690,Martinsville city,Valley,
 51700,Newport News city,Tidewater,Peninsula
 51710,Norfolk city,Tidewater,Norfolk
+51720,Norton city,Southwest,
+51730,Petersburg city,Central,
+51735,Poquoson city,Tidewater,
+51740,Portsmouth city,Tidewater,
+51750,Radford city,Southwest,
+51760,Richmond city,Central,Richmond City
+51770,Roanoke city,Valley,Roanoke Valley
+51775,Salem city,Valley,
+51790,Staunton city,Valley,
+51800,Suffolk city,Tidewater,
+51810,Virginia Beach city,Tidewater,Virginia Beach
+51820,Waynesboro city,Valley,
+51830,Williamsburg city,Tidewater,
+51840,Winchester city,Northern,
