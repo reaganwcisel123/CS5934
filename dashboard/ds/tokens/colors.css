@@ -1,0 +1,90 @@
+/* Triad Health Engine — Color system
+   Base palette + semantic aliases. Cool, clinical, trustworthy.
+   Primary "Triad Violet" (#7c3aed) is the engine/brand color.
+   Each of the four products carries a signature accent. */
+
+:root {
+  /* ---- Brand: Triad Violet (primary) ---- */
+  --violet-50:  #f5f3ff;
+  --violet-100: #ede9fe;
+  --violet-200: #ddd6fe;
+  --violet-300: #c4b5fd;
+  --violet-400: #a78bfa;
+  --violet-500: #8b5cf6;
+  --violet-600: #7c3aed;  /* brand core — matches site theme-color */
+  --violet-700: #6d28d9;
+  --violet-800: #5b21b6;
+  --violet-900: #4c1d95;
+
+  /* ---- Neutrals: cool slate ---- */
+  --slate-0:   #ffffff;
+  --slate-25:  #fbfcfd;
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #060b18;
+
+  /* ---- Product accents (the four engines) ---- */
+  --signal-500:  #0ea5e9;  /* Signal — federal data map (sky) */
+  --signal-600:  #0284c7;
+  --signal-50:   #e0f2fe;
+  --rev-500:     #059669;  /* Rev — billing + grants (emerald) */
+  --rev-600:     #047857;
+  --rev-50:      #d1fae5;
+  --core-500:    #7c3aed;  /* Core — clinical OS (violet / brand) */
+  --core-600:    #6d28d9;
+  --core-50:     #ede9fe;
+  --command-500: #f59e0b;  /* Command — network intelligence (amber) */
+  --command-600: #d97706;
+  --command-50:  #fef3c7;
+
+  /* ---- Semantic status ---- */
+  --success-50:  #ecfdf5;
+  --success-500: #10b981;
+  --success-700: #047857;
+  --warning-50:  #fffbeb;
+  --warning-500: #f59e0b;
+  --warning-700: #b45309;
+  --danger-50:   #fef2f2;
+  --danger-500:  #ef4444;
+  --danger-700:  #b91c1c;
+  --info-50:     #eff6ff;
+  --info-500:    #3b82f6;
+  --info-700:    #1d4ed8;
+
+  /* ================= Semantic aliases ================= */
+  --brand:            var(--violet-600);
+  --brand-hover:      var(--violet-700);
+  --brand-active:     var(--violet-800);
+  --brand-subtle:     var(--violet-50);
+  --brand-on:         #ffffff;
+
+  --bg-app:           var(--slate-50);
+  --bg-canvas:        var(--slate-100);
+  --surface-card:     var(--slate-0);
+  --surface-raised:   var(--slate-0);
+  --surface-sunken:   var(--slate-50);
+  --surface-inverse:  var(--slate-900);
+
+  --text-strong:      var(--slate-900);
+  --text-body:        var(--slate-700);
+  --text-muted:       var(--slate-500);
+  --text-subtle:      var(--slate-400);
+  --text-on-brand:    #ffffff;
+  --text-on-inverse:  var(--slate-100);
+  --text-link:        var(--violet-700);
+
+  --border-subtle:    var(--slate-200);
+  --border-default:   var(--slate-300);
+  --border-strong:    var(--slate-400);
+  --border-focus:     var(--violet-600);
+
+  --ring-focus:       0 0 0 3px var(--violet-200);
+}

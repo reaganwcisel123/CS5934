@@ -87,13 +87,11 @@ class StubSource(BaseSource):
         return df
 
     def stub_frame(self, county_fips: list[str]) -> pd.DataFrame:
-        # USER CONTRIBUTION #3: choose a stub's placeholder value and how the
-        # frame signals "stub" (null vs neutral 50 vs synthetic). Return a
-        # DataFrame with county_fips plus one column per self.stub_columns.
-        raise NotImplementedError(
-            f"Stub contract not implemented for '{self.source_id}' "
-            "(USER CONTRIBUTION #3 in src/ingestion/base.py)."
-        )
+        # Neutral 50 placeholder for a not-yet-wired source; always badged status='stub'.
+        data: dict[str, list] = {"county_fips": county_fips}
+        for col in self.stub_columns:
+            data[col] = [50.0] * len(county_fips)
+        return pd.DataFrame(data)
 
 
 def _assert_county_keyed(df: pd.DataFrame, source_id: str) -> None:

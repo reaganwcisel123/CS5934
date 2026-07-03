@@ -23,7 +23,60 @@ email = [
     "gspread>=6.0",
 ]
 
+[dependency-groups]
+# Dev tooling. `uv sync` installs this by default; run checks with `uv run <tool>`.
+dev = [
+    "import-linter>=2.0",   # enforce the layering/independence contract below
+    "pytest>=8.0",          # unit tests for the pure transform logic
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]          # make `import src` work from the repo root
+testpaths = ["tests"]
+
 [tool.uv]
 # This repo is an application, not a distributable package, so uv should not
 # try to build/install the project itself -- only manage its dependencies.
 package = false
+
+# --------------------------------------------------------------------------
+# Architecture boundaries (see documents/architecture-boundaries.md).
+# Enforced with:  uv run lint-imports
+# --------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "src"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture: dependencies point downward"
+type = "layers"
+layers = [
+    "src.build_dataset",
+    "src.ingestion",
+    "src.transform",
+    "src.catalog",
+]
+
+[[tool.importlinter.contracts]]
+name = "Transforms are a pure leaf (no internal imports)"
+type = "forbidden"
+source_modules = ["src.transform"]
+forbidden_modules = ["src.catalog", "src.ingestion", "src.build_dataset"]
+
+[[tool.importlinter.contracts]]
+name = "Catalog is the foundation (imports nothing internal)"
+type = "forbidden"
+source_modules = ["src.catalog"]
+forbidden_modules = ["src.transform", "src.ingestion", "src.build_dataset"]
+
+[[tool.importlinter.contracts]]
+name = "Ingestion sources are mutually independent"
+type = "independence"
+modules = [
+    "src.ingestion.cdc_places",
+    "src.ingestion.census_acs",
+    "src.ingestion.census_pep",
+    "src.ingestion.hrsa_hpsa",
+    "src.ingestion.usda_food_access",
+    "src.ingestion.synthetic_clinical",
+    "src.ingestion.stubs",
+]

@@ -17,3 +17,7 @@ venv/
 
 # Local secrets (e.g. CENSUS_API_KEY) -- never commit
 .env
+
+# Design-system source kit (local reference only). The dashboard uses the
+# vendored subset in dashboard/ds/ instead.
+Triad Health Engine Design System/

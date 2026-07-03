@@ -6,15 +6,11 @@ import pandas as pd
 
 
 def normalize_burden(series: pd.Series, direction: str = "up") -> pd.Series:
-    """Map a raw indicator to a 0-100 burden score (higher = more need).
-
-    direction: "up" if higher raw means more burden, "down" to invert (e.g. income).
-    """
-    # USER CONTRIBUTION #1: pick the strategy (min-max / percentile / z-score),
-    # handle direction="down" (invert) and NaNs, return a 0-100 pd.Series.
-    raise NotImplementedError(
-        "Implement normalize_burden in src/transform/normalize.py (USER CONTRIBUTION #1)."
-    )
+    """Percentile-rank a raw indicator to a 0-100 burden score; "down" inverts (e.g. income)."""
+    ranked = series.rank(pct=True) * 100  # NaN stays NaN
+    if direction == "down":
+        ranked = 100 - ranked
+    return ranked.round(1)
 
 
 def blend_domain(components: dict[str, pd.Series]) -> pd.Series:

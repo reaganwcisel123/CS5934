@@ -1,0 +1,24 @@
+/* Triad Health Engine — Base resets & document defaults.
+   Kept minimal; scoped mostly to body defaults so consumers inherit sane type. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-normal);
+  color: var(--text-body);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 { color: var(--text-strong); margin: 0; }
+a { color: var(--text-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Data numerals: tabular figures for aligned metrics/tables */
+.tabular, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+::selection { background: var(--violet-200); color: var(--violet-900); }

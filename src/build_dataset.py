@@ -30,6 +30,7 @@ import pandas as pd
 from src.catalog import Catalog, REPO_ROOT
 from src.ingestion.base import Provenance
 from src.ingestion.registry import REGISTRY
+from src.transform import metrics
 from src.transform import normalize as norm
 
 OUT_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
@@ -63,56 +64,13 @@ FIELD_SOURCE = {
 }
 
 
-# Defaults used when a USER CONTRIBUTION point is unimplemented, so the pipeline
-# still runs. Each logs a loud warning pointing to the real seam.
-def normalize_or_default(series: pd.Series, direction: str) -> pd.Series:
-    try:
-        return norm.normalize_burden(series, direction)
-    except NotImplementedError:
-        _warn_once("normalize_burden", "percentile-rank default (USER CONTRIBUTION #1)")
-        ranked = series.rank(pct=True) * 100
-        return (100 - ranked) if direction == "down" else ranked
-
-
-def need_index_or_default(dom: dict[str, float], available: set[str]) -> float:
-    # USER CONTRIBUTION #2 lives in this policy. Default: renormalize the weights
-    # over only the domains backed by real/available data, so a stubbed domain
-    # (e.g. environment) does not silently bias the composite need score.
-    _warn_once("need_index", "weights renormalized over available domains (USER CONTRIBUTION #2)")
-    weights = {k: NEED_WEIGHTS[k] for k in NEED_WEIGHTS if k in available}
-    total = sum(weights.values()) or 1.0
-    return round(sum(dom[k] * w for k, w in weights.items()) / total, 1)
-
-
-def stub_fill(columns: list[str], county_fips: list[str]) -> pd.DataFrame:
-    # Default stub contract (USER CONTRIBUTION #3): neutral 50 on the burden
-    # scale so panels render and get an honest "sample data" badge.
-    _warn_once("stub_frame", "neutral-50 placeholder default (USER CONTRIBUTION #3)")
-    data = {"county_fips": county_fips}
-    for col in columns:
-        data[col] = [50.0] * len(county_fips)
-    return pd.DataFrame(data)
-
-
-_warned: set[str] = set()
-
-
-def _warn_once(key: str, msg: str) -> None:
-    if key not in _warned:
-        _warned.add(key)
-        print(f"  [default] {msg}", file=sys.stderr)
-
-
 def _run_source(cls, catalog, counties, refresh):
     """Run one source, returning (DataFrame|None, status). Never raises."""
     src = cls(catalog)
     try:
         if src.provenance == Provenance.STUB:
-            try:
-                src.stub_counties = counties
-                return src.run(), Provenance.STUB
-            except NotImplementedError:
-                return stub_fill(getattr(cls, "stub_columns", []), counties), Provenance.STUB
+            src.stub_counties = counties
+            return src.run(), Provenance.STUB
         if src.source_id == "synthetic_clinical_dataset":
             src.counties = counties
             return src.run(), Provenance.SYNTHETIC
@@ -152,7 +110,7 @@ def _region_lookup(region_ref: pd.DataFrame, county_fips: list[str]) -> dict[str
 
 def build(refresh: bool = False) -> dict:
     catalog = Catalog.load()
-    region_ref = pd.read_csv(REGION_REF, dtype={"county_fips": str})
+    region_ref = pd.read_csv(REGION_REF, dtype={"county_fips": str}).fillna("")
 
     # 1. Run real sources first to discover the county spine.
     real_ids = [sid for sid, cls in REGISTRY.items()
@@ -187,7 +145,7 @@ def build(refresh: bool = False) -> dict:
         parts = []
         for col, direction in spec:
             if col in merged.columns and merged[col].notna().any():
-                parts.append(normalize_or_default(merged[col], direction))
+                parts.append(norm.normalize_burden(merged[col], direction))
         if parts:
             dom_frames[domain] = pd.concat(parts, axis=1).mean(axis=1)
             available_domains.add(domain)
@@ -216,7 +174,7 @@ def build(refresh: bool = False) -> dict:
         # Unknown domain -> neutral 50 (never None, so the need-index math is safe).
         dom = {k: (_num(dom_df.at[fips, k]) if fips in dom_df.index else None) or 50.0
                for k in NEED_WEIGHTS}
-        need = need_index_or_default(dom, available_domains or set(NEED_WEIGHTS))
+        need = metrics.need_index(dom, NEED_WEIGHTS, available_domains or set(NEED_WEIGHTS))
         pop = _num(merged.at[fips, "county_population_total"]) if "county_population_total" in merged.columns else None
         roster = synth_by_county.get(fips, {}).get("patientsList", [])
         for pt in roster:  # attach real neighborhood burdens to synthetic patients
@@ -283,7 +241,8 @@ def main() -> int:
     print("Building clinic atlas dataset from the data source catalog...")
     result = build(refresh=args.refresh)
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    # allow_nan=False: fail loudly rather than emit NaN, which is invalid JSON.
+    OUT_PATH.write_text(json.dumps(result, indent=2, allow_nan=False), encoding="utf-8")
 
     real = [f for f, p in result["provenance"].items() if p["status"] in ("real", "synthetic")]
     stub = [f for f, p in result["provenance"].items() if p["status"] == "stub"]
