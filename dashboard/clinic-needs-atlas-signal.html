@@ -59,6 +59,20 @@
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; padding:3px 9px; border-radius:var(--radius-pill); border:1px solid; background:var(--surface-card); }
   .pill .dot { width:7px; height:7px; border-radius:50%; }
 
+  /* Legend row: provenance pills + the diverging color key */
+  .legend-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .divlegend { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); white-space:nowrap; }
+  .divlegend b { font-weight:600; }
+  .divlegend .scale { width:110px; height:8px; border-radius:var(--radius-pill); background:linear-gradient(90deg,#0284c7,#e2e8f0,#dc2626); }
+
+  /* Responsive: collapse the sidebar and stack on narrow screens. */
+  @media (max-width: 860px){
+    .app { grid-template-columns: 1fr; }
+    .side { display:none; }
+    .topbar { height:auto; flex-wrap:wrap; padding:10px 16px; }
+    .stat-grid { grid-template-columns: 1fr; }
+  }
+
   /* Need-profile bars (county-level, non-PHI) */
   .bar-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border-subtle); }
   .bar-row:last-child { border-bottom:none; }
@@ -77,6 +91,41 @@
   .tt { position:fixed; pointer-events:none; opacity:0; transition:opacity 120ms var(--ease-out); background:var(--slate-900); color:#fff; font-size:12px; padding:8px 10px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); max-width:270px; z-index:60; line-height:1.45; }
   .tt b { color:#fff; } .tt .src { color:var(--slate-400); }
   .empty { padding:60px; text-align:center; color:var(--text-muted); }
+
+  /* Login (auth mode) */
+  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg-app); padding:20px; }
+  .login-card { width:100%; max-width:360px; background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); box-shadow:var(--shadow-lg); padding:28px; display:flex; flex-direction:column; gap:12px; }
+  .login-brand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; color:var(--text-strong); }
+  .login-brand .mark { width:24px; height:24px; border-radius:6px; background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .login-card h2 { font-size:18px; color:var(--text-strong); margin:4px 0 4px; }
+  .login-card input { height:40px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); font-family:var(--font-sans); font-size:14px; color:var(--text-strong); }
+  .login-card input:focus { outline:none; box-shadow:var(--ring-focus); border-color:var(--border-focus); }
+  .login-card button[type=submit] { height:40px; border:0; border-radius:var(--radius-md); background:var(--signal-600); color:#fff; font-weight:600; font-size:14px; font-family:var(--font-sans); cursor:pointer; transition:var(--transition-control); }
+  .login-card button[type=submit]:hover { background:var(--signal-500); }
+  .login-err { font-size:13px; color:var(--danger-700); background:var(--danger-50); border-radius:var(--radius-md); padding:8px 10px; }
+  .login-alt { font-size:13px; color:var(--text-muted); text-align:center; }
+  .login-alt a { color:var(--signal-600); cursor:pointer; }
+  .signout { height:32px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; cursor:pointer; transition:var(--transition-control); }
+  .signout:hover { background:var(--surface-sunken); }
+
+  /* Explainer chatbot */
+  .chat-fab { position:fixed; right:22px; bottom:22px; width:52px; height:52px; border-radius:50%; border:0; background:var(--signal-600); color:#fff; box-shadow:var(--shadow-lg); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:70; transition:var(--transition-control); }
+  .chat-fab:hover { background:var(--signal-500); }
+  .chat-panel { position:fixed; right:22px; bottom:86px; width:360px; max-width:calc(100vw - 32px); height:460px; max-height:calc(100vh - 120px); background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); box-shadow:var(--shadow-xl); display:flex; flex-direction:column; overflow:hidden; z-index:70; }
+  .chat-head { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-subtle); font-size:14px; color:var(--text-strong); }
+  .chat-head .chat-sub { font-size:12px; color:var(--text-muted); }
+  .chat-head .chat-x { margin-left:auto; border:0; background:none; cursor:pointer; color:var(--text-muted); font-size:14px; }
+  .chat-body { flex:1; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .chat-hint { font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+  .chat-msg { font-size:13px; line-height:1.5; padding:8px 11px; border-radius:var(--radius-md); max-width:88%; white-space:pre-wrap; }
+  .chat-msg.user { align-self:flex-end; background:var(--signal-600); color:#fff; }
+  .chat-msg.assistant { align-self:flex-start; background:var(--surface-sunken); color:var(--text-body); border:1px solid var(--border-subtle); }
+  .chat-msg.error { align-self:flex-start; background:var(--danger-50); color:var(--danger-700); }
+  .chat-typing { opacity:.6; }
+  .chat-input { display:flex; gap:8px; padding:10px; border-top:1px solid var(--border-subtle); }
+  .chat-input input { flex:1; height:36px; padding:0 10px; border:1px solid var(--border-default); border-radius:var(--radius-md); font-family:var(--font-sans); font-size:13px; }
+  .chat-input input:focus { outline:none; box-shadow:var(--ring-focus); border-color:var(--border-focus); }
+  .chat-input button { width:38px; border:0; border-radius:var(--radius-md); background:var(--signal-600); color:#fff; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -89,6 +138,16 @@
 <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="ds/_ds_bundle.js"></script>
+<script>
+// Runtime config: point the dashboard at a backend without editing code.
+//   ?api=http://localhost:8000/api   -> live API mode (chat widget, /api/counties)
+//   &auth=1                          -> require sign-in (needs a DB-backed API)
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.get("api")) window.CLINIC_ATLAS_API = q.get("api").replace(/\/$/, "");
+  if (q.get("auth") === "1") window.CLINIC_ATLAS_AUTH = true;
+})();
+</script>
 <script type="text/babel" data-presets="react">
 const NS = window.TriadHealthEngineDesignSystem_0bb088;
 const { Icon, StatCard, ProductBadge, Tabs } = NS;
@@ -350,23 +409,136 @@ function Panel({ icon, title, desc, children, bodyClass }){
   );
 }
 
+function Login({ apiBase, onAuth }){
+  const [email,setEmail]=React.useState("");
+  const [pw,setPw]=React.useState("");
+  const [mode,setMode]=React.useState("login");
+  const [error,setError]=React.useState("");
+  const [busy,setBusy]=React.useState(false);
+  const submit=async(e)=>{
+    e.preventDefault(); setError(""); setBusy(true);
+    try{
+      const res=await fetch(apiBase+"/auth/"+mode,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email,password:pw})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.detail||("HTTP "+res.status));
+      onAuth(d.token);
+    }catch(err){ setError(String(err.message||err)); } finally{ setBusy(false); }
+  };
+  return (
+    <div className="login-wrap">
+      <form className="login-card" onSubmit={submit}>
+        <div className="login-brand"><span className="mark">T</span>Triad · Signal</div>
+        <h2>{mode==="login"?"Sign in to the Clinic Needs Atlas":"Create your account"}</h2>
+        <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required autoFocus />
+        <input type="password" placeholder="Password" value={pw} onChange={e=>setPw(e.target.value)} required />
+        {error && <div className="login-err">{error}</div>}
+        <button type="submit" disabled={busy}>{busy?"…":(mode==="login"?"Sign in":"Create account")}</button>
+        <div className="login-alt">
+          {mode==="login"?"New here? ":"Have an account? "}
+          <a onClick={()=>{setMode(mode==="login"?"register":"login");setError("");}}>
+            {mode==="login"?"Create an account":"Sign in"}</a>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ChatWidget({ apiBase, countyId, countyName, token }){
+  const [open,setOpen]=React.useState(false);
+  const [msgs,setMsgs]=React.useState([]);
+  const [input,setInput]=React.useState("");
+  const [busy,setBusy]=React.useState(false);
+  const bodyRef=React.useRef(null);
+  // keep the transcript pinned to the newest message
+  React.useEffect(()=>{ const el=bodyRef.current; if(el) el.scrollTop=el.scrollHeight; },[msgs,busy]);
+  const send=async(e)=>{
+    e.preventDefault();
+    const q=input.trim(); if(!q||busy) return;
+    setInput(""); setMsgs(m=>[...m,{role:"user",text:q}]); setBusy(true);
+    try{
+      const res=await fetch(apiBase+"/chat",{method:"POST",
+        headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})},
+        body:JSON.stringify({question:q,county_fips:countyId})});
+      const d=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.detail||("HTTP "+res.status));
+      setMsgs(m=>[...m,{role:"assistant",text:d.answer||"(no answer)"}]);
+    }catch(err){ setMsgs(m=>[...m,{role:"error",text:String(err.message||err)}]); }
+    finally{ setBusy(false); }
+  };
+  return (
+    <React.Fragment>
+      <button className="chat-fab" onClick={()=>setOpen(o=>!o)} title="Ask about this county" aria-label="Ask the atlas">
+        <Icon name={open?"x":"message-circle"} size={20} color="#fff" />
+      </button>
+      {open && (
+        <div className="chat-panel" role="dialog" aria-label="Atlas assistant">
+          <div className="chat-head">
+            <Icon name="sparkles" size={16} color="var(--signal-600)" /><b>Ask the atlas</b>
+            <span className="chat-sub">{countyName}</span>
+            <button className="chat-x" onClick={()=>setOpen(false)} aria-label="Close">✕</button>
+          </div>
+          <div className="chat-body" ref={bodyRef}>
+            {msgs.length===0 && <div className="chat-hint">Ask about {countyName}. Try "Why is this county high-need?" Answers use only this dashboard's data and flag anything still pending.</div>}
+            {msgs.map((m,i)=><div key={i} className={"chat-msg "+m.role}>{m.text}</div>)}
+            {busy && <div className="chat-msg assistant chat-typing">…</div>}
+          </div>
+          <form className="chat-input" onSubmit={send}>
+            <input value={input} onChange={e=>setInput(e.target.value)} placeholder={"Ask about "+countyName+"…"} aria-label="Your question" />
+            <button type="submit" disabled={busy} aria-label="Send"><Icon name="send" size={16} color="#fff" /></button>
+          </form>
+        </div>
+      )}
+    </React.Fragment>
+  );
+}
+
 function App(){
   const [records,setRecords]=React.useState([]);
   const [provenance,setProvenance]=React.useState(null);
   const [selectedId,setSelectedId]=React.useState(null);
   const [baselineMode,setBaselineMode]=React.useState("va");
   const [tab,setTab]=React.useState("profile");
+  const [query,setQuery]=React.useState("");
   const [err,setErr]=React.useState(null);
+  const [token,setToken]=React.useState(()=>{ try{ return localStorage.getItem("atlas_token")||""; }catch(e){ return ""; } });
+
+  // Auth is opt-in: only when an API base AND the auth flag are configured.
+  const API_BASE = window.CLINIC_ATLAS_API || null;
+  const AUTH_ON = !!(window.CLINIC_ATLAS_AUTH && API_BASE);
 
   React.useEffect(()=>{
-    fetch("data/clinic_atlas.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-      .then(d=>{setRecords(d.records||[]);setProvenance(d.provenance);setSelectedId((d.records||[])[0]?.id);})
-      .catch(e=>setErr("Could not load dashboard/data/clinic_atlas.json — run `uv run python src/build_dataset.py`. ("+e.message+")"));
-  },[]);
+    if(AUTH_ON && !token) return;   // wait for sign-in
+    const DATA_URL = API_BASE ? API_BASE+"/counties" : "data/clinic_atlas.json";
+    fetch(DATA_URL, token?{headers:{Authorization:"Bearer "+token}}:{})
+      .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+      .then(d=>{
+        const recs=d.records||[];
+        setRecords(recs); setProvenance(d.provenance);
+        // Open on the highest-need county — the most actionable default.
+        const top=recs.reduce((a,b)=>((b.needIndex??0)>(a.needIndex??0)?b:a), recs[0]);
+        setSelectedId(top&&top.id);
+      })
+      .catch(e=>setErr("Could not load the atlas data — run `uv run python src/build_dataset.py`. ("+e.message+")"));
+  },[token]);
+
+  // Log a usage event when the county changes (authenticated mode only).
+  React.useEffect(()=>{
+    if(!(AUTH_ON && token && selectedId)) return;
+    fetch(API_BASE+"/events",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+      body:JSON.stringify({event_type:"county_view",county_fips:selectedId})}).catch(()=>{});
+  },[selectedId,token]);
 
   const aggVA=React.useMemo(()=>records.length?aggregateOf(records):null,[records]);
   const aggRegion=React.useMemo(()=>{const o={};if(records.length)REGIONS.forEach(r=>o[r]=aggregateOf(records.filter(c=>c.region===r)));return o;},[records]);
 
+  // Keep the search box in sync when the county changes via a chart click.
+  React.useEffect(()=>{
+    const r=records.find(c=>c.id===selectedId);
+    if(r) setQuery(`${r.name} — ${r.region}`);
+  },[selectedId,records]);
+
+  if(AUTH_ON && !token) return <Login apiBase={API_BASE} onAuth={t=>{ try{localStorage.setItem("atlas_token",t);}catch(e){} setToken(t); }} />;
   if(err) return <div className="empty">{err}</div>;
   if(!records.length||!selectedId) return <div className="empty">Loading…</div>;
 
@@ -386,14 +558,21 @@ function App(){
         <div className="topbar">
           <ProductBadge product="signal" />
           <span className="crumb">/ Clinic Needs Atlas</span>
-          <select className="county-select" value={selectedId} onChange={e=>setSelectedId(e.target.value)} style={{marginLeft:8}}>
-            {records.slice().sort((a,b)=>d3.ascending(a.name,b.name)).map(r=><option key={r.id} value={r.id}>{r.name} — {r.region}</option>)}
-          </select>
-          <div style={{marginLeft:"auto"}}>
+          <input className="county-select" list="county-list" value={query} placeholder="Search a county…"
+            aria-label="Search county" style={{marginLeft:8, minWidth:230}}
+            onFocus={e=>e.target.select()}
+            onChange={e=>{ setQuery(e.target.value);
+              const rec=records.find(r=>`${r.name} — ${r.region}`===e.target.value);
+              if(rec) setSelectedId(rec.id); }} />
+          <datalist id="county-list">
+            {records.slice().sort((a,b)=>d3.ascending(a.name,b.name)).map(r=><option key={r.id} value={`${r.name} — ${r.region}`} />)}
+          </datalist>
+          <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center"}}>
             <div className="seg">
               <button className={baselineMode==="va"?"on":""} onClick={()=>setBaselineMode("va")}>All Virginia</button>
               <button className={baselineMode==="region"?"on":""} onClick={()=>setBaselineMode("region")}>Region peers</button>
             </div>
+            {AUTH_ON && <button className="signout" onClick={()=>{ try{localStorage.removeItem("atlas_token");}catch(e){} setToken(""); }}>Sign out</button>}
           </div>
         </div>
 
@@ -410,7 +589,10 @@ function App(){
             <StatCard label={"Top need · "+topDom.short} value={fmt0(topDom.v)} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />
           </div>
 
-          <Provenance provenance={provenance} />
+          <div className="legend-row">
+            <Provenance provenance={provenance} />
+            <div className="divlegend"><span>vs. baseline:</span><b style={{color:"#0284c7"}}>better</b><span className="scale" /><b style={{color:"#dc2626"}}>worse</b></div>
+          </div>
 
           <div className="tabwrap"><Tabs items={tabs} value={tab} onChange={setTab} /></div>
 
@@ -442,6 +624,7 @@ function App(){
           )}
         </div>
       </div>
+      {API_BASE && <ChatWidget apiBase={API_BASE} countyId={selectedId} countyName={c.name} token={token} />}
     </div>
   );
 }
