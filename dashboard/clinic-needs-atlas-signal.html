@@ -252,7 +252,8 @@ function drawHeatmap(el, ctx){
   const rows=records.map(dev).sort((a,b)=>b.total-a.total), div=makeDiv(22);
   const m={top:46,right:16,bottom:12,left:150}, cellH=22, cellW=80;
   const W=m.left+cellW*DOMAINS.length+m.right, H=m.top+cellH*rows.length+m.bottom;
-  const svg=host.append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%").attr("height",H).attr("role","img")
+  // width:100% + viewBox, no fixed height, so the grid fills the box without empty bands.
+  const svg=host.append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%").attr("role","img")
     .attr("aria-label",`Deviation heatmap: ${rows.length} counties versus the ${baselineMode==="region"?"region":"all-Virginia"} baseline.`);
   DOMAINS.forEach((D,j)=>{
     svg.append("text").attr("x",m.left+j*cellW+cellW/2).attr("y",m.top-16).attr("text-anchor","middle").attr("font-size",11).attr("font-weight",600).attr("fill","var(--slate-700)").text(D.short);
