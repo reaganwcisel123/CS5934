@@ -56,13 +56,13 @@ Core insight: **decoupling is enforced by contracts and automated checks, not by
 **Depends on:** nothing. Start now; low risk, unblocks all decisions.
 **Effort:** M
 
-- [ ] **Current-state architecture doc** — how catalog → `src/ingestion` → `build_dataset.py` → `clinic_atlas.json` → dashboard fit together; the real/stub split; the Render deploy flow.
-- [ ] **Data Dictionary (DD)** — every dashboard field, its `source_id`, transformation, units, and provenance status. (Largely derivable from `field_lineage.json` — formalize it.)
-- [ ] **ERD** — model the *target* data model for Phase 1 (counties, sources, metrics, users, sessions), not just today's flat JSON.
-- [ ] **Define module boundaries & dependency rules** — the layering contract (which layer may import which) and each module's public interface. This is the spec Phase 1's import-linter enforces.
-- [ ] **Collect product-owner design requirements** — brand, layout, must-have views, tone. Blocks Phase 2, so gather early.
+- [x] **Current-state architecture doc** — [architecture-current-state.md](architecture-current-state.md).
+- [x] **Data Dictionary (DD)** — [data-dictionary.md](data-dictionary.md).
+- [x] **ERD** — target data model for the FastAPI + Render Postgres platform: [erd.md](erd.md).
+- [x] **Define module boundaries & dependency rules** — [architecture-boundaries.md](architecture-boundaries.md) (enforced by import-linter).
+- [x] **Collect product-owner design requirements** — the Triad/Signal design system was supplied; applied in the Signal dashboard.
 
-**Open decisions:** where docs live (this repo `documents/` vs a wiki); DD/ERD tooling (Mermaid in-repo vs dbdiagram/Lucid).
+**Phase 0 complete.** Docs live in `documents/`, diagrams as in-repo Mermaid.
 
 ---
 
@@ -80,9 +80,10 @@ Core insight: **decoupling is enforced by contracts and automated checks, not by
 
 **Why this unlocks everything:** auth (Phase 3), user tracking, and the chatbot (Phase 4) all need a backend + DB. "Constantly pull and aggregate" is exactly the scheduled-ingestion-into-DB pattern.
 
-**Open decisions:**
-- **Stack:** (a) Python backend (FastAPI) reusing `src/` + a JS frontend — least rework since the pipeline is already Python; (b) Next.js full-stack with the Python pipeline as a separate scheduled worker. *Recommend (a) unless the team prefers a JS-first stack.*
-- **Cost:** Render PostgreSQL is a paid/limited-free add-on — confirm budget before committing.
+**Decisions (locked):** **FastAPI** reusing `src/` for the backend + **Render
+Postgres** for the database (everything under one roof on Render). Ingestion
+writes to Postgres; FastAPI serves reads to the dashboard. Auth (Phase 3) is
+handled in FastAPI, not an external provider. Target schema in [erd.md](erd.md).
 
 ---
 
@@ -105,12 +106,12 @@ Core insight: **decoupling is enforced by contracts and automated checks, not by
 **Depends on:** Phase 1 (backend + DB to store users/sessions/events).
 **Effort:** M
 
-- [ ] **Login page + auth** (managed provider like Auth0/Clerk/Supabase Auth vs. roll-your-own — prefer managed).
-- [ ] **User model + sessions** in the DB (from the ERD).
-- [ ] **Usage tracking** — what to log (page views, county selections, exports), retention, and privacy stance. Document it.
-- [ ] **Role/permission model** if different users see different things.
+- [ ] **Login page + FastAPI auth** — `APP_USER` table, password hashing, JWT sessions (no external provider).
+- [ ] **User profile + sessions** in the DB (`APP_USER`, from the ERD); FastAPI issues/verifies the JWT.
+- [ ] **Usage tracking** (`USAGE_EVENT`) — log page views, county selections, exports; document retention + privacy stance.
+- [ ] **Role/permission model** enforced in FastAPI (the `role` column) if different users see different things.
 
-**Open decision:** auth provider; what "tracking" must capture (analytics vs. audit) and its privacy policy.
+**Open decision:** what "tracking" must capture (analytics vs. audit) and its privacy policy.
 
 ---
 

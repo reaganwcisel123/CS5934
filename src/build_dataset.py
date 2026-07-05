@@ -236,7 +236,15 @@ def _int(v):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="ignore data/raw cache, re-fetch")
+    ap.add_argument("--seed", action="store_true", help="seed the catalog into the DB (needs DATABASE_URL)")
+    ap.add_argument("--to-db", action="store_true", help="upsert the built dataset into the DB")
     args = ap.parse_args()
+
+    if args.seed:  # mirror the catalog into data_source + field_lineage
+        from src.db import writer
+        cat = Catalog.load()
+        ns, nl = writer.seed_catalog(cat.sources, cat.lineage)
+        print(f"Seeded catalog: {ns} sources, {nl} lineage rows")
 
     print("Building clinic atlas dataset from the data source catalog...")
     result = build(refresh=args.refresh)
@@ -249,6 +257,11 @@ def main() -> int:
     print(f"\nWrote {OUT_PATH.relative_to(REPO_ROOT)} ({result['county_count']} counties)")
     print(f"  REAL/SYNTHETIC fields: {', '.join(real)}")
     print(f"  STUB fields:           {', '.join(stub)}")
+
+    if args.to_db:  # upsert into Postgres
+        from src.db import writer
+        n = writer.load_dataset(result["records"], result["provenance"])
+        print(f"Loaded {n} counties into the database.")
     return 0
 
 

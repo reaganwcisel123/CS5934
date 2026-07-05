@@ -1,20 +1,52 @@
-# Render Blueprint: the Clinic Needs Atlas as a static site whose build step
-# runs the data pipeline. There is no always-on server; the dashboard is static
-# and the ETL runs at build time.
+# Render Blueprint: everything under one roof.
+#  - clinic-needs-atlas : static dashboard (build step runs the ETL)
+#  - clinic-atlas-api   : FastAPI backend reading Render Postgres
+#  - clinic-atlas-db    : Render Postgres (the atlas database)
 #
 # Deploy: in Render, New > Blueprint, connect this repo. Prod tracks `main`.
+
+databases:
+  - name: clinic-atlas-db
+    databaseName: clinic_atlas
+    user: clinic_atlas
+    plan: free            # free Postgres expires ~30 days; bump to `basic-256mb`+ for prod
+
 services:
+  # Static dashboard (unchanged): built by the ETL at deploy time.
   - type: web
     name: clinic-needs-atlas
     runtime: static
-    branch: main                       # prod deploys from main
+    branch: main
     buildCommand: bash scripts/build-site.sh
-    staticPublishPath: ./dashboard     # serves index.html + clinic_atlas.json
-    pullRequestPreviewsEnabled: true   # each PR gets a preview URL
+    staticPublishPath: ./dashboard
+    pullRequestPreviewsEnabled: true
     envVars:
-      - key: CENSUS_API_KEY            # set as a secret in the Render dashboard;
-        sync: false                    # without it, Census fields degrade to stubs
+      - key: CENSUS_API_KEY
+        sync: false
     headers:
       - path: /data/*
         name: Cache-Control
         value: "public, max-age=3600"
+
+  # FastAPI backend: serves /api/* from Render Postgres.
+  - type: web
+    name: clinic-atlas-api
+    runtime: python
+    branch: main
+    plan: free
+    # Install deps, migrate the DB, then seed the catalog and load the dataset.
+    # In buildCommand (not preDeployCommand) so it runs on Render's free tier.
+    buildCommand: >-
+      pip install uv &&
+      uv sync --extra api &&
+      uv run python -m src.db.migrate &&
+      uv run python src/build_dataset.py --refresh --seed --to-db
+    startCommand: uv run uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinic-atlas-db
+          property: connectionString
+      - key: CENSUS_API_KEY
+        sync: false

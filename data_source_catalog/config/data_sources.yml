@@ -566,10 +566,10 @@ sources:
     source_name: Census Population Estimates Program County Population Estimates
     provider: U.S. Census Bureau
     source_category: population_denominators
-    access_method: Census Data API / CSV download
-    access_url: "https://api.census.gov/data/2023/pep/charv"
+    access_method: CSV download (keyless PEP bulk file)
+    access_url: "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/counties/totals/co-est2024-alldata.csv"
     documentation_url: "https://www.census.gov/programs-surveys/popest.html"
-    auth_required: optional_key_recommended
+    auth_required: "no"
     api_key_env_var: CENSUS_API_KEY
     geographic_granularity:
       - county
@@ -594,9 +594,9 @@ sources:
       - "Use a consistent vintage across all denominator-based rates."
       - "County-equivalent handling must be tested for territories and independent cities."
     privacy_classification: public_aggregate
-    ingestion_status: schema_reviewed
-    ingestion_script: src/ingestion/county_population_estimates.py
-    last_verified_date: "2026-06-29"
+    ingestion_status: ingestion_wired
+    ingestion_script: src/ingestion/census_pep.py
+    last_verified_date: "2026-07-05"
   -
     source_id: synthetic_clinical_dataset
     source_name: "Project Synthetic Non-PHI Clinical Dataset"

@@ -1,0 +1,56 @@
+# Data Dictionary
+
+Every field in the dashboard dataset (`dashboard/data/clinic_atlas.json`), its
+source, transformation, units, and provenance. The machine-readable lineage is
+`data_source_catalog/config/field_lineage.json`; this is the human companion.
+Provenance: **real** (live source) · **synthetic** (generated non-PHI) · **stub**
+(neutral 50 placeholder until wired).
+
+## Record identity & geography
+| Field | Source | Transform | Units / range | Provenance |
+|---|---|---|---|---|
+| `id` | reference / Census | county FIPS | 5-digit string (e.g. `51760`) | real |
+| `name` | `data/reference/va_county_region.csv` (Census names) | lookup | string | real |
+| `region` | reference (centroid heuristic + curated) | lookup | one of Northern/Central/Valley/Southwest/Tidewater | approximate |
+| `district` | reference (curated subset) | lookup | string or empty | partial |
+| `rural` | `county_population_estimates` | 1 − population percentile | 0–1 | derived (stub w/o key) |
+
+## SDoH domains (`dom.*`, 0–100 burden; higher = more need)
+| Field | Source | Transform | Provenance |
+|---|---|---|---|
+| `dom.economic` | `census_acs_sdoh` (poverty, uninsured, unemployment, median income) | `normalize_burden` per indicator → mean | real w/ key, else stub |
+| `dom.education` | `census_acs_sdoh` (% no HS diploma) | `normalize_burden` | real w/ key, else stub |
+| `dom.food` | `usda_food_access` (LI/LA tract share) | tract → county share → `normalize_burden` | real |
+| `dom.environment` | `epa_ejscreen` | not wired | stub |
+| `dom.access` | `hrsa_hpsa` (primary-care HPSA score) | `normalize_burden` | real |
+
+## Composite & capacity
+| Field | Source | Transform | Units / range | Provenance |
+|---|---|---|---|---|
+| `needIndex` | derived from `dom.*` | `need_index` (weighted, renormalized over available domains) | 0–100 | derived |
+| `patients` | `county_population_estimates` | county total population | integer | real w/ key, else stub (0) |
+| `hpsaScore` | `hrsa_hpsa` | mean designated primary-care HPSA score | 0–26 | real |
+
+## Health outcomes (`outcomes.*`, % of adults)
+| Field | Source | Transform | Provenance |
+|---|---|---|---|
+| `outcomes.diabetes` | `cdc_places` | age-adjusted county prevalence | real |
+| `outcomes.obesity` | `cdc_places` | age-adjusted county prevalence | real |
+| `outcomes.mhlth` (frequent mental distress) | `cdc_places` | age-adjusted county prevalence | real |
+| `outcomes.bphigh` (high blood pressure) | `cdc_places` | age-adjusted county prevalence | real |
+
+## Clinical quality measures (`measures.*`, % of eligible)
+| Field | Source | Provenance |
+|---|---|---|
+| `measures.htn_control`, `dm_poor`, `depr_screen`, `cervical_screen`, `child_immun` | `hrsa_uds` | stub (not wired) |
+
+## Synthetic clinical
+| Field | Source | Note |
+|---|---|---|
+| `patientsList` | `synthetic_clinical_dataset` | Synthetic, non-PHI. Present in the dataset but **removed from the Signal dashboard for HIPAA safety.** |
+
+## Build metadata
+| Field | Meaning |
+|---|---|
+| `provenance` | map of field-group → `{source_id, status}`; drives the dashboard badges |
+| `county_count`, `generated_from`, `target_state_fips` | build header |
