@@ -32,6 +32,11 @@ from src.ingestion.base import Provenance
 from src.ingestion.registry import REGISTRY
 from src.transform import metrics
 from src.transform import normalize as norm
+from src.transform.geographic_join import (
+    RURALITY_METHOD_POPULATION_PROXY,
+    join_sdoh_to_patients,
+    summarize_join_coverages,
+)
 
 OUT_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 REGION_REF = REPO_ROOT / "data" / "reference" / "va_county_region.csv"
@@ -170,21 +175,31 @@ def build(refresh: bool = False) -> dict:
     pop_max = merged.get("county_population_total", pd.Series(dtype=float)).max() or 1
 
     records = []
+    join_coverages = []
     for fips in counties:
         # Unknown domain -> neutral 50 (never None, so the need-index math is safe).
         dom = {k: (_num(dom_df.at[fips, k]) if fips in dom_df.index else None) or 50.0
                for k in NEED_WEIGHTS}
         need = metrics.need_index(dom, NEED_WEIGHTS, available_domains or set(NEED_WEIGHTS))
         pop = _num(merged.at[fips, "county_population_total"]) if "county_population_total" in merged.columns else None
+        rurality = round(1 - (pop / pop_max), 2) if pop else 0.0  # population-based proxy
         roster = synth_by_county.get(fips, {}).get("patientsList", [])
-        for pt in roster:  # attach real neighborhood burdens to synthetic patients
-            pt["nb"] = {k: dom[k] for k in NEED_WEIGHTS}
+        sdoh_context = {
+            fips: {
+                "dom": dom,
+                "rural": rurality,
+                "ruralityMethod": RURALITY_METHOD_POPULATION_PROXY,
+                "needIndex": need,
+            }
+        }
+        roster, coverage = join_sdoh_to_patients(roster, sdoh_context)
+        join_coverages.append(coverage)
         records.append({
             "id": fips,
             "name": regions[fips]["county_name"],
             "district": regions[fips]["district"],
             "region": regions[fips]["region"],
-            "rural": round(1 - (pop / pop_max), 2) if pop else 0.0,  # population-based proxy
+            "rural": rurality,
             "dom": dom,
             "needIndex": need,
             "patients": int(pop) if pop else 0,
@@ -202,6 +217,7 @@ def build(refresh: bool = False) -> dict:
         "generated_from": "src/build_dataset.py",
         "target_state_fips": "51",
         "county_count": len(records),
+        "sdoh_join_coverage": summarize_join_coverages(join_coverages).to_dict(),
         "provenance": provenance,
         "records": records,
     }
