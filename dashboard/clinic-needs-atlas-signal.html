@@ -38,6 +38,17 @@
   .page-head h1 { font-size:26px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
   .page-head p { color:var(--text-muted); font-size:14px; margin:4px 0 0; max-width:760px; }
   .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .stat-cell { display:flex; min-width:0; }
+  .stat-cell > * { flex:1; min-width:0; }
+
+  /* First-run intro banner (dismissible) */
+  .intro { display:flex; gap:14px; align-items:flex-start; background:var(--surface-sunken); border:1px solid var(--border-default); border-left:3px solid var(--signal-600); border-radius:var(--radius-lg); padding:14px 16px; }
+  .intro .ico { flex:none; margin-top:1px; }
+  .intro h4 { margin:0 0 3px; font-size:14px; color:var(--text-strong); }
+  .intro p { margin:0; font-size:13px; color:var(--text-body); line-height:1.5; }
+  .intro .dismiss { flex:none; margin-left:auto; height:28px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:12px; cursor:pointer; transition:var(--transition-control); }
+  .intro .dismiss:hover { background:var(--surface-sunken); }
+
   .two-col { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; align-items:start; }
   .triage-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:16px; align-items:start; }
   @media (max-width: 1120px){ .two-col, .triage-grid{ grid-template-columns:1fr; } .stat-grid{ grid-template-columns:repeat(2,1fr);} }
@@ -370,7 +381,7 @@ function Provenance({ provenance }){
     <div className="prov"><span className="lbl">Data provenance:</span>
       {Object.entries(provenance).sort((a,b)=>d3.ascending(a[1].status,b[1].status)).map(([field,p])=>{
         const s=PROV[p.status]||PROV.stub;
-        return <span className="pill" key={field} style={{borderColor:s.c,color:s.c}}><span className="dot" style={{background:s.c}} />{field} · {p.source_id} · {s.t}</span>;
+        return <span className="pill" key={field} title={field + " is " + s.t + " (source: " + p.source_id + ")"} style={{borderColor:s.c,color:s.c}}><span className="dot" style={{background:s.c}} />{field} · {p.source_id} · {s.t}</span>;
       })}
     </div>
   );
@@ -545,6 +556,25 @@ function RecommendedAction({ county, domain, action }){
   );
 }
 
+// First-run guide: a dismissible "what am I looking at" banner.
+function IntroBanner(){
+  const [show, setShow] = React.useState(() => {
+    try { return localStorage.getItem("atlas_intro_dismissed") !== "1"; } catch(e){ return true; }
+  });
+  if(!show) return null;
+  const dismiss = () => { try { localStorage.setItem("atlas_intro_dismissed", "1"); } catch(e){} setShow(false); };
+  return (
+    <div className="intro" role="note" aria-label="How to read this dashboard">
+      <span className="ico"><Icon name="info" size={18} color="var(--signal-600)" /></span>
+      <div>
+        <h4>How to read the Clinic Needs Atlas</h4>
+        <p>Each Virginia county gets a 0–100 unmet-need score from public SDoH, chronic-disease, and shortage-area data. Pick a county (search top-right or click a chart), compare it to the Virginia or regional baseline, and check the provenance badges for whether each field is live or pending.</p>
+      </div>
+      <button className="dismiss" onClick={dismiss}>Got it</button>
+    </div>
+  );
+}
+
 function App(){
   const [records,setRecords]=React.useState([]);
   const [provenance,setProvenance]=React.useState(null);
@@ -620,7 +650,7 @@ function App(){
             {records.slice().sort((a,b)=>d3.ascending(a.name,b.name)).map(r=><option key={r.id} value={`${r.name} — ${r.region}`} />)}
           </datalist>
           <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center"}}>
-            <div className="seg">
+            <div className="seg" title="Compare this county against all of Virginia, or against its regional peers only.">
               <button className={baselineMode==="va"?"on":""} onClick={()=>setBaselineMode("va")}>All Virginia</button>
               <button className={baselineMode==="region"?"on":""} onClick={()=>setBaselineMode("region")}>Region peers</button>
             </div>
@@ -629,16 +659,25 @@ function App(){
         </div>
 
         <div className="content">
+          <IntroBanner />
           <div className="page-head">
             <h1>Clinic needs atlas</h1>
             <p>Where unmet need concentrates across Virginia — federal SDoH, chronic-disease, and shortage-area signals for <b>{c.name}</b>, versus the {baselineFor(c).label} baseline.</p>
           </div>
 
           <div className="stat-grid">
-            <StatCard label="Unmet-need index" value={fmt0(c.needIndex)} unit="/100" accent="signal" icon={<Icon name="gauge" size={18} />} />
-            <StatCard label="Primary-care HPSA" value={String(c.hpsaScore)} unit="/26" accent="signal" icon={<Icon name="map-pin" size={18} />} />
-            <StatCard label="Diabetes prevalence" value={c.outcomes.diabetes!=null?fmt1(c.outcomes.diabetes):"—"} unit="%" accent="signal" icon={<Icon name="activity" size={18} />} />
-            <StatCard label={"Top need · "+topDom.short} value={fmt0(topDom.v)} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />
+            <div className="stat-cell" title="Composite 0–100 score of unmet health need. Higher means more need.">
+              <StatCard label="Unmet-need index" value={fmt0(c.needIndex)} unit="/100" accent="signal" icon={<Icon name="gauge" size={18} />} />
+            </div>
+            <div className="stat-cell" title="HRSA primary-care shortage score, 0–26. Higher means a worse provider shortage.">
+              <StatCard label="Primary-care HPSA" value={String(c.hpsaScore)} unit="/26" accent="signal" icon={<Icon name="map-pin" size={18} />} />
+            </div>
+            <div className="stat-cell" title="Share of adults with diagnosed diabetes (CDC PLACES).">
+              <StatCard label="Diabetes prevalence" value={c.outcomes.diabetes!=null?fmt1(c.outcomes.diabetes):"—"} unit="%" accent="signal" icon={<Icon name="activity" size={18} />} />
+            </div>
+            <div className="stat-cell" title="The SDoH domain carrying this county's highest burden right now.">
+              <StatCard label={"Top need · "+topDom.short} value={fmt0(topDom.v)} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />
+            </div>
           </div>
 
           <div className="legend-row">
