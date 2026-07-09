@@ -46,6 +46,20 @@ HRSA, USDA) works keyless.
 This writes `dashboard/data/clinic_atlas.json` (Virginia counties) and prints,
 per field group, whether the data is **real / synthetic / stub**.
 
+## Reproduce everything (one command)
+
+`scripts/run-pipeline.sh` regenerates all results from the catalog in one step,
+matching what Render runs on deploy:
+
+```bash
+./scripts/run-pipeline.sh                        # build the dashboard dataset (JSON only)
+DATABASE_URL=postgresql://… ./scripts/run-pipeline.sh   # also migrate + seed + load Postgres
+```
+
+With no `DATABASE_URL` it installs deps and rebuilds `clinic_atlas.json`. With
+one set, it also applies migrations and loads counties + the catalog into
+Postgres. Set `CENSUS_API_KEY` first to unlock the ACS economic/education panels.
+
 ## View the dashboard
 
 The live dashboard uses `fetch()`, so it must be served over HTTP (not `file://`):
