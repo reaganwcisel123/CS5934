@@ -13,3 +13,10 @@ export PATH="$HOME/.local/bin:$PATH"
 uv run python src/build_dataset.py
 
 echo "Built dashboard/data/clinic_atlas.json"
+
+# On Render, point the dashboard at the API (live mode). Unset locally, so the
+# committed no-op config.js is kept and the dashboard stays static.
+if [ -n "${ATLAS_API_HOST:-}" ]; then
+  echo "window.CLINIC_ATLAS_API=\"https://${ATLAS_API_HOST}/api\";" > dashboard/config.js
+  echo "Wrote dashboard/config.js -> https://${ATLAS_API_HOST}/api"
+fi
