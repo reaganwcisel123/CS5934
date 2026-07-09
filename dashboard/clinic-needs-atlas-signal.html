@@ -108,6 +108,13 @@
   .signout { height:32px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; cursor:pointer; transition:var(--transition-control); }
   .signout:hover { background:var(--surface-sunken); }
 
+  /* Human-in-the-loop review/override (US-022) */
+  .rec-action { margin-top:16px; }
+  .rec-action .btn { height:30px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; cursor:pointer; transition:var(--transition-control); }
+  .rec-action .btn:hover { background:var(--surface-sunken); }
+  .rec-action .btn.primary { background:var(--signal-600); color:#fff; border-color:var(--signal-600); }
+  .rec-action textarea { width:100%; box-sizing:border-box; font-family:var(--font-sans); font-size:13px; padding:8px; border:1px solid var(--border-default); border-radius:var(--radius-md); resize:vertical; }
+
   /* Explainer chatbot */
   .chat-fab { position:fixed; right:22px; bottom:22px; width:52px; height:52px; border-radius:50%; border:0; background:var(--signal-600); color:#fff; box-shadow:var(--shadow-lg); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:70; transition:var(--transition-control); }
   .chat-fab:hover { background:var(--signal-500); }
@@ -494,6 +501,50 @@ function ChatWidget({ apiBase, countyId, countyName, token }){
   );
 }
 
+// Human-in-the-loop: recommend the top-need intervention, let a provider
+// Accept or Override with a note. The atlas informs; the provider decides.
+function RecommendedAction({ county, domain, action }){
+  const KEY = "atlas_hitl_" + county.id;
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } };
+  const [state, setState] = React.useState(read);
+  const [editing, setEditing] = React.useState(false);
+  const [note, setNote] = React.useState("");
+  // Re-scope to the selected county whenever it changes.
+  React.useEffect(() => { setState(read()); setEditing(false); setNote(""); }, [county.id]);
+  const save = next => { setState(next); try { localStorage.setItem(KEY, JSON.stringify(next)); } catch(e){} };
+  const status = state.status || "pending";
+  const PILL = { pending:["Pending review","var(--text-muted)"], accepted:["Accepted","var(--signal-600)"], overridden:["Overridden","var(--command-600)"] };
+  const [pillLabel, pillColor] = PILL[status];
+  return (
+    <div className="panel rec-action">
+      <div className="panel-h"><Icon name="clipboard-check" size={16} color="var(--signal-600)" /><h3>Recommended action</h3>
+        <span className="desc">top need · {domain.label}</span></div>
+      <div className="panel-body">
+        <p style={{margin:"0 0 12px", color:"var(--text-body)"}}>{action}</p>
+        <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
+          <span className="pill" style={{color:pillColor, borderColor:pillColor}} aria-label={"Review status: " + pillLabel}>{pillLabel}</span>
+          <button className="btn primary" onClick={()=>save({status:"accepted"})}>Accept</button>
+          <button className="btn" onClick={()=>setEditing(true)}>Override</button>
+          <span style={{fontSize:12, color:"var(--text-muted)"}}>A provider decides; the atlas only recommends.</span>
+        </div>
+        {editing && (
+          <div style={{marginTop:12}}>
+            <textarea aria-label="Override note" rows={3} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="Describe the provider's alternative action…" />
+            <div style={{marginTop:8, display:"flex", gap:8}}>
+              <button className="btn primary" onClick={()=>{ save({status:"overridden", note}); setEditing(false); }}>Save override</button>
+              <button className="btn" onClick={()=>setEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {status==="overridden" && state.note && !editing && (
+          <p style={{marginTop:12, fontSize:13, color:"var(--text-body)"}}><b>Override note:</b> {state.note}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const [records,setRecords]=React.useState([]);
   const [provenance,setProvenance]=React.useState(null);
@@ -598,12 +649,15 @@ function App(){
           <div className="tabwrap"><Tabs items={tabs} value={tab} onChange={setTab} /></div>
 
           {tab==="profile" && (
-            <div className="two-col">
-              <Panel icon="git-branch" title="Comparative root portrait" desc="canopy = outcomes · roots = SDoH burden vs baseline">
-                <D3Panel draw={drawRoot} ctx={ctx} />
-              </Panel>
-              <NeedProfile c={c} baseline={baselineFor(c)} />
-            </div>
+            <React.Fragment>
+              <div className="two-col">
+                <Panel icon="git-branch" title="Comparative root portrait" desc="canopy = outcomes · roots = SDoH burden vs baseline">
+                  <D3Panel draw={drawRoot} ctx={ctx} />
+                </Panel>
+                <NeedProfile c={c} baseline={baselineFor(c)} />
+              </div>
+              <RecommendedAction county={c} domain={topDom} action={ACTIONS[topDom.key]} />
+            </React.Fragment>
           )}
 
           {tab==="triage" && (
