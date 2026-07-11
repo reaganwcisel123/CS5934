@@ -431,8 +431,9 @@ function Panel({ icon, title, desc, children, bodyClass }){
 }
 
 function Login({ apiBase, onAuth }){
-  const [email,setEmail]=React.useState("");
-  const [pw,setPw]=React.useState("");
+  // Sprint demo: prefill the dummy account so the gated site is one-click.
+  const [email,setEmail]=React.useState("demo@clinicatlas.dev");
+  const [pw,setPw]=React.useState("triad-demo-2026");
   const [mode,setMode]=React.useState("login");
   const [error,setError]=React.useState("");
   const [busy,setBusy]=React.useState(false);
@@ -451,6 +452,7 @@ function Login({ apiBase, onAuth }){
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand"><span className="mark">T</span>Triad · Signal</div>
         <h2>{mode==="login"?"Sign in to the Clinic Needs Atlas":"Create your account"}</h2>
+        {mode==="login" && <p className="login-alt">Sprint demo login is prefilled. Just click Sign in.</p>}
         <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required autoFocus />
         <input type="password" placeholder="Password" value={pw} onChange={e=>setPw(e.target.value)} required />
         {error && <div className="login-err">{error}</div>}

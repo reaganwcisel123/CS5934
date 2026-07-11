@@ -60,3 +60,6 @@ services:
       # Enables the grounded chatbot; without it /api/chat returns 503.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Signs login session tokens (Phase 3 auth).
+      - key: JWT_SECRET
+        sync: false
