@@ -23,6 +23,13 @@ services:
     envVars:
       - key: CENSUS_API_KEY
         sync: false
+      # API hostname, written into dashboard/config.js at build so the dashboard
+      # boots in live mode (chat widget + DB-served data).
+      - key: ATLAS_API_HOST
+        fromService:
+          type: web
+          name: clinic-atlas-api
+          property: host
     headers:
       - path: /data/*
         name: Cache-Control
@@ -49,4 +56,7 @@ services:
           name: clinic-atlas-db
           property: connectionString
       - key: CENSUS_API_KEY
+        sync: false
+      # Enables the grounded chatbot; without it /api/chat returns 503.
+      - key: ANTHROPIC_API_KEY
         sync: false
