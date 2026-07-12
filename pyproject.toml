@@ -7,10 +7,12 @@ requires-python = ">=3.11"
 
 # Core: the catalog -> real data -> dashboard pipeline (src/).
 dependencies = [
-    "requests>=2.31",   # HTTP calls to CDC Socrata, Census, HRSA, USDA
-    "pandas>=2.0",      # tabular transforms and county-level joins
-    "PyYAML>=6.0",      # read data_sources.yml + email config.yaml
-    "openpyxl>=3.1",    # read the USDA Food Access Atlas .xlsx workbook
+    "requests>=2.31", # HTTP calls to CDC Socrata, Census, HRSA, USDA
+    "pandas>=2.0", # tabular transforms and county-level joins
+    "PyYAML>=6.0", # read data_sources.yml + email config.yaml
+    "openpyxl>=3.1", # read the USDA Food Access Atlas .xlsx workbook
+    "scikit-learn>=1.9.0",
+    "joblib>=1.5.3",
 ]
 
 [project.optional-dependencies]
