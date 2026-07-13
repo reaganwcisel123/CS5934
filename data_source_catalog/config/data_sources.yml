@@ -631,6 +631,6 @@ sources:
       - No PHI should be stored in the repo.
       - Generation logic must be documented and versioned for reproducibility.
     privacy_classification: synthetic_non_phi
-    ingestion_status: not_started
-    ingestion_script: src/ingestion/synthetic_clinical_dataset.py
-    last_verified_date: "2026-06-29"
+    ingestion_status: ingestion_wired
+    ingestion_script: src/ingestion/synthetic_clinical.py
+    last_verified_date: "2026-07-12"
