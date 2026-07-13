@@ -60,6 +60,16 @@
   .panel-body { padding:16px 18px; }
   .heat-scroll { max-height:560px; overflow:auto; }
 
+  /* At-risk patients (model risk tiers + drivers, US-019/020) */
+  .risk-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .risk-table th { text-align:left; font-size:11px; font-weight:600; color:var(--text-muted); padding:0 8px 6px; border-bottom:1px solid var(--border-subtle); }
+  .risk-table td { padding:8px; border-bottom:1px solid var(--border-subtle); color:var(--text-body); vertical-align:top; }
+  .risk-table tr:last-child td { border-bottom:none; }
+  .risk-sub { color:var(--text-muted); font-size:12px; }
+  .risk-tier { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:var(--radius-pill); border:1px solid; }
+  .risk-chip { display:inline-block; font-size:11px; color:var(--text-body); background:var(--surface-sunken); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:2px 7px; margin:0 4px 4px 0; }
+  .risk-note { margin:10px 0 0; font-size:11.5px; color:var(--text-muted); }
+
   .seg { display:inline-flex; border:1px solid var(--border-default); border-radius:var(--radius-md); overflow:hidden; }
   .seg button { border:0; background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; padding:6px 12px; cursor:pointer; transition:var(--transition-control); }
   .seg button.on { background:var(--signal-600); color:#fff; }
@@ -579,6 +589,39 @@ function IntroBanner(){
   );
 }
 
+// US-019/020: the model's per-patient risk tiers + drivers -- the "who" and "why".
+// Renders only when patients carry model scores (static/scored atlas); hidden
+// otherwise (e.g. the live API doesn't serve patient rosters yet).
+function RiskPanel({ county }){
+  const scored = (county.patientsList || []).filter(p => p.risk != null);
+  if(!scored.length) return null;
+  const ranked = scored.slice().sort((a,b) => (b.risk||0) - (a.risk||0));
+  const highN = ranked.filter(p => p.riskTier === "High").length;
+  const TIER = { High:"var(--danger-500)", Medium:"var(--command-600)", Low:"var(--slate-500)" };
+  return (
+    <div className="panel risk-panel">
+      <div className="panel-h"><Icon name="user-check" size={16} color="var(--signal-600)" /><h3>At-risk patients</h3>
+        <span className="desc">{county.name} · {highN} high-risk of {scored.length} · model-ranked</span></div>
+      <div className="panel-body">
+        <table className="risk-table">
+          <thead><tr><th>Patient</th><th>Risk</th><th>Tier</th><th>Top drivers (why)</th></tr></thead>
+          <tbody>
+            {ranked.map((p,i) => (
+              <tr key={i}>
+                <td>{p.name} <span className="risk-sub">· {p.age}</span></td>
+                <td className="mono">{Math.round((p.risk||0)*100)}%</td>
+                <td><span className="risk-tier" style={{color:TIER[p.riskTier], borderColor:TIER[p.riskTier]}}>{p.riskTier}</span></td>
+                <td>{(p.riskDrivers||[]).map((d,j) => <span key={j} className="risk-chip">{d}</span>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="risk-note">Synthetic non-PHI cohort. Risk is a model estimate for prioritization, reviewable by a provider.</p>
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const [records,setRecords]=React.useState([]);
   const [provenance,setProvenance]=React.useState(null);
@@ -700,6 +743,7 @@ function App(){
                 <NeedProfile c={c} baseline={baselineFor(c)} />
               </div>
               <RecommendedAction county={c} domain={topDom} action={ACTIONS[topDom.key]} />
+              <RiskPanel county={c} />
             </React.Fragment>
           )}
 

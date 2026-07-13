@@ -101,3 +101,25 @@ model has only five real features and 133 rows to learn from. We are documenting
 instead of burying it. The honest fix is more real rural signal (the Census and EPA features
 that are still stubbed, and later the clinic survey), not a reweighting trick on thin data.
 We have flagged this to revisit once those features are live.
+
+## Risk tiers (US-019)
+
+We turn each patient's probability into a High, Medium, or Low tier by percentile rather than
+a fixed cutoff. The top 20 percent of scores are High, the next 30 percent Medium, and the
+bottom half Low. We use a percentile pyramid because the tier exists for prioritization: a
+clinic wants a short, ranked list of who to reach first, and a pyramid gives a small High
+group with a clear ordering under it. The thresholds sit in `src/model/config.py` rather than
+buried in the code. The tiers come off the logistic model's probabilities, which the Brier
+score above checks for calibration, so a tier reflects model probability and not a raw score.
+The at-risk panel sorts by risk so the highest patients show up first.
+
+## Explainability (US-020)
+
+For each flagged patient we surface the top two factors pushing their risk up, in plain
+language ("Elevated A1c", "Poor care access", "Food and housing burden", and so on). Because
+the patient model is linear, these are the real contributions to that patient's score (the
+model coefficient times the standardized feature value), not a story added after the fact.
+That keeps the explanation faithful to what the model actually did. The labels are written for
+a clinic user with no machine-learning background, and the clinical drivers (A1c, blood
+pressure, age) stay distinct from the community drivers (care access, food and housing,
+rurality) so a reader can tell them apart.
