@@ -68,11 +68,16 @@ class SyntheticClinical(BaseSource):
             sys = round(_clamp(rng.gauss(128, 14), 98, 182))
             dia = round(_clamp(sys * 0.55 + rng.gauss(0, 6), 58, 112))
             a1c = round(_clamp(rng.gauss(6.6, 1.4), 5.0, 12.8), 1)
-            flag = 1 if rng.next() < 0.18 else 0
+            age = round(28 + rng.next() * 51)
+            # Synthetic risk as a documented function of clinical severity (A1c,
+            # systolic BP, age) + seeded noise, not a random flip. The authoritative
+            # modeling label (which also uses SDoH) lives in src/model/.
+            logit = -2.3 + 0.45 * (a1c - 6.5) + 0.025 * (sys - 120) + 0.02 * (age - 50) + rng.gauss(0, 0.5)
+            flag = 1 if rng.next() < 1 / (1 + math.exp(-logit)) else 0
             preventable += flag
             roster.append({
                 "name": f"{FIRST[int(rng.next()*len(FIRST))]} {LAST[int(rng.next()*len(LAST))][0]}.",
-                "age": round(28 + rng.next() * 51),
+                "age": age,
                 "lastVisit": VISIT_DATES[int(rng.next() * len(VISIT_DATES))],
                 "struggle": struggle,
                 "struggleDom": dom,
