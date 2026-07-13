@@ -266,14 +266,15 @@ def main() -> int:
     print("Building clinic atlas dataset from the data source catalog...")
     result = build(refresh=args.refresh)
 
-    if args.score:  # attach per-patient risk tiers + drivers from the trained model
+    if args.score:  # attach model risk (patients: tiers+drivers; counties: modelRisk)
         from src.model import score
-        model = score.load_patient_model()
-        if model is None:
-            print("  --score skipped: no trained model (run `python -m src.model.train`).")
-        else:
-            n = score.score_records(result["records"], model)
-            print(f"  Scored {n} patients with risk tiers + drivers.")
+        pmodel, cmodel = score.load_patient_model(), score.load_county_model()
+        if pmodel is None and cmodel is None:
+            print("  --score skipped: no trained models (run `python -m src.model.train`).")
+        if pmodel is not None:
+            print(f"  Scored {score.score_records(result['records'], pmodel)} patients (tiers + drivers).")
+        if cmodel is not None:
+            print(f"  Scored {score.score_counties(result['records'], cmodel)} counties (model risk).")
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False: fail loudly rather than emit NaN, which is invalid JSON.

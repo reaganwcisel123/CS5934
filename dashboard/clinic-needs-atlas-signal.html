@@ -69,6 +69,8 @@
   .risk-tier { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:var(--radius-pill); border:1px solid; }
   .risk-chip { display:inline-block; font-size:11px; color:var(--text-body); background:var(--surface-sunken); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:2px 7px; margin:0 4px 4px 0; }
   .risk-note { margin:10px 0 0; font-size:11.5px; color:var(--text-muted); }
+  .model-badge { display:inline-flex; align-items:center; gap:5px; margin-top:9px; font-size:12px; font-weight:600; padding:3px 10px; border-radius:var(--radius-pill); border:1px solid var(--border-default); color:var(--text-muted); background:var(--surface-card); }
+  .model-badge.on { border-color:var(--danger-500); color:var(--danger-500); }
 
   .seg { display:inline-flex; border:1px solid var(--border-default); border-radius:var(--radius-md); overflow:hidden; }
   .seg button { border:0; background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; padding:6px 12px; cursor:pointer; transition:var(--transition-control); }
@@ -710,6 +712,11 @@ function App(){
           <div className="page-head">
             <h1>Clinic needs atlas</h1>
             <p>Where unmet need concentrates across Virginia — federal SDoH, chronic-disease, and shortage-area signals for <b>{c.name}</b>, versus the {baselineFor(c).label} baseline.</p>
+            {c.modelRisk != null && (
+              <span className={"model-badge"+(c.modelRisk>=0.5?" on":"")}>
+                <Icon name="brain" size={13} /> Model risk {Math.round(c.modelRisk*100)}%{c.modelRisk>=0.5?" · predicted high-need county":""}
+              </span>
+            )}
           </div>
 
           <div className="stat-grid">

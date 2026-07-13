@@ -23,6 +23,7 @@ from src.model import config as C  # noqa: E402
 
 ATLAS_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 MODEL_PATH = REPO_ROOT / "models" / "patient_model.joblib"
+COUNTY_MODEL_PATH = REPO_ROOT / "models" / "county_model.joblib"
 
 
 def load_patient_model():
@@ -31,6 +32,35 @@ def load_patient_model():
         return None
     import joblib
     return joblib.load(MODEL_PATH)
+
+
+def load_county_model():
+    """Return the trained county model, or None if it hasn't been trained yet."""
+    if not COUNTY_MODEL_PATH.exists():
+        return None
+    import joblib
+    return joblib.load(COUNTY_MODEL_PATH)
+
+
+def score_counties(records: list[dict], model) -> int:
+    """Attach `modelRisk` (probability of high preventable-need) to each county."""
+    feats = C.COUNTY_FEATURES
+    rows, refs = [], []
+    for r in records:
+        dom = r.get("dom", {})
+        feat = {"food": dom.get("food"), "access": dom.get("access"),
+                "hpsaScore": r.get("hpsaScore"), "rural": r.get("rural"),
+                "needIndex": r.get("needIndex")}
+        if any(feat[k] is None for k in feats):
+            continue
+        rows.append([feat[k] for k in feats])
+        refs.append(r)
+    if not rows:
+        return 0
+    proba = model.predict_proba(pd.DataFrame(rows, columns=feats))[:, 1]
+    for i, r in enumerate(refs):
+        r["modelRisk"] = round(float(proba[i]), 3)
+    return len(refs)
 
 
 def _driver_fn(model):
@@ -95,14 +125,15 @@ def score_records(records: list[dict], model) -> int:
 
 
 def main() -> int:
-    model = load_patient_model()
-    if model is None:
-        print("No trained model found -- run `python -m src.model.train` first.")
+    pmodel, cmodel = load_patient_model(), load_county_model()
+    if pmodel is None and cmodel is None:
+        print("No trained models found -- run `python -m src.model.train` first.")
         return 1
     data = json.loads(ATLAS_PATH.read_text(encoding="utf-8"))
-    n = score_records(data["records"], model)
+    n = score_records(data["records"], pmodel) if pmodel else 0
+    m = score_counties(data["records"], cmodel) if cmodel else 0
     ATLAS_PATH.write_text(json.dumps(data, indent=2, allow_nan=False), encoding="utf-8")
-    print(f"Scored {n} patients into {ATLAS_PATH.relative_to(REPO_ROOT)}")
+    print(f"Scored {n} patients + {m} counties into {ATLAS_PATH.relative_to(REPO_ROOT)}")
     return 0
 
 

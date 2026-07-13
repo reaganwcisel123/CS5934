@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 
 from sqlalchemy import text
@@ -20,6 +21,13 @@ _UPSERT_METRIC = text(
     "on conflict(county_fips,metric_key,as_of) do update set "
     "value=excluded.value,status=excluded.status,source_id=excluded.source_id"
 )
+_UPSERT_PATIENT = text(
+    "insert into patient(county_fips,patient_key,as_of,name,age,risk,risk_tier,risk_drivers,attrs) "
+    "values(:fips,:key,current_date,:name,:age,:risk,:tier,cast(:drivers as jsonb),cast(:attrs as jsonb)) "
+    "on conflict(county_fips,patient_key,as_of) do update set "
+    "name=excluded.name,age=excluded.age,risk=excluded.risk,risk_tier=excluded.risk_tier,"
+    "risk_drivers=excluded.risk_drivers,attrs=excluded.attrs"
+)
 
 
 def _metrics(rec: dict) -> Iterator[tuple[str, object]]:
@@ -32,6 +40,8 @@ def _metrics(rec: dict) -> Iterator[tuple[str, object]]:
     yield "needIndex", rec.get("needIndex")
     yield "hpsaScore", rec.get("hpsaScore")
     yield "population", rec.get("patients")
+    if rec.get("modelRisk") is not None:  # county model risk (US-019)
+        yield "model.risk", rec.get("modelRisk")
 
 
 def _prov_for(metric_key: str, provenance: dict) -> tuple[str, str | None]:
@@ -44,8 +54,20 @@ def _prov_for(metric_key: str, provenance: dict) -> tuple[str, str | None]:
     return (p.get("status", "stub"), p.get("source_id")) if p else ("derived", None)
 
 
+def _patient_rows(rec: dict) -> list[dict]:
+    """Flatten a county's scored roster into patient-table upsert params."""
+    promoted = ("name", "age", "risk", "riskTier", "riskDrivers")
+    out = []
+    for i, pt in enumerate(rec.get("patientsList", [])):
+        attrs = {k: v for k, v in pt.items() if k not in promoted}  # keep roster lossless
+        out.append({"fips": rec["id"], "key": str(i), "name": pt.get("name"),
+                    "age": pt.get("age"), "risk": pt.get("risk"), "tier": pt.get("riskTier"),
+                    "drivers": json.dumps(pt.get("riskDrivers") or []), "attrs": json.dumps(attrs)})
+    return out
+
+
 def load_dataset(records: list[dict], provenance: dict) -> int:
-    """Upsert counties + their metrics (with provenance) for today's vintage."""
+    """Upsert counties + metrics + scored patients (with provenance) for today's vintage."""
     eng = get_engine()
     with eng.begin() as c:
         for rec in records:
@@ -58,6 +80,9 @@ def load_dataset(records: list[dict], provenance: dict) -> int:
                 rows.append({"fips": rec["id"], "key": key, "val": val, "status": status, "source": source})
             if rows:
                 c.execute(_UPSERT_METRIC, rows)
+            prows = _patient_rows(rec)
+            if prows:
+                c.execute(_UPSERT_PATIENT, prows)
     return len(records)
 
 
