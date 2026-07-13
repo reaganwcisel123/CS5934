@@ -41,13 +41,16 @@ services:
     runtime: python
     branch: main
     plan: free
-    # Install deps, migrate the DB, then seed the catalog and load the dataset.
-    # In buildCommand (not preDeployCommand) so it runs on Render's free tier.
+    # Install deps, migrate, build + seed, TRAIN the risk models, then score
+    # (patients + counties) and load into Postgres. Training runs at build (models
+    # are gitignored); the uvicorn runtime never imports sklearn -- build-only dep.
     buildCommand: >-
       pip install uv &&
-      uv sync --extra api &&
+      uv sync --extra api --extra model &&
       uv run python -m src.db.migrate &&
-      uv run python src/build_dataset.py --refresh --seed --to-db
+      uv run python src/build_dataset.py --refresh --seed &&
+      uv run python -m src.model.train --target both &&
+      uv run python src/build_dataset.py --score --to-db
     startCommand: uv run uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:

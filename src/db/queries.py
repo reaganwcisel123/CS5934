@@ -16,11 +16,15 @@ def get_atlas() -> dict:
         metrics = c.execute(text(
             "select county_fips,metric_key,value,status,source_id from county_metric "
             "where as_of=(select max(as_of) from county_metric)")).all()
+        patients = c.execute(text(
+            "select county_fips,name,age,risk,risk_tier,risk_drivers,attrs from patient "
+            "where as_of=(select max(as_of) from patient) order by county_fips,patient_key")).all()
 
     records = {fips: {"id": fips, "name": name, "region": region, "district": district,
                       "rural": float(rural) if rural is not None else None,
                       "patients": int(population) if population is not None else 0,
-                      "dom": {}, "outcomes": {}, "measures": {}, "needIndex": None, "hpsaScore": 0}
+                      "dom": {}, "outcomes": {}, "measures": {}, "needIndex": None, "hpsaScore": 0,
+                      "modelRisk": None, "patientsList": []}
                for fips, name, region, district, rural, population in counties}
 
     prov: dict[str, dict] = {}
@@ -45,6 +49,18 @@ def get_atlas() -> dict:
             prov["hpsaScore"] = {"source_id": source, "status": status}
         elif key == "population":
             prov["patients"] = {"source_id": source, "status": status}
+        elif key == "model.risk":
+            rec["modelRisk"] = v
+
+    for fips, name, age, risk, tier, drivers, attrs in patients:
+        rec = records.get(fips)
+        if rec is None:
+            continue
+        pt = dict(attrs or {})  # attrs/drivers come back from jsonb as dict/list
+        pt.update({"name": name, "age": int(age) if age is not None else None,
+                   "risk": float(risk) if risk is not None else None,
+                   "riskTier": tier, "riskDrivers": drivers or []})
+        rec["patientsList"].append(pt)
 
     return {"records": list(records.values()), "provenance": prov, "county_count": len(records)}
 
