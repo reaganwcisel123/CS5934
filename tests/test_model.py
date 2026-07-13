@@ -87,3 +87,27 @@ def test_fairness_by_rurality_partitions_all_rows():
     assert fair["strata"]["more_rural"]["n"] + fair["strata"]["less_rural"]["n"] == n
     for s in fair["strata"].values():
         assert 0.0 <= s["positive_rate"] <= 1.0
+
+
+def test_score_records_adds_tier_and_drivers():
+    import pytest
+    pytest.importorskip("sklearn")
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    from src.model import score
+
+    recs = _fixture_records(n_counties=40, seed=5)
+    X, y, feats, _ = dataset.patient_frame(recs, seed=5)
+    model = make_pipeline(
+        StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(X, y)
+
+    n = score.score_records(recs, model)
+    scored = [p for r in recs for p in r["patientsList"] if "risk" in p]
+    assert n == len(scored) > 0
+    assert {p["riskTier"] for p in scored} <= {"High", "Medium", "Low"}
+    assert any(p["riskTier"] == "High" for p in scored)
+    for p in scored:
+        assert 0.0 <= p["risk"] <= 1.0
+        assert isinstance(p["riskDrivers"], list)

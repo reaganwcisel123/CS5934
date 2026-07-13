@@ -38,3 +38,19 @@ LABEL_DRIVERS = {
     "food": 0.7,       # worse food/housing burden (0-1) -> higher risk
     "rural": 0.6,      # more rural (0-1) -> higher risk
 }
+
+# Risk tiers by percentile of scored risk (relative prioritization pyramid):
+# top 20% = High, next 30% = Medium, bottom 50% = Low.
+TIER_QUANTILES = {"high": 0.80, "medium": 0.50}
+
+# Human-readable driver labels for per-patient explainability (US-020).
+DRIVER_LABELS = {
+    "a1c": "Elevated A1c",
+    "sys": "High blood pressure",
+    "dia": "High blood pressure",
+    "age": "Older age",
+    "ctx_food": "Food & housing burden",
+    "ctx_access": "Poor care access",
+    "rural": "Rural isolation",
+    "needIndex": "High community need",
+}
