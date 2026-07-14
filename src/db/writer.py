@@ -10,10 +10,11 @@ from sqlalchemy import text
 from src.db.engine import get_engine
 
 _UPSERT_COUNTY = text(
-    "insert into county(fips,name,region,district,rural,population,updated_at) "
-    "values(:fips,:name,:region,:district,:rural,:pop,now()) "
+    "insert into county(fips,name,region,district,rural,population,model_risk_drivers,updated_at) "
+    "values(:fips,:name,:region,:district,:rural,:pop,cast(:drivers as jsonb),now()) "
     "on conflict(fips) do update set name=excluded.name,region=excluded.region,"
-    "district=excluded.district,rural=excluded.rural,population=excluded.population,updated_at=now()"
+    "district=excluded.district,rural=excluded.rural,population=excluded.population,"
+    "model_risk_drivers=excluded.model_risk_drivers,updated_at=now()"
 )
 _UPSERT_METRIC = text(
     "insert into county_metric(county_fips,metric_key,value,status,source_id,as_of) "
@@ -73,7 +74,8 @@ def load_dataset(records: list[dict], provenance: dict) -> int:
         for rec in records:
             c.execute(_UPSERT_COUNTY, {"fips": rec["id"], "name": rec["name"], "region": rec.get("region"),
                                        "district": rec.get("district"), "rural": rec.get("rural"),
-                                       "pop": rec.get("patients")})
+                                       "pop": rec.get("patients"),
+                                       "drivers": json.dumps(rec.get("modelRiskDrivers") or [])})
             rows = []
             for key, val in _metrics(rec):
                 status, source = _prov_for(key, provenance)

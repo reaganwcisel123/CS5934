@@ -129,6 +129,11 @@ def train_one(target: str) -> dict:
         results[name] = _score(yte, probas[name])
 
     best = max(results, key=lambda k: results[k]["pr_auc"])
+    # Prefer the linear model when it is within a small margin of the best, so
+    # per-item drivers stay faithful (US-020). On this data the two are basically
+    # tied, so this keeps explainability at no real accuracy cost.
+    if results["logreg"]["pr_auc"] >= results[best]["pr_auc"] - 0.02:
+        best = "logreg"
     fair = fairness_by_rurality(probas[best], yte, Xte["rural"].to_numpy())
     mitigated = _rurality_mitigation(fitted[best], best, Xtr, ytr, Xte, yte)
     metrics = {

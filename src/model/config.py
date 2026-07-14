@@ -54,3 +54,13 @@ DRIVER_LABELS = {
     "rural": "Rural isolation",
     "needIndex": "High community need",
 }
+
+# County-level driver labels (why a county is high-risk). needIndex is left out
+# on purpose: it is the SDoH composite, so it would just restate the risk rather
+# than explain it. We show the underlying, actionable SDoH factors instead.
+COUNTY_DRIVER_LABELS = {
+    "access": "Poor care access",
+    "food": "Food & housing burden",
+    "hpsaScore": "Provider shortage",
+    "rural": "Rural isolation",
+}

@@ -12,7 +12,8 @@ def get_atlas() -> dict:
     eng = get_engine()
     with eng.connect() as c:
         counties = c.execute(text(
-            "select fips,name,region,district,rural,population from county order by fips")).all()
+            "select fips,name,region,district,rural,population,model_risk_drivers "
+            "from county order by fips")).all()
         metrics = c.execute(text(
             "select county_fips,metric_key,value,status,source_id from county_metric "
             "where as_of=(select max(as_of) from county_metric)")).all()
@@ -24,8 +25,8 @@ def get_atlas() -> dict:
                       "rural": float(rural) if rural is not None else None,
                       "patients": int(population) if population is not None else 0,
                       "dom": {}, "outcomes": {}, "measures": {}, "needIndex": None, "hpsaScore": 0,
-                      "modelRisk": None, "patientsList": []}
-               for fips, name, region, district, rural, population in counties}
+                      "modelRisk": None, "modelRiskDrivers": drivers or [], "patientsList": []}
+               for fips, name, region, district, rural, population, drivers in counties}
 
     prov: dict[str, dict] = {}
     for fips, key, value, status, source in metrics:
