@@ -409,6 +409,7 @@ email = [
     { name = "gspread" },
 ]
 model = [
+    { name = "joblib" },
     { name = "scikit-learn" },
 ]
 
@@ -427,13 +428,14 @@ requires-dist = [
     { name = "google-auth-httplib2", marker = "extra == 'email'", specifier = ">=0.2" },
     { name = "google-auth-oauthlib", marker = "extra == 'email'", specifier = ">=1.0" },
     { name = "gspread", marker = "extra == 'email'", specifier = ">=6.0" },
+    { name = "joblib", marker = "extra == 'model'", specifier = ">=1.5.3" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'api'", specifier = ">=3.2" },
     { name = "pyjwt", marker = "extra == 'api'", specifier = ">=2.9" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "requests", specifier = ">=2.31" },
-    { name = "scikit-learn", marker = "extra == 'model'", specifier = ">=1.4" },
+    { name = "scikit-learn", marker = "extra == 'model'", specifier = ">=1.9.0" },
     { name = "sqlalchemy", marker = "extra == 'api'", specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.30" },
 ]
