@@ -34,10 +34,29 @@
   .crumb { font-size:13px; color:var(--text-muted); }
   .county-select { height:34px; padding:0 10px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-strong); font-family:var(--font-sans); font-size:13px; }
   .county-select:focus { outline:none; box-shadow:var(--ring-focus); border-color:var(--border-focus); }
+  .county-combo { position:relative; margin-left:8px; }
+  .county-combo .county-select { width:100%; box-sizing:border-box; }
+  .county-menu { position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:var(--surface-raised); border:1px solid var(--border-default); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:20; padding:4px; }
+  .county-opt { padding:7px 10px; border-radius:var(--radius-sm); font-size:13px; color:var(--text-strong); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .county-opt:hover, .county-opt.active { background:var(--signal-600); color:#fff; }
+  .county-opt .region { color:var(--text-muted); font-size:12px; }
+  .county-opt:hover .region, .county-opt.active .region { color:rgba(255,255,255,.82); }
+  .county-empty { padding:10px; font-size:13px; color:var(--text-muted); }
   .content { padding:24px; display:flex; flex-direction:column; gap:16px; }
   .page-head h1 { font-size:26px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
   .page-head p { color:var(--text-muted); font-size:14px; margin:4px 0 0; max-width:760px; }
   .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .stat-cell { display:flex; min-width:0; }
+  .stat-cell > * { flex:1; min-width:0; }
+
+  /* First-run intro banner (dismissible) */
+  .intro { display:flex; gap:14px; align-items:flex-start; background:var(--surface-sunken); border:1px solid var(--border-default); border-left:3px solid var(--signal-600); border-radius:var(--radius-lg); padding:14px 16px; }
+  .intro .ico { flex:none; margin-top:1px; }
+  .intro h4 { margin:0 0 3px; font-size:14px; color:var(--text-strong); }
+  .intro p { margin:0; font-size:13px; color:var(--text-body); line-height:1.5; }
+  .intro .dismiss { flex:none; margin-left:auto; height:28px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:12px; cursor:pointer; transition:var(--transition-control); }
+  .intro .dismiss:hover { background:var(--surface-sunken); }
+
   .two-col { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; align-items:start; }
   .triage-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:16px; align-items:start; }
   @media (max-width: 1120px){ .two-col, .triage-grid{ grid-template-columns:1fr; } .stat-grid{ grid-template-columns:repeat(2,1fr);} }
@@ -48,6 +67,25 @@
   .panel-h .desc { font-size:12px; color:var(--text-muted); margin-left:auto; }
   .panel-body { padding:16px 18px; }
   .heat-scroll { max-height:560px; overflow:auto; }
+
+  /* At-risk patients (model risk tiers + drivers, US-019/020) */
+  .risk-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .risk-table th { text-align:left; font-size:11px; font-weight:600; color:var(--text-muted); padding:0 8px 6px; border-bottom:1px solid var(--border-subtle); }
+  .risk-table td { padding:8px; border-bottom:1px solid var(--border-subtle); color:var(--text-body); vertical-align:top; }
+  .risk-table tr:last-child td { border-bottom:none; }
+  .risk-sub { color:var(--text-muted); font-size:12px; }
+  .risk-tier { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:var(--radius-pill); border:1px solid; }
+  .risk-chip { display:inline-block; font-size:11px; color:var(--text-body); background:var(--surface-sunken); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:2px 7px; margin:0 4px 4px 0; }
+  .risk-note { margin:10px 0 0; font-size:11.5px; color:var(--text-muted); }
+  /* Prominent county model-risk card (US-019/020) */
+  .county-risk { display:flex; align-items:center; gap:26px; flex-wrap:wrap; background:var(--surface-card); border:1px solid var(--border-subtle); border-left:4px solid var(--signal-600); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); padding:16px 20px; margin:14px 0 4px; }
+  .county-risk.high { border-left-color:var(--danger-500); }
+  .county-risk .cr-label { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
+  .county-risk .cr-scorerow { display:flex; align-items:center; gap:12px; margin:6px 0 4px; }
+  .county-risk .cr-score { font-size:34px; font-weight:700; letter-spacing:-.02em; line-height:1; color:var(--text-strong); }
+  .county-risk .cr-sub { font-size:12px; color:var(--text-muted); max-width:340px; }
+  .county-risk .cr-why { flex:1; min-width:220px; }
+  .county-risk .cr-why-h { font-size:12px; font-weight:600; color:var(--text-body); margin:0 0 7px; }
 
   .seg { display:inline-flex; border:1px solid var(--border-default); border-radius:var(--radius-md); overflow:hidden; }
   .seg button { border:0; background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; padding:6px 12px; cursor:pointer; transition:var(--transition-control); }
@@ -108,6 +146,13 @@
   .signout { height:32px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; cursor:pointer; transition:var(--transition-control); }
   .signout:hover { background:var(--surface-sunken); }
 
+  /* Human-in-the-loop review/override (US-022) */
+  .rec-action { margin-top:16px; }
+  .rec-action .btn { height:30px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:13px; cursor:pointer; transition:var(--transition-control); }
+  .rec-action .btn:hover { background:var(--surface-sunken); }
+  .rec-action .btn.primary { background:var(--signal-600); color:#fff; border-color:var(--signal-600); }
+  .rec-action textarea { width:100%; box-sizing:border-box; font-family:var(--font-sans); font-size:13px; padding:8px; border:1px solid var(--border-default); border-radius:var(--radius-md); resize:vertical; }
+
   /* Explainer chatbot */
   .chat-fab { position:fixed; right:22px; bottom:22px; width:52px; height:52px; border-radius:50%; border:0; background:var(--signal-600); color:#fff; box-shadow:var(--shadow-lg); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:70; transition:var(--transition-control); }
   .chat-fab:hover { background:var(--signal-500); }
@@ -138,6 +183,8 @@
 <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="ds/_ds_bundle.js"></script>
+<!-- Deploy-time API base (live mode). No-op locally; ?api= below still wins. -->
+<script src="config.js"></script>
 <script>
 // Runtime config: point the dashboard at a backend without editing code.
 //   ?api=http://localhost:8000/api   -> live API mode (chat widget, /api/counties)
@@ -363,7 +410,7 @@ function Provenance({ provenance }){
     <div className="prov"><span className="lbl">Data provenance:</span>
       {Object.entries(provenance).sort((a,b)=>d3.ascending(a[1].status,b[1].status)).map(([field,p])=>{
         const s=PROV[p.status]||PROV.stub;
-        return <span className="pill" key={field} style={{borderColor:s.c,color:s.c}}><span className="dot" style={{background:s.c}} />{field} · {p.source_id} · {s.t}</span>;
+        return <span className="pill" key={field} title={field + " is " + s.t + " (source: " + p.source_id + ")"} style={{borderColor:s.c,color:s.c}}><span className="dot" style={{background:s.c}} />{field} · {p.source_id} · {s.t}</span>;
       })}
     </div>
   );
@@ -411,8 +458,9 @@ function Panel({ icon, title, desc, children, bodyClass }){
 }
 
 function Login({ apiBase, onAuth }){
-  const [email,setEmail]=React.useState("");
-  const [pw,setPw]=React.useState("");
+  // Sprint demo: prefill the dummy account so the gated site is one-click.
+  const [email,setEmail]=React.useState("demo@clinicatlas.dev");
+  const [pw,setPw]=React.useState("triad-demo-2026");
   const [mode,setMode]=React.useState("login");
   const [error,setError]=React.useState("");
   const [busy,setBusy]=React.useState(false);
@@ -431,6 +479,7 @@ function Login({ apiBase, onAuth }){
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand"><span className="mark">T</span>Triad · Signal</div>
         <h2>{mode==="login"?"Sign in to the Clinic Needs Atlas":"Create your account"}</h2>
+        {mode==="login" && <p className="login-alt">Sprint demo login is prefilled. Just click Sign in.</p>}
         <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required autoFocus />
         <input type="password" placeholder="Password" value={pw} onChange={e=>setPw(e.target.value)} required />
         {error && <div className="login-err">{error}</div>}
@@ -494,13 +543,206 @@ function ChatWidget({ apiBase, countyId, countyName, token }){
   );
 }
 
+// Human-in-the-loop: recommend the top-need intervention, let a provider
+// Accept or Override with a note. The atlas informs; the provider decides.
+function RecommendedAction({ county, domain, action }){
+  const KEY = "atlas_hitl_" + county.id;
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } };
+  const [state, setState] = React.useState(read);
+  const [editing, setEditing] = React.useState(false);
+  const [note, setNote] = React.useState("");
+  // Re-scope to the selected county whenever it changes.
+  React.useEffect(() => { setState(read()); setEditing(false); setNote(""); }, [county.id]);
+  const save = next => { setState(next); try { localStorage.setItem(KEY, JSON.stringify(next)); } catch(e){} };
+  const status = state.status || "pending";
+  const PILL = { pending:["Pending review","var(--text-muted)"], accepted:["Accepted","var(--signal-600)"], overridden:["Overridden","var(--command-600)"] };
+  const [pillLabel, pillColor] = PILL[status];
+  return (
+    <div className="panel rec-action">
+      <div className="panel-h"><Icon name="clipboard-check" size={16} color="var(--signal-600)" /><h3>Recommended action</h3>
+        <span className="desc">top need · {domain.label}</span></div>
+      <div className="panel-body">
+        <p style={{margin:"0 0 12px", color:"var(--text-body)"}}>{action}</p>
+        <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
+          <span className="pill" style={{color:pillColor, borderColor:pillColor}} aria-label={"Review status: " + pillLabel}>{pillLabel}</span>
+          <button className="btn primary" onClick={()=>save({status:"accepted"})}>Accept</button>
+          <button className="btn" onClick={()=>setEditing(true)}>Override</button>
+          <span style={{fontSize:12, color:"var(--text-muted)"}}>A provider decides; the atlas only recommends.</span>
+        </div>
+        {editing && (
+          <div style={{marginTop:12}}>
+            <textarea aria-label="Override note" rows={3} value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="Describe the provider's alternative action…" />
+            <div style={{marginTop:8, display:"flex", gap:8}}>
+              <button className="btn primary" onClick={()=>{ save({status:"overridden", note}); setEditing(false); }}>Save override</button>
+              <button className="btn" onClick={()=>setEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
+        {status==="overridden" && state.note && !editing && (
+          <p style={{marginTop:12, fontSize:13, color:"var(--text-body)"}}><b>Override note:</b> {state.note}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// First-run guide: a dismissible "what am I looking at" banner.
+function IntroBanner(){
+  const [show, setShow] = React.useState(() => {
+    try { return localStorage.getItem("atlas_intro_dismissed") !== "1"; } catch(e){ return true; }
+  });
+  if(!show) return null;
+  const dismiss = () => { try { localStorage.setItem("atlas_intro_dismissed", "1"); } catch(e){} setShow(false); };
+  return (
+    <div className="intro" role="note" aria-label="How to read this dashboard">
+      <span className="ico"><Icon name="info" size={18} color="var(--signal-600)" /></span>
+      <div>
+        <h4>How to read the Clinic Needs Atlas</h4>
+        <p>Each Virginia county gets a 0–100 unmet-need score from public SDoH, chronic-disease, and shortage-area data. Pick a county (search top-right or click a chart), compare it to the Virginia or regional baseline, and check the provenance badges for whether each field is live or pending.</p>
+      </div>
+      <button className="dismiss" onClick={dismiss}>Got it</button>
+    </div>
+  );
+}
+
+// US-019/020: the model's per-patient risk tiers + drivers -- the "who" and "why".
+// Renders only when patients carry model scores (static/scored atlas); hidden
+// otherwise (e.g. the live API doesn't serve patient rosters yet).
+// Prominent county-level model risk: the score (who), a plain-language tier, and
+// the SDoH drivers behind it (why). modelRisk = P(county is in VA's top need tier).
+function CountyRiskCard({ county }){
+  const risk = county.modelRisk;
+  if(risk == null) return null;
+  const pct = Math.round(risk*100);
+  const high = risk >= 0.5;
+  const tier = high ? {t:"High need", c:"var(--danger-500)"}
+             : risk >= 0.25 ? {t:"Elevated need", c:"var(--command-600)"}
+             : {t:"Lower need", c:"var(--slate-500)"};
+  const drivers = county.modelRiskDrivers || [];
+  return (
+    <div className={"county-risk"+(high?" high":"")}>
+      <div>
+        <span className="cr-label"><Icon name="brain" size={13} /> County model risk</span>
+        <div className="cr-scorerow">
+          <span className="cr-score">{pct}%</span>
+          <span className="risk-tier" style={{color:tier.c, borderColor:tier.c}}>{tier.t}</span>
+        </div>
+        <div className="cr-sub">Modeled probability this county sits in Virginia's top tier for preventable health need.</div>
+      </div>
+      {drivers.length > 0 && (
+        <div className="cr-why">
+          <p className="cr-why-h">Why this county ranks here</p>
+          <div>{drivers.map((d,i) => <span key={i} className="risk-chip">{d}</span>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RiskPanel({ county }){
+  const scored = (county.patientsList || []).filter(p => p.risk != null);
+  if(!scored.length) return null;
+  const ranked = scored.slice().sort((a,b) => (b.risk||0) - (a.risk||0));
+  const highN = ranked.filter(p => p.riskTier === "High").length;
+  const TIER = { High:"var(--danger-500)", Medium:"var(--command-600)", Low:"var(--slate-500)" };
+  return (
+    <div className="panel risk-panel">
+      <div className="panel-h"><Icon name="user-check" size={16} color="var(--signal-600)" /><h3>At-risk patients</h3>
+        <span className="desc">{county.name} · {highN} high-risk of {scored.length} · model-ranked</span></div>
+      <div className="panel-body">
+        <table className="risk-table">
+          <thead><tr><th>Patient</th><th>Risk</th><th>Tier</th><th>Top drivers (why)</th></tr></thead>
+          <tbody>
+            {ranked.map((p,i) => (
+              <tr key={i}>
+                <td>{p.name} <span className="risk-sub">· {p.age}</span></td>
+                <td className="mono">{Math.round((p.risk||0)*100)}%</td>
+                <td><span className="risk-tier" style={{color:TIER[p.riskTier], borderColor:TIER[p.riskTier]}}>{p.riskTier}</span></td>
+                <td>{(p.riskDrivers||[]).map((d,j) => <span key={j} className="risk-chip">{d}</span>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="risk-note">Synthetic non-PHI cohort. Risk is a model estimate for prioritization, reviewable by a provider.</p>
+      </div>
+    </div>
+  );
+}
+
+// Header county picker — a searchable combobox that filters as you type and
+// selects on click or keyboard. Replaces a native <datalist>, whose exact
+// full-string matching made partial searches fail silently.
+function CountyCombobox({ records, selectedId, onSelect }){
+  const [open,setOpen]=React.useState(false);
+  const [query,setQuery]=React.useState("");
+  const [active,setActive]=React.useState(0);
+  const wrapRef=React.useRef(null);
+  const listRef=React.useRef(null);
+
+  const selected=records.find(r=>r.id===selectedId);
+  const selectedLabel=selected?`${selected.name} — ${selected.region}`:"";
+
+  const sorted=records.slice().sort((a,b)=>d3.ascending(a.name,b.name));
+  const q=query.trim().toLowerCase();
+  const opts=q ? sorted.filter(r=>(`${r.name} ${r.region}`).toLowerCase().includes(q)) : sorted;
+
+  // Close on outside click.
+  React.useEffect(()=>{
+    if(!open) return;
+    const onDown=e=>{ if(wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown",onDown);
+    return ()=>document.removeEventListener("mousedown",onDown);
+  },[open]);
+
+  // Keep the active row in view while navigating with the keyboard.
+  React.useEffect(()=>{
+    if(!open || !listRef.current) return;
+    const el=listRef.current.children[active];
+    if(el) el.scrollIntoView({block:"nearest"});
+  },[active,open]);
+
+  const openList=()=>{ setQuery(""); setActive(0); setOpen(true); };
+  const pick=r=>{ if(r) onSelect(r.id); setOpen(false); setQuery(""); };
+
+  const onKeyDown=e=>{
+    if(e.key==="ArrowDown"){ e.preventDefault(); if(!open){openList();return;} setActive(a=>Math.min(a+1,opts.length-1)); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); setActive(a=>Math.max(a-1,0)); }
+    else if(e.key==="Enter"){ e.preventDefault(); if(open) pick(opts[active]); }
+    else if(e.key==="Escape"){ e.preventDefault(); setOpen(false); setQuery(""); e.target.blur(); }
+  };
+
+  return (
+    <div className="county-combo" ref={wrapRef} style={{minWidth:230}}>
+      <input className="county-select" placeholder="Search a county…" aria-label="Search county"
+        role="combobox" aria-expanded={open}
+        value={open?query:selectedLabel}
+        onFocus={openList}
+        onClick={()=>{ if(!open) openList(); }}
+        onChange={e=>{ setQuery(e.target.value); setActive(0); if(!open) setOpen(true); }}
+        onKeyDown={onKeyDown} />
+      {open && (
+        <div className="county-menu" ref={listRef} role="listbox">
+          {opts.length ? opts.map((r,i)=>(
+            <div key={r.id} role="option" aria-selected={r.id===selectedId}
+              className={"county-opt"+(i===active?" active":"")}
+              onMouseEnter={()=>setActive(i)}
+              onMouseDown={e=>{ e.preventDefault(); pick(r); }}>
+              {r.name} <span className="region">— {r.region}</span>
+            </div>
+          )) : <div className="county-empty">No counties match “{query}”.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App(){
   const [records,setRecords]=React.useState([]);
   const [provenance,setProvenance]=React.useState(null);
   const [selectedId,setSelectedId]=React.useState(null);
   const [baselineMode,setBaselineMode]=React.useState("va");
   const [tab,setTab]=React.useState("profile");
-  const [query,setQuery]=React.useState("");
   const [err,setErr]=React.useState(null);
   const [token,setToken]=React.useState(()=>{ try{ return localStorage.getItem("atlas_token")||""; }catch(e){ return ""; } });
 
@@ -533,12 +775,6 @@ function App(){
   const aggVA=React.useMemo(()=>records.length?aggregateOf(records):null,[records]);
   const aggRegion=React.useMemo(()=>{const o={};if(records.length)REGIONS.forEach(r=>o[r]=aggregateOf(records.filter(c=>c.region===r)));return o;},[records]);
 
-  // Keep the search box in sync when the county changes via a chart click.
-  React.useEffect(()=>{
-    const r=records.find(c=>c.id===selectedId);
-    if(r) setQuery(`${r.name} — ${r.region}`);
-  },[selectedId,records]);
-
   if(AUTH_ON && !token) return <Login apiBase={API_BASE} onAuth={t=>{ try{localStorage.setItem("atlas_token",t);}catch(e){} setToken(t); }} />;
   if(err) return <div className="empty">{err}</div>;
   if(!records.length||!selectedId) return <div className="empty">Loading…</div>;
@@ -559,17 +795,9 @@ function App(){
         <div className="topbar">
           <ProductBadge product="signal" />
           <span className="crumb">/ Clinic Needs Atlas</span>
-          <input className="county-select" list="county-list" value={query} placeholder="Search a county…"
-            aria-label="Search county" style={{marginLeft:8, minWidth:230}}
-            onFocus={e=>e.target.select()}
-            onChange={e=>{ setQuery(e.target.value);
-              const rec=records.find(r=>`${r.name} — ${r.region}`===e.target.value);
-              if(rec) setSelectedId(rec.id); }} />
-          <datalist id="county-list">
-            {records.slice().sort((a,b)=>d3.ascending(a.name,b.name)).map(r=><option key={r.id} value={`${r.name} — ${r.region}`} />)}
-          </datalist>
+          <CountyCombobox records={records} selectedId={selectedId} onSelect={setSelectedId} />
           <div style={{marginLeft:"auto", display:"flex", gap:8, alignItems:"center"}}>
-            <div className="seg">
+            <div className="seg" title="Compare this county against all of Virginia, or against its regional peers only.">
               <button className={baselineMode==="va"?"on":""} onClick={()=>setBaselineMode("va")}>All Virginia</button>
               <button className={baselineMode==="region"?"on":""} onClick={()=>setBaselineMode("region")}>Region peers</button>
             </div>
@@ -578,16 +806,27 @@ function App(){
         </div>
 
         <div className="content">
+          <IntroBanner />
           <div className="page-head">
             <h1>Clinic needs atlas</h1>
             <p>Where unmet need concentrates across Virginia — federal SDoH, chronic-disease, and shortage-area signals for <b>{c.name}</b>, versus the {baselineFor(c).label} baseline.</p>
           </div>
 
+          <CountyRiskCard county={c} />
+
           <div className="stat-grid">
-            <StatCard label="Unmet-need index" value={fmt0(c.needIndex)} unit="/100" accent="signal" icon={<Icon name="gauge" size={18} />} />
-            <StatCard label="Primary-care HPSA" value={String(c.hpsaScore)} unit="/26" accent="signal" icon={<Icon name="map-pin" size={18} />} />
-            <StatCard label="Diabetes prevalence" value={c.outcomes.diabetes!=null?fmt1(c.outcomes.diabetes):"—"} unit="%" accent="signal" icon={<Icon name="activity" size={18} />} />
-            <StatCard label={"Top need · "+topDom.short} value={fmt0(topDom.v)} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />
+            <div className="stat-cell" title="Composite 0–100 score of unmet health need. Higher means more need.">
+              <StatCard label="Unmet-need index" value={fmt0(c.needIndex)} unit="/100" accent="signal" icon={<Icon name="gauge" size={18} />} />
+            </div>
+            <div className="stat-cell" title="HRSA primary-care shortage score, 0–26. Higher means a worse provider shortage.">
+              <StatCard label="Primary-care HPSA" value={String(c.hpsaScore)} unit="/26" accent="signal" icon={<Icon name="map-pin" size={18} />} />
+            </div>
+            <div className="stat-cell" title="Share of adults with diagnosed diabetes (CDC PLACES).">
+              <StatCard label="Diabetes prevalence" value={c.outcomes.diabetes!=null?fmt1(c.outcomes.diabetes):"—"} unit="%" accent="signal" icon={<Icon name="activity" size={18} />} />
+            </div>
+            <div className="stat-cell" title="The SDoH domain carrying this county's highest burden right now.">
+              <StatCard label={"Top need · "+topDom.short} value={fmt0(topDom.v)} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />
+            </div>
           </div>
 
           <div className="legend-row">
@@ -598,12 +837,16 @@ function App(){
           <div className="tabwrap"><Tabs items={tabs} value={tab} onChange={setTab} /></div>
 
           {tab==="profile" && (
-            <div className="two-col">
-              <Panel icon="git-branch" title="Comparative root portrait" desc="canopy = outcomes · roots = SDoH burden vs baseline">
-                <D3Panel draw={drawRoot} ctx={ctx} />
-              </Panel>
-              <NeedProfile c={c} baseline={baselineFor(c)} />
-            </div>
+            <React.Fragment>
+              <div className="two-col">
+                <Panel icon="git-branch" title="Comparative root portrait" desc="canopy = outcomes · roots = SDoH burden vs baseline">
+                  <D3Panel draw={drawRoot} ctx={ctx} />
+                </Panel>
+                <NeedProfile c={c} baseline={baselineFor(c)} />
+              </div>
+              <RecommendedAction county={c} domain={topDom} action={ACTIONS[topDom.key]} />
+              <RiskPanel county={c} />
+            </React.Fragment>
           )}
 
           {tab==="triage" && (

@@ -11,8 +11,6 @@ dependencies = [
     "pandas>=2.0", # tabular transforms and county-level joins
     "PyYAML>=6.0", # read data_sources.yml + email config.yaml
     "openpyxl>=3.1", # read the USDA Food Access Atlas .xlsx workbook
-    "scikit-learn>=1.9.0",
-    "joblib>=1.5.3",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +31,11 @@ api = [
     "bcrypt>=4.1",      # password hashing (Phase 3 auth)
     "pyjwt>=2.9",       # JWT sessions (Phase 3 auth)
     "anthropic>=0.40",  # Claude API for the explainer chatbot (Phase 4)
+]
+# ML modeling stage (src/model/). Install: uv sync --extra model
+model = [
+    "scikit-learn>=1.9.0",
+    "joblib>=1.5.3",
 ]
 
 [dependency-groups]
@@ -64,11 +67,18 @@ type = "layers"
 layers = [
     "src.api",
     "src.build_dataset",
+    "src.model",
     "src.ingestion",
     "src.db",
     "src.transform",
     "src.catalog",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Model may not import orchestration or serving layers"
+type = "forbidden"
+source_modules = ["src.model"]
+forbidden_modules = ["src.build_dataset", "src.api"]
 
 [[tool.importlinter.contracts]]
 name = "Transforms are a pure leaf (no internal imports)"

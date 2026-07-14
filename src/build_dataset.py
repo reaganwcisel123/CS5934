@@ -254,6 +254,7 @@ def main() -> int:
     ap.add_argument("--refresh", action="store_true", help="ignore data/raw cache, re-fetch")
     ap.add_argument("--seed", action="store_true", help="seed the catalog into the DB (needs DATABASE_URL)")
     ap.add_argument("--to-db", action="store_true", help="upsert the built dataset into the DB")
+    ap.add_argument("--score", action="store_true", help="attach model risk tiers to patients (needs a trained model)")
     args = ap.parse_args()
 
     if args.seed:  # mirror the catalog into data_source + field_lineage
@@ -264,6 +265,17 @@ def main() -> int:
 
     print("Building clinic atlas dataset from the data source catalog...")
     result = build(refresh=args.refresh)
+
+    if args.score:  # attach model risk (patients: tiers+drivers; counties: modelRisk)
+        from src.model import score
+        pmodel, cmodel = score.load_patient_model(), score.load_county_model()
+        if pmodel is None and cmodel is None:
+            print("  --score skipped: no trained models (run `python -m src.model.train`).")
+        if pmodel is not None:
+            print(f"  Scored {score.score_records(result['records'], pmodel)} patients (tiers + drivers).")
+        if cmodel is not None:
+            print(f"  Scored {score.score_counties(result['records'], cmodel)} counties (model risk).")
+
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     # allow_nan=False: fail loudly rather than emit NaN, which is invalid JSON.
     OUT_PATH.write_text(json.dumps(result, indent=2, allow_nan=False), encoding="utf-8")

@@ -13,3 +13,15 @@ export PATH="$HOME/.local/bin:$PATH"
 uv run python src/build_dataset.py
 
 echo "Built dashboard/data/clinic_atlas.json"
+
+# On Render, point the dashboard at the API and require sign-in (live + auth).
+# Unset locally, so the committed no-op config.js is kept (static, no gate).
+if [ -n "${ATLAS_API_HOST:-}" ]; then
+  host="$ATLAS_API_HOST"
+  case "$host" in *.*) : ;; *) host="${host}.onrender.com" ;; esac
+  {
+    echo "window.CLINIC_ATLAS_API=\"https://${host}/api\";"
+    echo "window.CLINIC_ATLAS_AUTH=true;"
+  } > dashboard/config.js
+  echo "Wrote dashboard/config.js -> https://${host}/api (auth on)"
+fi
