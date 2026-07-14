@@ -43,7 +43,7 @@ def load_county_model():
 
 
 def score_counties(records: list[dict], model) -> int:
-    """Attach `modelRisk` (probability of high preventable-need) to each county."""
+    """Attach `modelRisk` + `modelRiskDrivers` (the why) to each county in place."""
     feats = C.COUNTY_FEATURES
     rows, refs = [], []
     for r in records:
@@ -57,9 +57,13 @@ def score_counties(records: list[dict], model) -> int:
         refs.append(r)
     if not rows:
         return 0
-    proba = model.predict_proba(pd.DataFrame(rows, columns=feats))[:, 1]
+    X = pd.DataFrame(rows, columns=feats)  # named columns -> no sklearn warning
+    Xnp = X.to_numpy(dtype=float)
+    proba = model.predict_proba(X)[:, 1]
+    drivers = _driver_fn(model)  # non-None only for the linear model
     for i, r in enumerate(refs):
         r["modelRisk"] = round(float(proba[i]), 3)
+        r["modelRiskDrivers"] = _top_drivers(drivers(Xnp[i]), feats, C.COUNTY_DRIVER_LABELS) if drivers else []
     return len(refs)
 
 
@@ -78,17 +82,18 @@ def _driver_fn(model):
     return lambda x: coef * ((np.asarray(x, dtype=float) - mean) / scale)
 
 
-def _top_drivers(contribs: np.ndarray, feats: list[str], k: int = 2) -> list[str]:
-    labels: list[str] = []
+def _top_drivers(contribs: np.ndarray, feats: list[str], labels: dict, k: int = 2) -> list[str]:
+    out: list[str] = []
     for j in np.argsort(contribs)[::-1]:
         if contribs[j] <= 0:
             break
-        label = C.DRIVER_LABELS.get(feats[j], feats[j])
-        if label not in labels:
-            labels.append(label)
-        if len(labels) >= k:
+        label = labels.get(feats[j])
+        if label is None or label in out:  # skip unmapped (e.g. needIndex) + dups
+            continue
+        out.append(label)
+        if len(out) >= k:
             break
-    return labels
+    return out
 
 
 def score_records(records: list[dict], model) -> int:
@@ -120,7 +125,7 @@ def score_records(records: list[dict], model) -> int:
         p = float(proba[i])
         pt["risk"] = round(p, 3)
         pt["riskTier"] = "High" if p >= hi else ("Medium" if p >= md else "Low")
-        pt["riskDrivers"] = _top_drivers(drivers(Xnp[i]), feats) if drivers else []
+        pt["riskDrivers"] = _top_drivers(drivers(Xnp[i]), feats, C.DRIVER_LABELS) if drivers else []
     return len(refs)
 
 
