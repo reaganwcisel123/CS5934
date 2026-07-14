@@ -129,6 +129,8 @@
   .tt { position:fixed; pointer-events:none; opacity:0; transition:opacity 120ms var(--ease-out); background:var(--slate-900); color:#fff; font-size:12px; padding:8px 10px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); max-width:270px; z-index:60; line-height:1.45; }
   .tt b { color:#fff; } .tt .src { color:var(--slate-400); }
   .empty { padding:60px; text-align:center; color:var(--text-muted); }
+  /* Embedded "Needs forest" dashboard (its own React app, loaded in an iframe). */
+  .forest-frame { border:0; width:100%; height:100vh; display:block; background:var(--bg-app); }
 
   /* Login (auth mode) */
   .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg-app); padding:20px; }
@@ -383,9 +385,17 @@ function drawGap(el, ctx){
 }
 
 /* ============================ React ============================ */
-function Sidebar(){
+function Sidebar({ active, onNav }){
   const prods=[["signal","Signal","radar"],["rev","Rev","receipt"],["core","Core","stethoscope"],["command","Command","network"]];
-  const nav=[["Atlas","map",true],["Shortage areas","target",false],["Surveillance","activity",false],["Reports","bar-chart-3",false],["Settings","settings",false]];
+  // Items with a `view` are wired to switch the main panel; the rest are static.
+  const nav=[
+    {label:"Atlas", glyph:"map", view:"atlas"},
+    {label:"Needs forest", glyph:"git-branch", view:"forest"},
+    {label:"Shortage areas", glyph:"target"},
+    {label:"Surveillance", glyph:"activity"},
+    {label:"Reports", glyph:"bar-chart-3"},
+    {label:"Settings", glyph:"settings"},
+  ];
   return (
     <aside className="side">
       <div className="wordmark"><span className="mark">T</span>Triad</div>
@@ -393,9 +403,15 @@ function Sidebar(){
         <div key={k} className={"prod-item"+(k==="signal"?" on":"")}><Icon name={glyph} size={18} color={k==="signal"?"#fff":"var(--slate-400)"} />{label}</div>
       ))}</div>
       <div className="side-label">Signal</div>
-      {nav.map(([label,glyph,on])=>(
-        <div key={label} className={"nav-item"+(on?" on":"")}><Icon name={glyph} size={18} color={on?"#fff":"var(--slate-400)"} />{label}</div>
-      ))}
+      {nav.map(n=>{
+        const on = n.view && active===n.view;
+        return (
+          <div key={n.label} className={"nav-item"+(on?" on":"")}
+            onClick={n.view?()=>onNav(n.view):undefined}>
+            <Icon name={n.glyph} size={18} color={on?"#fff":"var(--slate-400)"} />{n.label}
+          </div>
+        );
+      })}
       <div className="side-foot"><span className="avatar">CA</span>
         <div style={{lineHeight:1.3}}><div style={{color:"#fff",fontSize:13,fontWeight:600}}>Clinic Atlas</div><div style={{fontSize:11,color:"var(--slate-500)"}}>Virginia · 133 counties</div></div>
       </div>
@@ -743,6 +759,7 @@ function App(){
   const [selectedId,setSelectedId]=React.useState(null);
   const [baselineMode,setBaselineMode]=React.useState("va");
   const [tab,setTab]=React.useState("profile");
+  const [nav,setNav]=React.useState("atlas");   // sidebar view: "atlas" | "forest"
   const [err,setErr]=React.useState(null);
   const [token,setToken]=React.useState(()=>{ try{ return localStorage.getItem("atlas_token")||""; }catch(e){ return ""; } });
 
@@ -790,8 +807,11 @@ function App(){
 
   return (
     <div className="app">
-      <Sidebar />
+      <Sidebar active={nav} onNav={setNav} />
       <div className="main">
+        {nav==="forest" ? (
+          <iframe className="forest-frame" src="clinic-needs-forest.html" title="Clinic Needs Forest" />
+        ) : (<React.Fragment>
         <div className="topbar">
           <ProductBadge product="signal" />
           <span className="crumb">/ Clinic Needs Atlas</span>
@@ -867,6 +887,7 @@ function App(){
             </Panel>
           )}
         </div>
+        </React.Fragment>)}
       </div>
       {API_BASE && <ChatWidget apiBase={API_BASE} countyId={selectedId} countyName={c.name} token={token} />}
     </div>
