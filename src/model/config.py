@@ -10,9 +10,10 @@ RANDOM_STATE = 42
 TEST_SIZE = 0.25
 
 # --- County model (REAL data) -------------------------------------------------
-# Only real-variance SDoH is used. dom.economic/education/environment are stubs
-# (constant 50 until their API keys are wired), so they are excluded.
-COUNTY_FEATURES = ["food", "access", "hpsaScore", "rural", "needIndex"]
+# Real-variance SDoH only. economic and education are now live from the Census
+# ACS feed (US-013), so they join the model. dom.environment stays out until the
+# real EPA feed replaces its placeholder values (US-009).
+COUNTY_FEATURES = ["food", "access", "economic", "education", "hpsaScore", "rural", "needIndex"]
 # Target: a county is "high preventable-need" if its chronic-disease burden
 # (CDC PLACES) is in the top third. Documented ambulatory-care-sensitive proxy.
 COUNTY_TARGET_OUTCOMES = ["diabetes", "bphigh", "obesity"]
@@ -61,6 +62,8 @@ DRIVER_LABELS = {
 COUNTY_DRIVER_LABELS = {
     "access": "Poor care access",
     "food": "Food & housing burden",
+    "economic": "Economic hardship",
+    "education": "Low educational attainment",
     "hpsaScore": "Provider shortage",
     "rural": "Rural isolation",
 }

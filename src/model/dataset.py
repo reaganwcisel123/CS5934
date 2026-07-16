@@ -38,6 +38,9 @@ def county_frame(records: list[dict] | None = None) -> tuple[pd.DataFrame, pd.Se
         rows.append({
             "food": dom.get("food"),
             "access": dom.get("access"),
+            # economic and education are now real Census ACS signal (US-013).
+            "economic": dom.get("economic"),
+            "education": dom.get("education"),
             "hpsaScore": r.get("hpsaScore"),
             "rural": r.get("rural"),
             "needIndex": r.get("needIndex"),
