@@ -219,13 +219,36 @@ const MEASURES = [
   { key:"cervical_screen", label:"Cervical cancer screening",       source:"HRSA UDS", better:"high" },
   { key:"child_immun",     label:"Childhood immunization",          source:"HRSA UDS", better:"high" },
 ];
-const ACTIONS = {
-  food:"Enroll in SNAP + on-site food pharmacy; refer to mobile-market route.",
-  economic:"Connect to 340B med-cost assistance + benefits navigator this week.",
-  access:"Arrange NEMT transport + telehealth follow-up to close the care gap.",
-  environment:"Warm hand-off to behavioral health; schedule a 2-week check-in.",
-  education:"Health-literacy coaching + plain-language care plan.",
+const TIER_INTERVENTIONS = {
+  High: [
+    "Nurse outreach call within 48 hours to confirm medications, transport, and food access.",
+    "Arrange NEMT transport plus a telehealth follow-up to close the immediate care gap.",
+    "Warm hand-off to a benefits navigator for 340B medication-cost assistance.",
+  ],
+  Medium: [
+    "Add to the two-week care-coordinator callback list for a check-in.",
+    "Offer SNAP enrollment and an on-site food-pharmacy or mobile-market referral.",
+    "Send a plain-language care plan and confirm the next visit is booked.",
+  ],
+  Low: [
+    "Keep on the standard recall schedule for annual screening and refills.",
+    "Share health-literacy materials and self-management resources.",
+  ],
 };
+// Fall back to Low so a tier lookup never returns undefined.
+const interventionsForTier = t => TIER_INTERVENTIONS[t] || TIER_INTERVENTIONS.Low;
+// County headline tier: prefer the patient roster's most-urgent tier, else the
+// county model risk. Drives the county-level recommended-action panel.
+function countyHeadlineTier(c){
+  const scored = (c.patientsList || []).filter(p => p.risk != null);
+  if(scored.some(p => p.riskTier === "High")) return "High";
+  if(scored.some(p => p.riskTier === "Medium")) return "Medium";
+  if(scored.length) return "Low";
+  // No patient roster (e.g. live API): derive the tier from county model risk.
+  const r = c.modelRisk;
+  if(r == null) return null;
+  return r >= 0.5 ? "High" : r >= 0.25 ? "Medium" : "Low";
+}
 const REGIONS = ["Northern","Central","Valley","Southwest","Tidewater"];
 const REGION_COLOR = { Northern:"#0284c7", Central:"#d97706", Valley:"#059669", Southwest:"#c026d3", Tidewater:"#4f46e5" };
 
@@ -561,7 +584,9 @@ function ChatWidget({ apiBase, countyId, countyName, token }){
 
 // Human-in-the-loop: recommend the top-need intervention, let a provider
 // Accept or Override with a note. The atlas informs; the provider decides.
-function RecommendedAction({ county, domain, action }){
+function RecommendedAction({ county, tier, domain }){
+  // Interventions are chosen by the county's headline risk tier (US-021).
+  const actions = interventionsForTier(tier);
   const KEY = "atlas_hitl_" + county.id;
   const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } };
   const [state, setState] = React.useState(read);
@@ -576,9 +601,13 @@ function RecommendedAction({ county, domain, action }){
   return (
     <div className="panel rec-action">
       <div className="panel-h"><Icon name="clipboard-check" size={16} color="var(--signal-600)" /><h3>Recommended action</h3>
-        <span className="desc">top need · {domain.label}</span></div>
+        <span className="desc">risk tier · {tier || "n/a"}{domain ? " · top need " + domain.label : ""}</span></div>
       <div className="panel-body">
-        <p style={{margin:"0 0 12px", color:"var(--text-body)"}}>{action}</p>
+        {/* Tier-keyed interventions: one or more next steps for this risk tier. */}
+        <p style={{margin:"0 0 6px", color:"var(--text-muted)", fontSize:13}}>Suggested next steps for {tier || "this"} risk:</p>
+        <ul style={{margin:"0 0 12px 18px", padding:0, color:"var(--text-body)"}}>
+          {actions.map((a,i) => <li key={i} style={{marginBottom:4}}>{a}</li>)}
+        </ul>
         <div style={{display:"flex", gap:10, alignItems:"center", flexWrap:"wrap"}}>
           <span className="pill" style={{color:pillColor, borderColor:pillColor}} aria-label={"Review status: " + pillLabel}>{pillLabel}</span>
           <button className="btn primary" onClick={()=>save({status:"accepted"})}>Accept</button>
@@ -668,7 +697,7 @@ function RiskPanel({ county }){
         <span className="desc">{county.name} · {highN} high-risk of {scored.length} · model-ranked</span></div>
       <div className="panel-body">
         <table className="risk-table">
-          <thead><tr><th>Patient</th><th>Risk</th><th>Tier</th><th>Top drivers (why)</th></tr></thead>
+          <thead><tr><th>Patient</th><th>Risk</th><th>Tier</th><th>Top drivers (why)</th><th>Recommended next step</th></tr></thead>
           <tbody>
             {ranked.map((p,i) => (
               <tr key={i}>
@@ -676,6 +705,8 @@ function RiskPanel({ county }){
                 <td className="mono">{Math.round((p.risk||0)*100)}%</td>
                 <td><span className="risk-tier" style={{color:TIER[p.riskTier], borderColor:TIER[p.riskTier]}}>{p.riskTier}</span></td>
                 <td>{(p.riskDrivers||[]).map((d,j) => <span key={j} className="risk-chip">{d}</span>)}</td>
+                {/* US-021: the primary next step for this patient's risk tier. */}
+                <td>{interventionsForTier(p.riskTier)[0]}</td>
               </tr>
             ))}
           </tbody>
@@ -864,7 +895,7 @@ function App(){
                 </Panel>
                 <NeedProfile c={c} baseline={baselineFor(c)} />
               </div>
-              <RecommendedAction county={c} domain={topDom} action={ACTIONS[topDom.key]} />
+              <RecommendedAction county={c} tier={countyHeadlineTier(c)} domain={topDom} />
               <RiskPanel county={c} />
             </React.Fragment>
           )}
