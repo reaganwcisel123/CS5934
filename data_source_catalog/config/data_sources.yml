@@ -343,41 +343,33 @@ sources:
     ingestion_script: src/ingestion/census_acs_sdoh.py
     last_verified_date: "2026-06-29"
   -
-    source_id: epa_ejscreen
-    source_name: EPA EJSCREEN Environmental Justice Indicators
-    provider: U.S. Environmental Protection Agency
+    source_id: cdc_eji
+    source_name: CDC/ATSDR Environmental Justice Index (EJI)
+    provider: U.S. CDC / ATSDR (GRASP)
     source_category: environmental_justice
-    access_method: historical EPA download / archived documentation / data mirror if official access unavailable
-    access_url: "https://19january2021snapshot.epa.gov/ejscreen/overview-environmental-indicators-ejscreen_.html"
-    documentation_url: "https://19january2021snapshot.epa.gov/ejscreen/download-ejscreen-data_.html"
-    auth_required: unknown_verify_current_access
+    access_method: national CSV download at census-tract level, population-weighted to county
+    access_url: "https://eji.cdc.gov/eji_data_download.html"
+    documentation_url: "https://www.atsdr.cdc.gov/place-health/php/eji/eji-technical-documentation.html"
+    auth_required: no
     api_key_env_var: null
     geographic_granularity:
-      - census_block_group
-      - tract
+      - census_tract
       - county
-    temporal_granularity: annual_release_historical
-    refresh_cadence: historically annual; current official refresh status requires verification
-    schema_version: "EJSCREEN release version - TODO verify official/current source"
+    temporal_granularity: periodic_release
+    refresh_cadence: released periodically by CDC/ATSDR; regenerate the county table on a new release
+    schema_version: "EJI 2024 national release"
     join_keys:
-      - block_group_geoid
       - tract_fips
       - county_fips
     fields_used:
-      - environmental_index_percentiles
-      - demographic_index
-      - pollution_burden_indicators
-      - traffic_proximity
-      - pm25
-      - ozone
+      - environmental_burden_module_percentile
     limitations:
-      - Official access and current availability must be verified before production use.
-      - "Indicators are screening-level, not causal risk measures."
-      - Data vintages differ across environmental and demographic indicators.
+      - "The Environmental Burden Module is a screening-level percentile, not a causal risk measure."
+      - County values are population-weighted from census tracts and inherit tract-level uncertainty.
     privacy_classification: public_aggregate
-    ingestion_status: needs_verification
-    ingestion_script: src/ingestion/epa_ejscreen.py
-    last_verified_date: "2026-06-29"
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/cdc_eji.py
+    last_verified_date: "2026-07-15"
   -
     source_id: aspr_hospital_capacity
     source_name: HHS/ASPR Hospital Capacity and Utilization Data

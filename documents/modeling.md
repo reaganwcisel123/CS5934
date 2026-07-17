@@ -24,10 +24,11 @@ We keep clinical and community features separate on purpose, so you can always t
 kind of signal is driving a result.
 
 County features, all real: the USDA food-access burden, the HRSA care-access burden, the
-primary-care HPSA score, a population-based rurality proxy, and the composite need index.
-We left the economic, education, and environment domains out of the model for now because
-they are still placeholders (a constant 50) until the Census and EPA keys are wired in.
-Once those are live they drop straight into the same feature list.
+CDC EJI environmental burden, the primary-care HPSA score, a population-based rurality proxy,
+and the composite need index. The environment domain used to be a constant-50 placeholder.
+With the CDC/ATSDR Environmental Justice Index wired in (US-009) it now carries real variance
+across counties and joins the model. The economic and education domains stay out for now,
+still placeholders until the Census keys are wired (US-013).
 
 Patient features: age, systolic and diastolic blood pressure, and A1c on the clinical side,
 plus the patient's county context (food burden, care-access burden, rurality, need index)
@@ -58,8 +59,9 @@ pipeline demonstrates a real signal instead of chance.
 For each target we train a logistic-regression baseline and a gradient-boosting model and
 compare them on the same held-out split.
 
-County: logistic regression 0.669 PR-AUC, gradient boosting 0.670, against a 0.338 base rate.
-They are effectively tied.
+County: logistic regression 0.821 PR-AUC, gradient boosting 0.685, against a 0.338 base rate.
+Adding the real CDC EJI environmental burden lifted the county model from about 0.67. Logistic
+regression now wins outright, which also keeps the per-county driver story linear.
 
 Patient: logistic regression 0.660 PR-AUC, gradient boosting 0.471, against a 0.267 base
 rate. The baseline wins clearly.
@@ -89,18 +91,17 @@ Rurality is a primary analysis for this project, not an afterthought, so we meas
 performance separately for more-rural and less-rural counties, split at the median rurality
 of the test set.
 
-The county model shows a real gap. It scores 0.78 PR-AUC on less-rural counties and only 0.54
-on more-rural ones. Put plainly, the model is better at ranking the places that are easier to
-reach, which is the wrong direction for a rural-health tool. The patient model is roughly even
-across strata (about 0.68 versus 0.66).
+The county model still shows a gap, and we keep measuring it. With the CDC EJI environmental
+feature added (US-009), it scores about 0.92 PR-AUC on less-rural counties and about 0.76 on
+more-rural ones on this branch. That is an improvement on the more-rural side from the 0.54 we
+saw with only five features, but it is still a gap in the wrong direction for a rural-health
+tool. The patient model is roughly even across strata.
 
-We tried to fix it. We refit the county model with the two rurality groups weighted equally,
-so rural counties are not drowned out during training. It did not help. The rural PR-AUC did
-not improve and moved slightly the wrong way, which is what you would expect when the county
-model has only five real features and 133 rows to learn from. We are documenting the gap
-instead of burying it. The honest fix is more real rural signal (the Census and EPA features
-that are still stubbed, and later the clinic survey), not a reweighting trick on thin data.
-We have flagged this to revisit once those features are live.
+We refit the county model weighting the two rurality strata equally and report it for
+transparency. Adding real environmental signal helped the more-rural side, which fits the
+pattern that the honest fix is more real rural signal, not a reweighting trick on thin data.
+The remaining moves are the Census economic and education features (US-013) and the locked RUCC
+rurality measure (US-007), neither folded in on this branch yet, and later the clinic survey.
 
 ## Risk tiers (US-019)
 

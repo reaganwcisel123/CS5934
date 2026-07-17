@@ -48,7 +48,9 @@ def score_counties(records: list[dict], model) -> int:
     rows, refs = [], []
     for r in records:
         dom = r.get("dom", {})
+        # environment joins the county feature set from real CDC EJI data (US-009).
         feat = {"food": dom.get("food"), "access": dom.get("access"),
+                "environment": dom.get("environment"),
                 "hpsaScore": r.get("hpsaScore"), "rural": r.get("rural"),
                 "needIndex": r.get("needIndex")}
         if any(feat[k] is None for k in feats):
