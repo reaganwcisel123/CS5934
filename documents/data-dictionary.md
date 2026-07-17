@@ -21,7 +21,7 @@ Provenance: **real** (live source) · **synthetic** (generated non-PHI) · **stu
 | `dom.economic` | `census_acs_sdoh` (poverty, uninsured, unemployment, median income) | `normalize_burden` per indicator → mean | real w/ key, else stub |
 | `dom.education` | `census_acs_sdoh` (% no HS diploma) | `normalize_burden` | real w/ key, else stub |
 | `dom.food` | `usda_food_access` (LI/LA tract share) | tract → county share → `normalize_burden` | real |
-| `dom.environment` | `epa_ejscreen` | not wired | stub |
+| `dom.environment` | `cdc_eji` | EJI RPL_EBM, population-weighted tract to county | real |
 | `dom.access` | `hrsa_hpsa` (primary-care HPSA score) | `normalize_burden` | real |
 
 ## Composite & capacity

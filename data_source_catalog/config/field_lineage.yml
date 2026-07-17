@@ -82,9 +82,9 @@ fields:
     required_for_mvp: true
   -
     final_field: environmental_burden_percentile
-    source_id: epa_ejscreen
-    original_field: EJSCREEN environmental percentile indicators
-    transformation: Select chosen EJSCREEN indicator(s); aggregate from block group/tract to county where needed.
+    source_id: cdc_eji
+    original_field: EJI Environmental Burden Module percentile (RPL_EBM)
+    transformation: Population-weight the tract RPL_EBM up to the county and scale to 0-100.
     required_for_mvp: false
   -
     final_field: hospital_bed_utilization_historical
