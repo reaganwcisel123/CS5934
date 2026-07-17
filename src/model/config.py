@@ -10,10 +10,10 @@ RANDOM_STATE = 42
 TEST_SIZE = 0.25
 
 # --- County model (REAL data) -------------------------------------------------
-# Real-variance SDoH only. environment is now the real CDC EJI Environmental
-# Burden Module percentile (US-009), so it joins the model. economic and
-# education stay out until the Census feed is wired (US-013).
-COUNTY_FEATURES = ["food", "access", "environment", "hpsaScore", "rural", "needIndex"]
+# Real-variance SDoH only. economic and education are live from the Census ACS
+# feed (US-013), and environment is the real CDC EJI Environmental Burden Module
+# percentile (US-009), so all three join the model.
+COUNTY_FEATURES = ["food", "access", "economic", "education", "environment", "hpsaScore", "rural", "needIndex"]
 # Target: a county is "high preventable-need" if its chronic-disease burden
 # (CDC PLACES) is in the top third. Documented ambulatory-care-sensitive proxy.
 COUNTY_TARGET_OUTCOMES = ["diabetes", "bphigh", "obesity"]
@@ -62,6 +62,8 @@ DRIVER_LABELS = {
 COUNTY_DRIVER_LABELS = {
     "access": "Poor care access",
     "food": "Food & housing burden",
+    "economic": "Economic hardship",
+    "education": "Low educational attainment",
     "environment": "Environmental burden",
     "hpsaScore": "Provider shortage",
     "rural": "Rural isolation",
