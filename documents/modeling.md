@@ -24,7 +24,7 @@ We keep clinical and community features separate on purpose, so you can always t
 kind of signal is driving a result.
 
 County features, all real: the USDA food-access burden, the HRSA care-access burden, the
-primary-care HPSA score, a population-based rurality proxy, and the composite need index.
+primary-care HPSA score, a locked rurality measure (see below), and the composite need index.
 We left the economic, education, and environment domains out of the model for now because
 they are still placeholders (a constant 50) until the Census and EPA keys are wired in.
 Once those are live they drop straight into the same feature list.
@@ -37,6 +37,22 @@ Feature definitions live in `src/model/config.py` so they stay versioned with th
 acceptance item, designing features from the clinic survey, is still open: the survey
 responses are not back yet (US-004), so today's features are the public and synthetic
 signals we already have.
+
+## Rural population (US-007)
+
+Rurality is a locked measure now, not an informal proxy. We use the USDA Economic Research Service
+Rural-Urban Continuum Codes for 2023, which assign every county a code from 1, most urban metro, to 9, most
+rural, based on the 2023 OMB metro delineation and 2020 population. We normalize that code to a 0 to 1 rural
+score, where RUCC 1 maps to 0.0 and RUCC 9 maps to 1.0, so it enters the model on the same scale the old
+value used. The codes for Virginia's 133 counties are committed in `data/reference/va_county_rucc.csv`, the
+build reads them in `src/build_dataset.py`, and each county record carries a `ruralityMethod` tag so the
+choice is auditable.
+
+This replaces the earlier population-based proxy, one minus the county population percentile, which was a
+stand-in rather than a defined rurality classification. Locking the measure means the rural population that
+both the model and the fairness analysis rest on is a fixed, published constraint. Switching to it also moved
+the numbers: the county model PR-AUC rose from about 0.67 to about 0.80 on its own, because the RUCC code
+carries real signal the population share did not.
 
 ## The targets
 
@@ -89,18 +105,18 @@ Rurality is a primary analysis for this project, not an afterthought, so we meas
 performance separately for more-rural and less-rural counties, split at the median rurality
 of the test set.
 
-The county model shows a real gap. It scores 0.78 PR-AUC on less-rural counties and only 0.54
-on more-rural ones. Put plainly, the model is better at ranking the places that are easier to
-reach, which is the wrong direction for a rural-health tool. The patient model is roughly even
-across strata (about 0.68 versus 0.66).
+With rurality now locked to the RUCC measure (US-007), the split itself is defined by a published
+classification rather than a population proxy, and the numbers shift. The county model scores about 0.93
+PR-AUC on more-rural counties and about 0.57 on less-rural ones, and the patient model about 0.76 versus
+0.45. The gap is still sizable, but it now runs in the less-worrying direction for a rural-health tool: the
+model ranks rural counties well and is weaker on the more-urban ones, rather than the reverse we saw with the
+old proxy. Read these with care, because each stratum is small, about 17 counties per side for the county
+split, and the two strata have different positive rates, which PR-AUC is sensitive to.
 
-We tried to fix it. We refit the county model with the two rurality groups weighted equally,
-so rural counties are not drowned out during training. It did not help. The rural PR-AUC did
-not improve and moved slightly the wrong way, which is what you would expect when the county
-model has only five real features and 133 rows to learn from. We are documenting the gap
-instead of burying it. The honest fix is more real rural signal (the Census and EPA features
-that are still stubbed, and later the clinic survey), not a reweighting trick on thin data.
-We have flagged this to revisit once those features are live.
+We still refit the model weighting the two rurality strata equally and report it for transparency, and we
+keep watching the gap. Locking the rurality measure was the step US-007 asked for. The next real gains come
+from more rural signal: the Census economic and education features under US-013, the EPA environment feature
+under US-009, and later the clinic survey, none of which are folded in on this branch yet.
 
 ## Risk tiers (US-019)
 

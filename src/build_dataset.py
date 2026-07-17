@@ -34,12 +34,15 @@ from src.transform import metrics
 from src.transform import normalize as norm
 from src.transform.geographic_join import (
     RURALITY_METHOD_POPULATION_PROXY,
+    RURALITY_METHOD_RUCC_2023,
     join_sdoh_to_patients,
     summarize_join_coverages,
 )
 
 OUT_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 REGION_REF = REPO_ROOT / "data" / "reference" / "va_county_region.csv"
+# Locked rurality source: USDA ERS Rural-Urban Continuum Codes 2023 (US-007).
+RUCC_REF = REPO_ROOT / "data" / "reference" / "va_county_rucc.csv"
 REGIONS = ["Northern", "Central", "Valley", "Southwest", "Tidewater"]
 
 # How each 0-100 SDoH domain is built from normalized raw indicators.
@@ -116,6 +119,9 @@ def _region_lookup(region_ref: pd.DataFrame, county_fips: list[str]) -> dict[str
 def build(refresh: bool = False) -> dict:
     catalog = Catalog.load()
     region_ref = pd.read_csv(REGION_REF, dtype={"county_fips": str}).fillna("")
+    # Locked rurality lookup: county_fips -> RUCC 2023 code (1 metro to 9 most rural).
+    rucc_ref = pd.read_csv(RUCC_REF, dtype={"county_fips": str})
+    rucc_by_fips = dict(zip(rucc_ref["county_fips"].str.zfill(5), rucc_ref["rucc_2023"].astype(int)))
 
     # 1. Run real sources first to discover the county spine.
     real_ids = [sid for sid, cls in REGISTRY.items()
@@ -182,13 +188,22 @@ def build(refresh: bool = False) -> dict:
                for k in NEED_WEIGHTS}
         need = metrics.need_index(dom, NEED_WEIGHTS, available_domains or set(NEED_WEIGHTS))
         pop = _num(merged.at[fips, "county_population_total"]) if "county_population_total" in merged.columns else None
-        rurality = round(1 - (pop / pop_max), 2) if pop else 0.0  # population-based proxy
+        # Locked rurality from USDA RUCC 2023, normalized to 0-1 (US-007).
+        # RUCC 1 (metro) maps to 0.0 and RUCC 9 (most rural) maps to 1.0.
+        rucc = rucc_by_fips.get(fips)
+        if rucc is not None:
+            rurality = round((rucc - 1) / 8, 2)
+            rurality_method = RURALITY_METHOD_RUCC_2023
+        else:
+            # Fall back to the old population proxy only if a county lacks a RUCC code.
+            rurality = round(1 - (pop / pop_max), 2) if pop else 0.0
+            rurality_method = RURALITY_METHOD_POPULATION_PROXY
         roster = synth_by_county.get(fips, {}).get("patientsList", [])
         sdoh_context = {
             fips: {
                 "dom": dom,
                 "rural": rurality,
-                "ruralityMethod": RURALITY_METHOD_POPULATION_PROXY,
+                "ruralityMethod": rurality_method,
                 "needIndex": need,
             }
         }
@@ -200,6 +215,8 @@ def build(refresh: bool = False) -> dict:
             "district": regions[fips]["district"],
             "region": regions[fips]["region"],
             "rural": rurality,
+            # Record the locked rurality measure on each county for auditability (US-007).
+            "ruralityMethod": rurality_method,
             "dom": dom,
             "needIndex": need,
             "patients": int(pop) if pop else 0,
