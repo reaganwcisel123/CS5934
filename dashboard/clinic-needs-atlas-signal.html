@@ -57,9 +57,8 @@
   .intro .dismiss { flex:none; margin-left:auto; height:28px; padding:0 12px; border:1px solid var(--border-default); border-radius:var(--radius-md); background:var(--surface-card); color:var(--text-body); font-family:var(--font-sans); font-size:12px; cursor:pointer; transition:var(--transition-control); }
   .intro .dismiss:hover { background:var(--surface-sunken); }
 
-  .two-col { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; align-items:start; }
   .triage-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:16px; align-items:start; }
-  @media (max-width: 1120px){ .two-col, .triage-grid{ grid-template-columns:1fr; } .stat-grid{ grid-template-columns:repeat(2,1fr);} }
+  @media (max-width: 1120px){ .triage-grid{ grid-template-columns:1fr; } .stat-grid{ grid-template-columns:repeat(2,1fr);} }
 
   .panel { background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); }
   .panel-h { padding:14px 18px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:8px; }
@@ -277,46 +276,6 @@ function aggregateOf(list){
 }
 
 /* ============================ D3 PANELS (light / Signal) ============================ */
-function drawRoot(el, ctx){
-  const { byId, selectedId, baselineFor } = ctx;
-  const c = byId(selectedId), b = baselineFor(c);
-  const W=440,H=500,cx=W/2, host=d3.select(el).html("");
-  const svg=host.append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("width","100%").attr("role","img")
-    .attr("aria-label",`Root portrait of ${c.name} versus ${b.label}.`);
-  const trunkTopY=H*0.34, trunkBotY=H*0.56, div=makeDiv(22);
-  svg.append("line").attr("x1",24).attr("x2",W-24).attr("y1",trunkBotY).attr("y2",trunkBotY).attr("stroke","var(--slate-300)").attr("stroke-dasharray","2 4");
-  const branchY=H*0.115;
-  const oX=d3.scalePoint().domain(OUTCOMES.map(o=>o.key)).range([cx-150,cx+150]).padding(0.2);
-  const oR=d3.scaleSqrt().domain([0,50]).range([7,30]);
-  OUTCOMES.forEach(o=>{
-    const x=oX(o.key), cv=c.outcomes[o.key]??0, bv=b.outcomes[o.key]??0, w=cv-bv;
-    svg.append("path").attr("d",`M${cx},${trunkTopY} C${cx},${(trunkTopY+branchY)/2} ${x},${(trunkTopY+branchY)/2} ${x},${branchY}`).attr("fill","none").attr("stroke","var(--slate-300)").attr("stroke-width",3);
-    svg.append("circle").attr("cx",x).attr("cy",branchY).attr("r",oR(bv)).attr("fill","none").attr("stroke","var(--slate-400)").attr("stroke-dasharray","3 3");
-    const leaf=svg.append("g");
-    leaf.append("circle").attr("cx",x).attr("cy",branchY).attr("r",oR(cv)).attr("fill",div(w)).attr("opacity",.92).attr("stroke","#fff").attr("stroke-width",1.5);
-    leaf.append("text").attr("x",x).attr("y",branchY+3).attr("text-anchor","middle").attr("font-size",10).attr("font-weight",700).attr("font-family","var(--font-mono)").attr("fill",onFill(w)).text(fmt0(cv)+"%");
-    leaf.append("text").attr("x",x).attr("y",branchY+oR(Math.max(cv,bv))+14).attr("text-anchor","middle").attr("font-size",10.5).attr("fill","var(--slate-600)").text(o.short);
-    leaf.append("text").attr("x",x).attr("y",branchY+oR(Math.max(cv,bv))+27).attr("text-anchor","middle").attr("font-size",10).attr("font-weight",700).attr("font-family","var(--font-mono)").attr("fill",divText(w)).text(glyph(w)+" "+sgn(w)+fmt1(w));
-    leaf.on("mouseover",e=>showTT(`<b>${o.short}</b> · CDC PLACES<br>county ${fmt1(cv)}% · ${b.label} ${fmt1(bv)}%<br><b style="color:${divText(w)}">${glyph(w)} ${sgn(w)}${fmt1(w)} pts — ${judge(w)}</b>`,e)).on("mousemove",moveTT).on("mouseout",hideTT);
-  });
-  svg.append("path").attr("d",`M${cx-12},${trunkBotY} L${cx-6},${trunkTopY} L${cx+6},${trunkTopY} L${cx+12},${trunkBotY} Z`).attr("fill","#b08968");
-  const weight=d3.scaleLinear().domain([0,100]).range([4,30]);
-  const tipX=d3.scalePoint().domain(DOMAINS.map(D=>D.key)).range([42,W-42]).padding(0.1);
-  DOMAINS.forEach(D=>{
-    const x=tipX(D.key), tipY=H-58, cv=c.dom[D.key], bv=b.dom[D.key], w=cv-bv;
-    const cpath=`M${cx},${trunkBotY-2} C${cx},${trunkBotY+64} ${x},${trunkBotY+34} ${x},${tipY}`;
-    svg.append("path").attr("d",cpath).attr("fill","none").attr("stroke","var(--slate-400)").attr("stroke-width",weight(bv)).attr("stroke-linecap","round").attr("opacity",.22).attr("stroke-dasharray","1 6");
-    const g=svg.append("g");
-    g.append("path").attr("d",cpath).attr("fill","none").attr("stroke",div(w)).attr("stroke-width",weight(cv)).attr("stroke-linecap","round").attr("opacity",.95);
-    g.append("circle").attr("cx",x).attr("cy",tipY).attr("r",3.5).attr("fill",div(w));
-    g.append("text").attr("x",x).attr("y",tipY+16).attr("text-anchor","middle").attr("font-size",10.5).attr("fill","var(--slate-600)").text(D.short);
-    g.append("text").attr("x",x).attr("y",tipY+30).attr("text-anchor","middle").attr("font-size",11).attr("font-weight",700).attr("font-family","var(--font-mono)").attr("fill",divText(w)).text(fmt0(cv)+"  "+glyph(w)+sgn(w)+fmt0(w));
-    g.on("mouseover",e=>showTT(`<b>${D.label}</b><br>county burden ${fmt0(cv)} · ${b.label} ${fmt0(bv)}<br><b style="color:${divText(w)}">${glyph(w)} ${sgn(w)}${fmt0(w)} — ${judge(w)}</b><br><span class="src">${D.source}</span>`,e)).on("mousemove",moveTT).on("mouseout",hideTT);
-  });
-  host.append("div").attr("class","desc").style("margin-top","6px").style("font-size","12px").style("color","var(--text-muted)")
-    .html(`Dashed grey = <b>${b.label}</b> baseline shape (n=${b.n}). Solid = ${c.name}. Canopy = outcomes, roots = SDoH burden.`);
-}
-
 function drawHeatmap(el, ctx){
   const { records, selectedId, baselineFor, onSelect, baselineMode } = ctx;
   const host=d3.select(el).html("");
@@ -834,7 +793,7 @@ function App(){
   const c=byId(selectedId);
   const ctx={records,selectedId,baselineMode,byId,baselineFor,onSelect:setSelectedId};
   const topDom=DOMAINS.map(D=>({...D,v:c.dom[D.key]})).sort((a,b)=>b.v-a.v)[0];
-  const tabs=[{id:"profile",label:"County profile"},{id:"triage",label:"Compare & triage"},{id:"quality",label:"Quality gaps"}];
+  const tabs=[{id:"profile",label:"County profile"},{id:"predict",label:"Predictive analytics"},{id:"triage",label:"Compare & triage"},{id:"quality",label:"Quality gaps"}];
 
   return (
     <div className="app">
@@ -863,8 +822,6 @@ function App(){
             <p>Where unmet need concentrates across Virginia — federal SDoH, chronic-disease, and shortage-area signals for <b>{c.name}</b>, versus the {baselineFor(c).label} baseline.</p>
           </div>
 
-          <CountyRiskCard county={c} />
-
           <div className="stat-grid">
             <div className="stat-cell" title="Composite 0–100 score of unmet health need. Higher means more need.">
               <StatCard label="Unmet-need index" value={fmt0(c.needIndex)} unit="/100" accent="signal" icon={<Icon name="gauge" size={18} />} />
@@ -888,15 +845,15 @@ function App(){
           <div className="tabwrap"><Tabs items={tabs} value={tab} onChange={setTab} /></div>
 
           {tab==="profile" && (
+            <NeedProfile c={c} baseline={baselineFor(c)} />
+          )}
+
+          {/* US-31: the model's who (risk), why (drivers), and what next (actions) live on this tab. */}
+          {tab==="predict" && (
             <React.Fragment>
-              <div className="two-col">
-                <Panel icon="git-branch" title="Comparative root portrait" desc="canopy = outcomes · roots = SDoH burden vs baseline">
-                  <D3Panel draw={drawRoot} ctx={ctx} />
-                </Panel>
-                <NeedProfile c={c} baseline={baselineFor(c)} />
-              </div>
-              <RecommendedAction county={c} tier={countyHeadlineTier(c)} domain={topDom} />
+              <CountyRiskCard county={c} />
               <RiskPanel county={c} />
+              <RecommendedAction county={c} tier={countyHeadlineTier(c)} domain={topDom} />
             </React.Fragment>
           )}
 
