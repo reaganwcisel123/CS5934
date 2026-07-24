@@ -1,0 +1,886 @@
+{
+  "source": "mock",
+  "schemaVersion": 1,
+  "rows": [
+    {
+      "year": 2024,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Stroke",
+      "cases": 966,
+      "rate": 278.7
+    },
+    {
+      "year": 2024,
+      "county": "Montgomery County",
+      "county_fips": "51121",
+      "condition": "Asthma",
+      "cases": 992,
+      "rate": 275.4
+    },
+    {
+      "year": 2018,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Asthma",
+      "cases": 905,
+      "rate": 308.8
+    },
+    {
+      "year": 2024,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Asthma",
+      "cases": 963,
+      "rate": 300.2
+    },
+    {
+      "year": 2024,
+      "county": "Augusta County",
+      "county_fips": "51015",
+      "condition": "Ischemic Heart Disease",
+      "cases": 881,
+      "rate": 280.0
+    },
+    {
+      "year": 2018,
+      "county": "James City County",
+      "county_fips": "51095",
+      "condition": "High Blood Cholesterol",
+      "cases": 655,
+      "rate": 218.6
+    },
+    {
+      "year": 2016,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 676,
+      "rate": 184.8
+    },
+    {
+      "year": 2018,
+      "county": "Caroline County",
+      "county_fips": "51033",
+      "condition": "Asthma",
+      "cases": 840,
+      "rate": 264.9
+    },
+    {
+      "year": 2020,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 474,
+      "rate": 178.5
+    },
+    {
+      "year": 2024,
+      "county": "Buckingham County",
+      "county_fips": "51029",
+      "condition": "Alzheimer's Disease",
+      "cases": 482,
+      "rate": 161.7
+    },
+    {
+      "year": 2018,
+      "county": "Frederick County",
+      "county_fips": "51069",
+      "condition": "Stroke",
+      "cases": 726,
+      "rate": 205.3
+    },
+    {
+      "year": 2020,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 599,
+      "rate": 205.6
+    },
+    {
+      "year": 2016,
+      "county": "Nelson County",
+      "county_fips": "51125",
+      "condition": "Ischemic Heart Disease",
+      "cases": 731,
+      "rate": 211.8
+    },
+    {
+      "year": 2018,
+      "county": "Culpeper County",
+      "county_fips": "51047",
+      "condition": "Cardiovascular Disease",
+      "cases": 830,
+      "rate": 260.6
+    },
+    {
+      "year": 2024,
+      "county": "Bedford County",
+      "county_fips": "51019",
+      "condition": "Diabetes",
+      "cases": 678,
+      "rate": 189.2
+    },
+    {
+      "year": 2016,
+      "county": "Roanoke County",
+      "county_fips": "51161",
+      "condition": "Hypertension",
+      "cases": 752,
+      "rate": 272.3
+    },
+    {
+      "year": 2020,
+      "county": "Amelia County",
+      "county_fips": "51007",
+      "condition": "Diabetes",
+      "cases": 1016,
+      "rate": 309.2
+    },
+    {
+      "year": 2018,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "Cardiovascular Disease",
+      "cases": 838,
+      "rate": 301.4
+    },
+    {
+      "year": 2018,
+      "county": "Bedford County",
+      "county_fips": "51019",
+      "condition": "Arthritis",
+      "cases": 529,
+      "rate": 158.0
+    },
+    {
+      "year": 2024,
+      "county": "Augusta County",
+      "county_fips": "51015",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 1011,
+      "rate": 272.4
+    },
+    {
+      "year": 2018,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Arthritis",
+      "cases": 938,
+      "rate": 275.5
+    },
+    {
+      "year": 2024,
+      "county": "Culpeper County",
+      "county_fips": "51047",
+      "condition": "Alzheimer's Disease",
+      "cases": 606,
+      "rate": 197.0
+    },
+    {
+      "year": 2016,
+      "county": "Spotsylvania County",
+      "county_fips": "51177",
+      "condition": "Cardiovascular Disease",
+      "cases": 649,
+      "rate": 191.5
+    },
+    {
+      "year": 2016,
+      "county": "Roanoke County",
+      "county_fips": "51161",
+      "condition": "Diabetes",
+      "cases": 462,
+      "rate": 142.8
+    },
+    {
+      "year": 2020,
+      "county": "Caroline County",
+      "county_fips": "51033",
+      "condition": "Asthma",
+      "cases": 595,
+      "rate": 161.1
+    },
+    {
+      "year": 2018,
+      "county": "Stafford County",
+      "county_fips": "51179",
+      "condition": "Stroke",
+      "cases": 928,
+      "rate": 281.5
+    },
+    {
+      "year": 2020,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Cardiovascular Disease",
+      "cases": 902,
+      "rate": 249.7
+    },
+    {
+      "year": 2020,
+      "county": "Richmond City",
+      "condition": "Alzheimer's Disease",
+      "cases": 557,
+      "rate": 142.7
+    },
+    {
+      "year": 2018,
+      "county": "Dinwiddie County",
+      "county_fips": "51053",
+      "condition": "Alzheimer's Disease",
+      "cases": 970,
+      "rate": 289.5
+    },
+    {
+      "year": 2024,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Diabetes",
+      "cases": 580,
+      "rate": 233.5
+    },
+    {
+      "year": 2016,
+      "county": "Fauquier County",
+      "county_fips": "51061",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 542,
+      "rate": 154.6
+    },
+    {
+      "year": 2024,
+      "county": "Gloucester County",
+      "county_fips": "51073",
+      "condition": "Cardiovascular Disease",
+      "cases": 824,
+      "rate": 241.1
+    },
+    {
+      "year": 2024,
+      "county": "Franklin County",
+      "county_fips": "51067",
+      "condition": "Stroke",
+      "cases": 573,
+      "rate": 191.9
+    },
+    {
+      "year": 2016,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Asthma",
+      "cases": 946,
+      "rate": 307.6
+    },
+    {
+      "year": 2018,
+      "county": "Norfolk City",
+      "condition": "Diabetes",
+      "cases": 864,
+      "rate": 195.1
+    },
+    {
+      "year": 2024,
+      "county": "Prince William County",
+      "county_fips": "51153",
+      "condition": "Ischemic Heart Disease",
+      "cases": 565,
+      "rate": 193.5
+    },
+    {
+      "year": 2016,
+      "county": "Chesapeake City",
+      "condition": "Hypertension",
+      "cases": 1034,
+      "rate": 221.9
+    },
+    {
+      "year": 2024,
+      "county": "Chesapeake City",
+      "condition": "Hypertension",
+      "cases": 1230,
+      "rate": 260.7
+    },
+    {
+      "year": 2018,
+      "county": "Bedford County",
+      "county_fips": "51019",
+      "condition": "Stroke",
+      "cases": 503,
+      "rate": 163.6
+    },
+    {
+      "year": 2024,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Hypertension",
+      "cases": 661,
+      "rate": 225.3
+    },
+    {
+      "year": 2016,
+      "county": "Richmond City",
+      "condition": "Alzheimer's Disease",
+      "cases": 482,
+      "rate": 126.5
+    },
+    {
+      "year": 2020,
+      "county": "Chesapeake City",
+      "condition": "Hypertension",
+      "cases": 1162,
+      "rate": 248.4
+    },
+    {
+      "year": 2020,
+      "county": "James City County",
+      "county_fips": "51095",
+      "condition": "Alzheimer's Disease",
+      "cases": 697,
+      "rate": 231.3
+    },
+    {
+      "year": 2016,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Hypertension",
+      "cases": 893,
+      "rate": 233.2
+    },
+    {
+      "year": 2016,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "High Blood Cholesterol",
+      "cases": 635,
+      "rate": 217.6
+    },
+    {
+      "year": 2018,
+      "county": "Virginia Beach City",
+      "condition": "Alzheimer's Disease",
+      "cases": 603,
+      "rate": 145.8
+    },
+    {
+      "year": 2024,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Arthritis",
+      "cases": 729,
+      "rate": 188.0
+    },
+    {
+      "year": 2018,
+      "county": "Richmond City",
+      "condition": "Alzheimer's Disease",
+      "cases": 511,
+      "rate": 132.1
+    },
+    {
+      "year": 2024,
+      "county": "Frederick County",
+      "county_fips": "51069",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 1003,
+      "rate": 308.0
+    },
+    {
+      "year": 2016,
+      "county": "Caroline County",
+      "county_fips": "51033",
+      "condition": "Ischemic Heart Disease",
+      "cases": 478,
+      "rate": 133.8
+    },
+    {
+      "year": 2020,
+      "county": "Nelson County",
+      "county_fips": "51125",
+      "condition": "High Blood Cholesterol",
+      "cases": 666,
+      "rate": 239.0
+    },
+    {
+      "year": 2016,
+      "county": "Augusta County",
+      "county_fips": "51015",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 695,
+      "rate": 198.5
+    },
+    {
+      "year": 2016,
+      "county": "Charles City County",
+      "county_fips": "51036",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 877,
+      "rate": 259.1
+    },
+    {
+      "year": 2020,
+      "county": "Culpeper County",
+      "county_fips": "51047",
+      "condition": "Hypertension",
+      "cases": 835,
+      "rate": 235.9
+    },
+    {
+      "year": 2016,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Hypertension",
+      "cases": 721,
+      "rate": 223.9
+    },
+    {
+      "year": 2018,
+      "county": "Washington County",
+      "county_fips": "51191",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 762,
+      "rate": 277.0
+    },
+    {
+      "year": 2020,
+      "county": "Fairfax County",
+      "county_fips": "51059",
+      "condition": "Arthritis",
+      "cases": 375,
+      "rate": 135.7
+    },
+    {
+      "year": 2018,
+      "county": "Chesapeake City",
+      "condition": "Hypertension",
+      "cases": 1097,
+      "rate": 234.8
+    },
+    {
+      "year": 2018,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Alzheimer's Disease",
+      "cases": 781,
+      "rate": 249.6
+    },
+    {
+      "year": 2016,
+      "county": "Culpeper County",
+      "county_fips": "51047",
+      "condition": "Arthritis",
+      "cases": 430,
+      "rate": 158.5
+    },
+    {
+      "year": 2018,
+      "county": "Frederick County",
+      "county_fips": "51069",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 835,
+      "rate": 283.7
+    },
+    {
+      "year": 2020,
+      "county": "Fauquier County",
+      "county_fips": "51061",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 791,
+      "rate": 229.3
+    },
+    {
+      "year": 2024,
+      "county": "Norfolk City",
+      "condition": "Diabetes",
+      "cases": 952,
+      "rate": 215.2
+    },
+    {
+      "year": 2020,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Diabetes",
+      "cases": 450,
+      "rate": 192.3
+    },
+    {
+      "year": 2016,
+      "county": "Botetourt County",
+      "county_fips": "51023",
+      "condition": "Alzheimer's Disease",
+      "cases": 765,
+      "rate": 231.0
+    },
+    {
+      "year": 2018,
+      "county": "Botetourt County",
+      "county_fips": "51023",
+      "condition": "Chronic Kidney Disease",
+      "cases": 620,
+      "rate": 173.1
+    },
+    {
+      "year": 2020,
+      "county": "Norfolk City",
+      "condition": "Diabetes",
+      "cases": 908,
+      "rate": 203.6
+    },
+    {
+      "year": 2016,
+      "county": "Montgomery County",
+      "county_fips": "51121",
+      "condition": "High Blood Cholesterol",
+      "cases": 908,
+      "rate": 256.5
+    },
+    {
+      "year": 2020,
+      "county": "Fauquier County",
+      "county_fips": "51061",
+      "condition": "Chronic Kidney Disease",
+      "cases": 840,
+      "rate": 260.6
+    },
+    {
+      "year": 2018,
+      "county": "Prince William County",
+      "county_fips": "51153",
+      "condition": "High Blood Cholesterol",
+      "cases": 610,
+      "rate": 193.3
+    },
+    {
+      "year": 2020,
+      "county": "James City County",
+      "county_fips": "51095",
+      "condition": "High Blood Cholesterol",
+      "cases": 592,
+      "rate": 185.7
+    },
+    {
+      "year": 2016,
+      "county": "Buckingham County",
+      "county_fips": "51029",
+      "condition": "Alzheimer's Disease",
+      "cases": 626,
+      "rate": 200.7
+    },
+    {
+      "year": 2016,
+      "county": "Accomack County",
+      "county_fips": "51001",
+      "condition": "Stroke",
+      "cases": 877,
+      "rate": 243.1
+    },
+    {
+      "year": 2020,
+      "county": "Dinwiddie County",
+      "county_fips": "51053",
+      "condition": "Alzheimer's Disease",
+      "cases": 438,
+      "rate": 141.0
+    },
+    {
+      "year": 2018,
+      "county": "Washington County",
+      "county_fips": "51191",
+      "condition": "Chronic Kidney Disease",
+      "cases": 842,
+      "rate": 292.4
+    },
+    {
+      "year": 2016,
+      "county": "Bedford County",
+      "county_fips": "51019",
+      "condition": "Cardiovascular Disease",
+      "cases": 943,
+      "rate": 296.7
+    },
+    {
+      "year": 2024,
+      "county": "James City County",
+      "county_fips": "51095",
+      "condition": "Hypertension",
+      "cases": 866,
+      "rate": 282.4
+    },
+    {
+      "year": 2024,
+      "county": "Virginia Beach City",
+      "condition": "Alzheimer's Disease",
+      "cases": 691,
+      "rate": 169.4
+    },
+    {
+      "year": 2018,
+      "county": "Prince William County",
+      "county_fips": "51153",
+      "condition": "High Blood Cholesterol",
+      "cases": 597,
+      "rate": 226.7
+    },
+    {
+      "year": 2024,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "Chronic Kidney Disease",
+      "cases": 560,
+      "rate": 175.9
+    },
+    {
+      "year": 2024,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "Asthma",
+      "cases": 431,
+      "rate": 177.6
+    },
+    {
+      "year": 2016,
+      "county": "Prince William County",
+      "county_fips": "51153",
+      "condition": "High Blood Cholesterol",
+      "cases": 578,
+      "rate": 202.2
+    },
+    {
+      "year": 2020,
+      "county": "Arlington County",
+      "county_fips": "51013",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 490,
+      "rate": 125.3
+    },
+    {
+      "year": 2024,
+      "county": "Stafford County",
+      "county_fips": "51179",
+      "condition": "Arthritis",
+      "cases": 728,
+      "rate": 243.9
+    },
+    {
+      "year": 2020,
+      "county": "Campbell County",
+      "county_fips": "51031",
+      "condition": "Diabetes",
+      "cases": 616,
+      "rate": 197.3
+    },
+    {
+      "year": 2016,
+      "county": "Stafford County",
+      "county_fips": "51179",
+      "condition": "Stroke",
+      "cases": 911,
+      "rate": 283.5
+    },
+    {
+      "year": 2020,
+      "county": "Stafford County",
+      "county_fips": "51179",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 528,
+      "rate": 127.4
+    },
+    {
+      "year": 2018,
+      "county": "Bedford County",
+      "county_fips": "51019",
+      "condition": "Ischemic Heart Disease",
+      "cases": 677,
+      "rate": 209.8
+    },
+    {
+      "year": 2018,
+      "county": "Washington County",
+      "county_fips": "51191",
+      "condition": "Ischemic Heart Disease",
+      "cases": 481,
+      "rate": 147.3
+    },
+    {
+      "year": 2020,
+      "county": "Buckingham County",
+      "county_fips": "51029",
+      "condition": "Asthma",
+      "cases": 755,
+      "rate": 242.3
+    },
+    {
+      "year": 2024,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Cardiovascular Disease",
+      "cases": 577,
+      "rate": 223.2
+    },
+    {
+      "year": 2016,
+      "county": "Virginia Beach City",
+      "condition": "Alzheimer's Disease",
+      "cases": 574,
+      "rate": 139.7
+    },
+    {
+      "year": 2018,
+      "county": "Caroline County",
+      "county_fips": "51033",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 627,
+      "rate": 205.3
+    },
+    {
+      "year": 2018,
+      "county": "Albemarle County",
+      "county_fips": "51003",
+      "condition": "Chronic Kidney Disease",
+      "cases": 550,
+      "rate": 170.4
+    },
+    {
+      "year": 2016,
+      "county": "Fluvanna County",
+      "county_fips": "51065",
+      "condition": "Diabetes",
+      "cases": 458,
+      "rate": 181.4
+    },
+    {
+      "year": 2020,
+      "county": "Virginia Beach City",
+      "condition": "Alzheimer's Disease",
+      "cases": 640,
+      "rate": 153.2
+    },
+    {
+      "year": 2020,
+      "county": "Buckingham County",
+      "county_fips": "51029",
+      "condition": "Hypertension",
+      "cases": 559,
+      "rate": 192.5
+    },
+    {
+      "year": 2020,
+      "county": "Franklin County",
+      "county_fips": "51067",
+      "condition": "Diabetes",
+      "cases": 577,
+      "rate": 210.2
+    },
+    {
+      "year": 2024,
+      "county": "Hanover County",
+      "county_fips": "51085",
+      "condition": "Ischemic Heart Disease",
+      "cases": 816,
+      "rate": 261.4
+    },
+    {
+      "year": 2016,
+      "county": "Fairfax County",
+      "county_fips": "51059",
+      "condition": "Chronic Kidney Disease",
+      "cases": 360,
+      "rate": 166.4
+    },
+    {
+      "year": 2024,
+      "county": "Culpeper County",
+      "county_fips": "51047",
+      "condition": "Ischemic Heart Disease",
+      "cases": 853,
+      "rate": 274.3
+    },
+    {
+      "year": 2018,
+      "county": "Loudoun County",
+      "county_fips": "51107",
+      "condition": "Arthritis",
+      "cases": 757,
+      "rate": 235.3
+    },
+    {
+      "year": 2024,
+      "county": "Richmond City",
+      "condition": "Alzheimer's Disease",
+      "cases": 598,
+      "rate": 151.2
+    },
+    {
+      "year": 2018,
+      "county": "Spotsylvania County",
+      "county_fips": "51177",
+      "condition": "Stroke",
+      "cases": 859,
+      "rate": 271.6
+    },
+    {
+      "year": 2016,
+      "county": "Montgomery County",
+      "county_fips": "51121",
+      "condition": "Chronic Obstructive Pulmonary Disease",
+      "cases": 825,
+      "rate": 235.6
+    },
+    {
+      "year": 2016,
+      "county": "Botetourt County",
+      "county_fips": "51023",
+      "condition": "Dementia (Non-Alzheimer's)",
+      "cases": 927,
+      "rate": 275.6
+    },
+    {
+      "year": 2018,
+      "county": "Gloucester County",
+      "county_fips": "51073",
+      "condition": "Cardiovascular Disease",
+      "cases": 514,
+      "rate": 137.0
+    },
+    {
+      "year": 2016,
+      "county": "Botetourt County",
+      "county_fips": "51023",
+      "condition": "Chronic Kidney Disease",
+      "cases": 856,
+      "rate": 253.0
+    },
+    {
+      "year": 2016,
+      "county": "Stafford County",
+      "county_fips": "51179",
+      "condition": "Chronic Kidney Disease",
+      "cases": 496,
+      "rate": 137.9
+    },
+    {
+      "year": 2016,
+      "county": "Norfolk City",
+      "condition": "Diabetes",
+      "cases": 821,
+      "rate": 188.4
+    },
+    {
+      "year": 2018,
+      "county": "Augusta County",
+      "county_fips": "51015",
+      "condition": "Arthritis",
+      "cases": 897,
+      "rate": 305.5
+    },
+    {
+      "year": 2016,
+      "county": "Amelia County",
+      "county_fips": "51007",
+      "condition": "Hypertension",
+      "cases": 834,
+      "rate": 253.3
+    }
+  ]
+}
