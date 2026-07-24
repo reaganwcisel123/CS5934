@@ -33,8 +33,10 @@
   .title h1 { font-size:24px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
   .title p { font-size:13px; color:var(--text-muted); margin:4px 0 0; max-width:640px; }
 
-  .grid { display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; }
-  @media (max-width:1080px){ .grid{ grid-template-columns:1fr; } }
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start; }
+  .side-col { display:flex; flex-direction:column; gap:16px; }
+  .details-row { margin-top:16px; }
+  @media (max-width:1080px){ .grid{ grid-template-columns:1fr; } .side-col{ gap:12px; } .details-row{ margin-top:12px; } }
 
   .panel { background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); }
   .panel-h { padding:12px 16px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:10px; }
@@ -100,6 +102,7 @@
    ========================================================================= */
 
 const VA_FIPS = "51";
+const MIN_YEAR = 2016;
 const CURRENT_YEAR = new Date().getFullYear();
 const fmt0 = d3.format(".0f"), fmtC = d3.format(",");
 
@@ -156,7 +159,7 @@ function toggleConditionSelection(selectedConditions, condition, allConditions) 
   return newSelected;
 }
 
-function buildCountyConditionLookup(rows, { year, conditions }) {
+function buildCountyConditionLookup(rows, { startYear, endYear, conditions }) {
   const includesAllConditions = (conditions || []).includes("All Chronic Conditions");
   const activeConditions = includesAllConditions
     ? null
@@ -165,7 +168,7 @@ function buildCountyConditionLookup(rows, { year, conditions }) {
   const values = [];
 
   rows
-    .filter((row) => row.year <= year && (!activeConditions || activeConditions.includes(row.condition)))
+    .filter((row) => row.year >= startYear && row.year <= endYear && (!activeConditions || activeConditions.includes(row.condition)))
     .forEach((row) => {
       const normalizedCounty = normalizeCountyName(row.county);
       const key = row.countyFips ? `fips:${row.countyFips}` : `name:${normalizedCounty}`;
@@ -319,7 +322,7 @@ function MapPanel({ geo, onHover, onSelect }){
 }
 
 
-function Legend({ selectedYear, onYearChange, selectedConditions, onConditionsChange }) {
+function Legend({ selectedStartYear, selectedEndYear, onStartYearChange, onEndYearChange, selectedConditions, onConditionsChange }) {
   const conditions = [
     "All Chronic Conditions",
     "Alzheimer's Disease",
@@ -340,24 +343,49 @@ function Legend({ selectedYear, onYearChange, selectedConditions, onConditionsCh
     onConditionsChange(toggleConditionSelection(selectedConditions, condition, conditions));
   };
 
+  const handleStartYearChange = (value) => {
+    const nextStartYear = Number(value);
+    const nextEndYear = nextStartYear > selectedEndYear ? nextStartYear : selectedEndYear;
+    onStartYearChange(nextStartYear);
+    onEndYearChange(nextEndYear);
+  };
+
+  const handleEndYearChange = (value) => {
+    const nextEndYear = Number(value);
+    const nextStartYear = nextEndYear < selectedStartYear ? nextEndYear : selectedStartYear;
+    onStartYearChange(nextStartYear);
+    onEndYearChange(nextEndYear);
+  };
+
   return (
     <div>
       <div className="leg-sect">
-        <h4>Year filter</h4>
+        <h4>Date range filter</h4>
         <div className="year-filter">
           <div className="year-head">
-            <span>Show data through</span>
-            <strong>{selectedYear}</strong>
+            <span>Start year</span>
+            <strong>{selectedStartYear}</strong>
           </div>
           <input
             type="range"
-            min="2016"
+            min={MIN_YEAR}
             max={CURRENT_YEAR}
-            value={selectedYear}
-            onChange={(e) => onYearChange(Number(e.target.value))}
+            value={selectedStartYear}
+            onChange={(e) => handleStartYearChange(e.target.value)}
+          />
+          <div className="year-head">
+            <span>End year</span>
+            <strong>{selectedEndYear}</strong>
+          </div>
+          <input
+            type="range"
+            min={MIN_YEAR}
+            max={CURRENT_YEAR}
+            value={selectedEndYear}
+            onChange={(e) => handleEndYearChange(e.target.value)}
           />
           <div className="year-hint">
-            Filters county-level patient records from 2016 through the selected year.
+            Filters county-level patient records between the selected start and end years.
           </div>
         </div>
       </div>
@@ -389,7 +417,7 @@ function Legend({ selectedYear, onYearChange, selectedConditions, onConditionsCh
 }
 
 
-function SelectedPanel({ feature, onClear, conditionData, selectedYear, selectedConditions }){
+function SelectedPanel({ feature, onClear, conditionData, selectedStartYear, selectedEndYear, selectedConditions }){
   if(!feature) return (
     <div className="panel-body">
       <p className="hint">Hover a county to preview it, or click one to pin its details here.</p>
@@ -401,7 +429,7 @@ function SelectedPanel({ feature, onClear, conditionData, selectedYear, selected
     const sameCounty =
       (p.fips && String(row.countyFips) === String(p.fips)) ||
       normalizeCountyName(row.county) === normalizeCountyName(p.name);
-    const matchesYear = Number.isFinite(row.year) && row.year <= selectedYear;
+    const matchesYear = Number.isFinite(row.year) && row.year >= selectedStartYear && row.year <= selectedEndYear;
     const includesAllConditions = selectedConditions.includes("All Chronic Conditions");
     const matchesCondition = includesAllConditions || selectedConditions.includes(row.condition);
     return sameCounty && matchesYear && matchesCondition;
@@ -415,20 +443,21 @@ function SelectedPanel({ feature, onClear, conditionData, selectedYear, selected
         <div><div className="k">Matches</div><div className="v">{matches.length}</div></div>
       </div>
       <p className="hint" style={{marginTop:10}}>
-        Showing mock condition data from 2016 through <strong>{selectedYear}</strong> for <span className="mono">{p.fips}</span>.
+        Showing mock condition data from <strong>{selectedStartYear}</strong> through <strong>{selectedEndYear}</strong> for <span className="mono">{p.fips}</span>.
       </p>
       {matches.length > 0 ? (
-        <div className="hint" style={{marginTop:10, display:"grid", gap:"8px"}}>
+        <div className="hint" style={{marginTop:10, display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"8px"}}>
           {matches.slice(0,8).map((row, index) => (
             <div key={`${row.condition}-${row.year}-${index}`} style={{border:"1px solid var(--border-subtle)", borderRadius:"8px", padding:"8px 10px", background:"var(--surface-sunken)"}}>
               <div><strong>{row.condition}</strong></div>
+              <div>Year: {row.year}</div>
               <div>Hospitalization count: {row.cases}</div>
               <div>Age-adjusted rate: {row.rate}</div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="hint" style={{marginTop:10}}>No mock condition rows matched the selected year and condition filters for this county.</p>
+        <p className="hint" style={{marginTop:10}}>No mock condition rows matched the selected year range and condition filters for this county.</p>
       )}
       <button className="backbtn" style={{marginTop:8}} onClick={onClear}>Clear selection</button>
     </div>
@@ -441,7 +470,8 @@ function App(){
   const [err,setErr]=React.useState(null);
   const [hovered,setHovered]=React.useState(null);
   const [selected,setSelected]=React.useState(null);
-  const [selectedYear,setSelectedYear]=React.useState(CURRENT_YEAR);
+  const [selectedStartYear,setSelectedStartYear]=React.useState(MIN_YEAR);
+  const [selectedEndYear,setSelectedEndYear]=React.useState(CURRENT_YEAR);
   const [selectedConditions,setSelectedConditions]=React.useState(["All Chronic Conditions"]);
   const mapRef=React.useRef(null);
   const apiRef=React.useRef(null);
@@ -471,7 +501,7 @@ function App(){
   },[]);
 
   const normalizedConditionRows = React.useMemo(()=>normalizeConditionRows(conditionData),[conditionData]);
-  const conditionDataSummary = React.useMemo(()=>buildCountyConditionLookup(normalizedConditionRows,{year:selectedYear, conditions:selectedConditions}),[normalizedConditionRows, selectedYear, selectedConditions]);
+  const conditionDataSummary = React.useMemo(()=>buildCountyConditionLookup(normalizedConditionRows,{startYear:selectedStartYear, endYear:selectedEndYear, conditions:selectedConditions}),[normalizedConditionRows, selectedStartYear, selectedEndYear, selectedConditions]);
 
   React.useEffect(()=>{
     if(geo && mapRef.current){
@@ -508,29 +538,35 @@ function App(){
           </div>
         </section>
 
-        <aside>
+        <aside className="side-col">
           <div className="panel">
             <div className="panel-h"><h3>Legend</h3><span className="desc">year + conditions</span></div>
             <div className="panel-body" style={{paddingTop:4}}>
               <Legend
-                selectedYear={selectedYear}
-                onYearChange={setSelectedYear}
+                selectedStartYear={selectedStartYear}
+                selectedEndYear={selectedEndYear}
+                onStartYearChange={setSelectedStartYear}
+                onEndYearChange={setSelectedEndYear}
                 selectedConditions={selectedConditions}
                 onConditionsChange={setSelectedConditions}
               />
             </div>
           </div>
-          <div className="panel" style={{marginTop:16}}>
-            <div className="panel-h"><h3>{selected ? "Selected county" : "County preview"}</h3></div>
-            <SelectedPanel
-              feature={selected}
-              onClear={()=>setSelected(null)}
-              conditionData={conditionData}
-              selectedYear={selectedYear}
-              selectedConditions={selectedConditions}
-            />
-          </div>
         </aside>
+      </div>
+
+      <div className="details-row">
+        <div className="panel">
+          <div className="panel-h"><h3>{selected ? "Selected county" : "County preview"}</h3></div>
+          <SelectedPanel
+            feature={selected}
+            onClear={()=>setSelected(null)}
+            conditionData={conditionData}
+            selectedStartYear={selectedStartYear}
+            selectedEndYear={selectedEndYear}
+            selectedConditions={selectedConditions}
+          />
+        </div>
       </div>
     </div>
   );
