@@ -1,12 +1,14 @@
-"""Train + evaluate risk classifiers: baseline vs advanced, with rurality fairness.
+"""Train and evaluate county and patient risk classifiers.
 
-    python -m src.model.train --target both      # county + patient
+Run:
+
+    python -m src.model.train --target both
     python -m src.model.train --target patient
 
-Fits a scaled logistic-regression baseline (US-015) AND a gradient-boosting model
-(US-016), compares them on PR-AUC + calibration (US-017), and reports a
-rurality-stratified fairness slice (US-018). Saves the best model + full metrics
-to models/.
+The workflow compares logistic regression and gradient boosting, reports
+holdout and repeated cross-validation results, evaluates rurality fairness,
+keeps patients from the same county together, and stores fixed patient
+risk-tier thresholds with the final model.
 """
 
 from __future__ import annotations
@@ -16,10 +18,17 @@ import json
 import sys
 from pathlib import Path
 
-# Allow both `python -m src.model.train` and `python src/model/train.py`.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# Allow both:
+# python -m src.model.train
+# python src/model/train.py
+sys.path.insert(
+    0,
+    str(Path(__file__).resolve().parents[2]),
+)
 
+import joblib  # noqa: E402
 import numpy as np  # noqa: E402
+
 from sklearn.base import clone  # noqa: E402
 from sklearn.ensemble import HistGradientBoostingClassifier  # noqa: E402
 from sklearn.linear_model import LogisticRegression  # noqa: E402
@@ -28,7 +37,12 @@ from sklearn.metrics import (  # noqa: E402
     brier_score_loss,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split  # noqa: E402
+from sklearn.model_selection import (  # noqa: E402
+    GroupShuffleSplit,
+    RepeatedStratifiedKFold,
+    StratifiedGroupKFold,
+    train_test_split,
+)
 from sklearn.pipeline import make_pipeline  # noqa: E402
 from sklearn.preprocessing import StandardScaler  # noqa: E402
 from sklearn.utils.class_weight import compute_sample_weight  # noqa: E402
@@ -41,138 +55,740 @@ MODELS_DIR = REPO_ROOT / "models"
 
 
 def _build(target: str):
+    """Build the feature frame, target, features, and optional county groups."""
     if target == "county":
-        X, y, feats = dataset.county_frame()
-    elif target == "patient":
-        X, y, feats, _ = dataset.patient_frame()
-    else:
-        raise ValueError(f"unknown target: {target}")
-    return X, y, feats
+        X, y, features = dataset.county_frame()
+        return X, y, features, None
+
+    if target == "patient":
+        X, y, features, metadata = dataset.patient_frame()
+        return X, y, features, metadata["county_fips"]
+
+    raise ValueError(f"Unknown target: {target}")
 
 
 def _make_models() -> dict:
-    """Baseline (US-015) + advanced (US-016). Both handle class imbalance."""
+    """Return the baseline and advanced candidate models."""
     return {
         "logreg": make_pipeline(
             StandardScaler(),
-            LogisticRegression(max_iter=1000, class_weight="balanced", random_state=C.RANDOM_STATE)),
-        "gboost": HistGradientBoostingClassifier(random_state=C.RANDOM_STATE),
+            LogisticRegression(
+                max_iter=1000,
+                class_weight="balanced",
+                random_state=C.RANDOM_STATE,
+            ),
+        ),
+        "gboost": HistGradientBoostingClassifier(
+            random_state=C.RANDOM_STATE,
+        ),
     }
 
 
-def _fit(name: str, model, Xtr, ytr):
-    # Tree model has no class_weight param, so pass balanced sample weights.
+def _fit(name: str, model, X_train, y_train):
+    """Fit a model while handling class imbalance."""
     if name == "gboost":
-        model.fit(Xtr, ytr, sample_weight=compute_sample_weight("balanced", ytr))
+        sample_weights = compute_sample_weight(
+            "balanced",
+            y_train,
+        )
+        model.fit(
+            X_train,
+            y_train,
+            sample_weight=sample_weights,
+        )
     else:
-        model.fit(Xtr, ytr)
+        model.fit(X_train, y_train)
+
     return model
 
 
-def _score(yte, proba) -> dict:
+def _raw_score(y_true, probabilities) -> dict:
+    """Return unrounded metrics for aggregation."""
     return {
-        "pr_auc": round(float(average_precision_score(yte, proba)), 3),
-        "roc_auc": round(float(roc_auc_score(yte, proba)), 3),
-        "brier": round(float(brier_score_loss(yte, proba)), 3),
+        "pr_auc": float(
+            average_precision_score(
+                y_true,
+                probabilities,
+            )
+        ),
+        "roc_auc": float(
+            roc_auc_score(
+                y_true,
+                probabilities,
+            )
+        ),
+        "brier": float(
+            brier_score_loss(
+                y_true,
+                probabilities,
+            )
+        ),
     }
 
 
-def fairness_by_rurality(proba, yte, rural) -> dict:
-    """PR-AUC + positive rate for the test set split at its median rurality.
+def _score(y_true, probabilities) -> dict:
+    """Return rounded metrics for JSON output and display."""
+    return {
+        metric: round(value, 3)
+        for metric, value in _raw_score(
+            y_true,
+            probabilities,
+        ).items()
+    }
 
-    Rurality is a primary fairness axis for this project: we check the model
-    performs comparably for more-rural vs less-rural counties.
+
+def _holdout_indices(
+    target,
+    X,
+    y,
+    groups=None,
+):
+    """Create a holdout split.
+
+    County modeling uses a standard stratified split. Patient modeling uses
+    county groups so patients sharing county-level features never appear in
+    both training and testing.
     """
-    rural = np.asarray(rural, dtype=float)
-    yte = np.asarray(yte)
-    proba = np.asarray(proba)
-    thr = float(np.median(rural))
-    out = {"threshold": round(thr, 3), "strata": {}}
-    for label, mask in (("more_rural", rural >= thr), ("less_rural", rural < thr)):
-        yy, pp = yte[mask], proba[mask]
-        both_classes = len(set(yy.tolist())) == 2
-        out["strata"][label] = {
+    if target == "patient":
+        splitter = GroupShuffleSplit(
+            n_splits=25,
+            test_size=C.TEST_SIZE,
+            random_state=C.RANDOM_STATE,
+        )
+
+        for train_indices, test_indices in splitter.split(
+            X,
+            y,
+            groups=groups,
+        ):
+            train_has_both_classes = (
+                y.iloc[train_indices].nunique() == 2
+            )
+            test_has_both_classes = (
+                y.iloc[test_indices].nunique() == 2
+            )
+
+            if (
+                train_has_both_classes
+                and test_has_both_classes
+            ):
+                return train_indices, test_indices
+
+        raise ValueError(
+            "Could not create a county-grouped patient split "
+            "containing both target classes."
+        )
+
+    all_indices = np.arange(len(X))
+
+    train_indices, test_indices = train_test_split(
+        all_indices,
+        test_size=C.TEST_SIZE,
+        random_state=C.RANDOM_STATE,
+        stratify=y,
+    )
+
+    return train_indices, test_indices
+
+
+def _cv_splits(
+    target,
+    X,
+    y,
+    groups=None,
+):
+    """Yield repeated cross-validation splits."""
+    if target == "county":
+        cross_validator = RepeatedStratifiedKFold(
+            n_splits=C.CV_SPLITS,
+            n_repeats=C.CV_REPEATS,
+            random_state=C.RANDOM_STATE,
+        )
+
+        yield from cross_validator.split(X, y)
+        return
+
+    # sklearn does not provide a RepeatedStratifiedGroupKFold class, so create
+    # one shuffled StratifiedGroupKFold per repeat with a different fixed seed.
+    for repeat in range(C.CV_REPEATS):
+        cross_validator = StratifiedGroupKFold(
+            n_splits=C.CV_SPLITS,
+            shuffle=True,
+            random_state=C.RANDOM_STATE + repeat,
+        )
+
+        yield from cross_validator.split(
+            X,
+            y,
+            groups=groups,
+        )
+
+
+def _cross_validate(
+    target,
+    name,
+    model,
+    X,
+    y,
+    groups=None,
+) -> dict:
+    """Evaluate a candidate across repeated folds."""
+    fold_scores = []
+
+    for train_indices, test_indices in _cv_splits(
+        target,
+        X,
+        y,
+        groups,
+    ):
+        y_train = y.iloc[train_indices]
+        y_test = y.iloc[test_indices]
+
+        if (
+            y_train.nunique() < 2
+            or y_test.nunique() < 2
+        ):
+            continue
+
+        fitted_model = _fit(
+            name,
+            clone(model),
+            X.iloc[train_indices],
+            y_train,
+        )
+
+        probabilities = fitted_model.predict_proba(
+            X.iloc[test_indices]
+        )[:, 1]
+
+        fold_scores.append(
+            _raw_score(
+                y_test,
+                probabilities,
+            )
+        )
+
+    if not fold_scores:
+        raise ValueError(
+            f"No valid cross-validation folds for {target}/{name}."
+        )
+
+    summary = {
+        "folds": len(fold_scores),
+    }
+
+    for metric in (
+        "pr_auc",
+        "roc_auc",
+        "brier",
+    ):
+        values = np.array(
+            [
+                score[metric]
+                for score in fold_scores
+            ],
+            dtype=float,
+        )
+
+        summary[f"{metric}_mean"] = round(
+            float(values.mean()),
+            3,
+        )
+        summary[f"{metric}_std"] = round(
+            float(values.std()),
+            3,
+        )
+
+    return summary
+
+
+def fairness_by_rurality(
+    probabilities,
+    y_test,
+    rurality,
+) -> dict:
+    """Report PR-AUC and prevalence above and below median rurality."""
+    rurality = np.asarray(
+        rurality,
+        dtype=float,
+    )
+    y_test = np.asarray(y_test)
+    probabilities = np.asarray(probabilities)
+
+    threshold = float(
+        np.median(rurality)
+    )
+
+    output = {
+        "threshold": round(threshold, 3),
+        "strata": {},
+    }
+
+    strata = (
+        (
+            "more_rural",
+            rurality >= threshold,
+        ),
+        (
+            "less_rural",
+            rurality < threshold,
+        ),
+    )
+
+    for label, mask in strata:
+        group_y = y_test[mask]
+        group_probabilities = probabilities[mask]
+
+        has_both_classes = (
+            len(set(group_y.tolist())) == 2
+        )
+
+        output["strata"][label] = {
             "n": int(mask.sum()),
-            "positive_rate": round(float(yy.mean()) if len(yy) else 0.0, 3),
-            "pr_auc": round(float(average_precision_score(yy, pp)), 3) if both_classes else None,
+            "positive_rate": round(
+                float(group_y.mean())
+                if len(group_y)
+                else 0.0,
+                3,
+            ),
+            "pr_auc": (
+                round(
+                    float(
+                        average_precision_score(
+                            group_y,
+                            group_probabilities,
+                        )
+                    ),
+                    3,
+                )
+                if has_both_classes
+                else None
+            ),
         }
-    return out
+
+    return output
 
 
-def _rurality_mitigation(model, name, Xtr, ytr, Xte, yte) -> dict:
-    """Refit the best model weighting the two rurality strata equally, then
-    re-measure the fairness gap. An honest attempt to shrink any disparity we found.
-    """
-    thr = float(np.median(Xtr["rural"].to_numpy()))
-    grp = (Xtr["rural"].to_numpy() >= thr).astype(int)
-    weights = compute_sample_weight("balanced", grp)
-    m = clone(model)
+def _rurality_mitigation(
+    model,
+    name,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+) -> dict:
+    """Refit with equal rural-stratum weight and remeasure fairness."""
+    threshold = float(
+        np.median(
+            X_train["rural"].to_numpy()
+        )
+    )
+
+    rurality_group = (
+        X_train["rural"].to_numpy()
+        >= threshold
+    ).astype(int)
+
+    sample_weights = compute_sample_weight(
+        "balanced",
+        rurality_group,
+    )
+
+    mitigated_model = clone(model)
+
     if name == "logreg":
-        m.fit(Xtr, ytr, logisticregression__sample_weight=weights)
+        mitigated_model.fit(
+            X_train,
+            y_train,
+            logisticregression__sample_weight=sample_weights,
+        )
     else:
-        m.fit(Xtr, ytr, sample_weight=weights)
-    return fairness_by_rurality(m.predict_proba(Xte)[:, 1], yte, Xte["rural"].to_numpy())
+        mitigated_model.fit(
+            X_train,
+            y_train,
+            sample_weight=sample_weights,
+        )
+
+    probabilities = mitigated_model.predict_proba(
+        X_test
+    )[:, 1]
+
+    return fairness_by_rurality(
+        probabilities,
+        y_test,
+        X_test["rural"].to_numpy(),
+    )
+
+
+def _select_best(
+    target: str,
+    cross_validation_results: dict,
+) -> str:
+    """Select by mean CV PR-AUC while favoring interpretability near a tie."""
+    best_model = max(
+        cross_validation_results,
+        key=lambda model_name: (
+            cross_validation_results[
+                model_name
+            ]["pr_auc_mean"]
+        ),
+    )
+
+    interpretability_margin = (
+        0.08
+        if target == "county"
+        else 0.02
+    )
+
+    logistic_score = (
+        cross_validation_results[
+            "logreg"
+        ]["pr_auc_mean"]
+    )
+
+    best_score = (
+        cross_validation_results[
+            best_model
+        ]["pr_auc_mean"]
+    )
+
+    if (
+        logistic_score
+        >= best_score
+        - interpretability_margin
+    ):
+        return "logreg"
+
+    return best_model
 
 
 def train_one(target: str) -> dict:
-    """Fit both models, compare, pick the best, add a fairness slice, persist."""
-    X, y, feats = _build(target)
-    base = float(y.mean())
-    Xtr, Xte, ytr, yte = train_test_split(
-        X, y, test_size=C.TEST_SIZE, random_state=C.RANDOM_STATE, stratify=y)
+    """Train candidates, evaluate them, and persist the selected model."""
+    X, y, features, groups = _build(target)
 
-    fitted, results, probas = {}, {}, {}
-    for name, model in _make_models().items():
-        _fit(name, model, Xtr, ytr)
-        fitted[name] = model
-        probas[name] = model.predict_proba(Xte)[:, 1]
-        results[name] = _score(yte, probas[name])
+    train_indices, test_indices = _holdout_indices(
+        target,
+        X,
+        y,
+        groups,
+    )
 
-    best = max(results, key=lambda k: results[k]["pr_auc"])
-    interp_margin = 0.08 if target == "county" else 0.02
-    if results["logreg"]["pr_auc"] >= results[best]["pr_auc"] - interp_margin:
-        best = "logreg"
-    fair = fairness_by_rurality(probas[best], yte, Xte["rural"].to_numpy())
-    mitigated = _rurality_mitigation(fitted[best], best, Xtr, ytr, Xte, yte)
+    X_train = X.iloc[train_indices]
+    X_test = X.iloc[test_indices]
+    y_train = y.iloc[train_indices]
+    y_test = y.iloc[test_indices]
+
+    candidates = _make_models()
+
+    fitted_models = {}
+    holdout_results = {}
+    holdout_probabilities = {}
+    cross_validation_results = {}
+
+    for name, candidate in candidates.items():
+        cross_validation_results[name] = _cross_validate(
+            target,
+            name,
+            candidate,
+            X,
+            y,
+            groups,
+        )
+
+        fitted_model = _fit(
+            name,
+            clone(candidate),
+            X_train,
+            y_train,
+        )
+
+        probabilities = fitted_model.predict_proba(
+            X_test
+        )[:, 1]
+
+        fitted_models[name] = fitted_model
+        holdout_probabilities[name] = probabilities
+        holdout_results[name] = _score(
+            y_test,
+            probabilities,
+        )
+
+    best_model_name = _select_best(
+        target,
+        cross_validation_results,
+    )
+
+    fairness = fairness_by_rurality(
+        holdout_probabilities[best_model_name],
+        y_test,
+        X_test["rural"].to_numpy(),
+    )
+
+    mitigated_fairness = _rurality_mitigation(
+        fitted_models[best_model_name],
+        best_model_name,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+    )
+
     metrics = {
-        "target": target, "n_total": int(len(X)), "n_test": int(len(Xte)),
-        "features": feats, "positive_rate": round(base, 3),
-        "models": results, "best_model": best,
-        "fairness_by_rurality": fair, "fairness_after_mitigation": mitigated,
+        "target": target,
+        "n_total": int(len(X)),
+        "n_train": int(len(X_train)),
+        "n_test": int(len(X_test)),
+        "features": features,
+        "positive_rate": round(
+            float(y.mean()),
+            3,
+        ),
+        "split_strategy": (
+            "county-grouped"
+            if target == "patient"
+            else "stratified"
+        ),
+        "models": holdout_results,
+        "cross_validation": cross_validation_results,
+        "best_model": best_model_name,
+        "selection_metric": (
+            "mean cross-validation PR-AUC"
+        ),
+        "fairness_by_rurality": fairness,
+        "fairness_after_mitigation": (
+            mitigated_fairness
+        ),
     }
 
+    if (
+        target == "patient"
+        and groups is not None
+    ):
+        training_counties = set(
+            groups.iloc[train_indices]
+        )
+        testing_counties = set(
+            groups.iloc[test_indices]
+        )
+
+        metrics["county_group_split"] = {
+            "train_counties": len(
+                training_counties
+            ),
+            "test_counties": len(
+                testing_counties
+            ),
+            "overlap_count": len(
+                training_counties
+                & testing_counties
+            ),
+        }
+
+    # After model selection and evaluation, refit the chosen production model
+    # using all available rows.
+    final_model = _fit(
+        best_model_name,
+        clone(candidates[best_model_name]),
+        X,
+        y,
+    )
+
+    model_artifact = {
+        "model": final_model,
+        "features": features,
+        "target": target,
+        "model_name": best_model_name,
+    }
+
+    if target == "patient":
+        training_probabilities = (
+            final_model.predict_proba(X)[:, 1]
+        )
+
+        model_artifact["tier_thresholds"] = {
+            "high": float(
+                np.quantile(
+                    training_probabilities,
+                    C.TIER_QUANTILES["high"],
+                )
+            ),
+            "medium": float(
+                np.quantile(
+                    training_probabilities,
+                    C.TIER_QUANTILES["medium"],
+                )
+            ),
+        }
+
+        metrics["tier_thresholds"] = (
+            model_artifact[
+                "tier_thresholds"
+            ]
+        )
+
     MODELS_DIR.mkdir(exist_ok=True)
-    import joblib
-    joblib.dump(fitted[best], MODELS_DIR / f"{target}_model.joblib")
-    (MODELS_DIR / f"{target}_metrics.json").write_text(json.dumps(metrics, indent=2))
+
+    joblib.dump(
+        model_artifact,
+        MODELS_DIR
+        / f"{target}_model.joblib",
+    )
+
+    (
+        MODELS_DIR
+        / f"{target}_metrics.json"
+    ).write_text(
+        json.dumps(
+            metrics,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
     _report(metrics)
     return metrics
 
 
-def _report(m: dict) -> None:
-    print(f"\n=== {m['target']} model ===")
-    print(f"  rows={m['n_total']}  test={m['n_test']}  features={len(m['features'])}  base_rate={m['positive_rate']:.3f}")
-    print(f"  {'model':8}{'PR-AUC':>9}{'ROC-AUC':>9}{'Brier':>8}")
-    for name, r in m["models"].items():
-        star = "  <- best" if name == m["best_model"] else ""
-        print(f"  {name:8}{r['pr_auc']:>9.3f}{r['roc_auc']:>9.3f}{r['brier']:>8.3f}{star}")
-    def _fair(title, f):
-        print(f"  {title} (split at rural={f['threshold']}):")
-        for lab, s in f["strata"].items():
-            pa = f"{s['pr_auc']:.3f}" if s["pr_auc"] is not None else "n/a"
-            print(f"    {lab:11} n={s['n']:>3}  pos_rate={s['positive_rate']:.3f}  PR-AUC={pa}")
+def _report(metrics: dict) -> None:
+    """Print a concise training report."""
+    print(
+        f"\n=== {metrics['target']} model ==="
+    )
 
-    _fair("rurality fairness (best model)", m["fairness_by_rurality"])
-    _fair("after rurality-balanced retrain", m["fairness_after_mitigation"])
+    print(
+        f"  rows={metrics['n_total']}  "
+        f"train={metrics['n_train']}  "
+        f"test={metrics['n_test']}  "
+        f"features={len(metrics['features'])}  "
+        f"base_rate={metrics['positive_rate']:.3f}"
+    )
+
+    if "county_group_split" in metrics:
+        split = metrics[
+            "county_group_split"
+        ]
+
+        print(
+            "  county split: "
+            f"train={split['train_counties']} "
+            f"test={split['test_counties']} "
+            f"overlap={split['overlap_count']}"
+        )
+
+    print(
+        f"  {'model':8}"
+        f"{'holdout PR':>12}"
+        f"{'CV PR mean':>12}"
+        f"{'CV PR std':>11}"
+        f"{'Brier':>8}"
+    )
+
+    for name, result in metrics[
+        "models"
+    ].items():
+        cross_validation = metrics[
+            "cross_validation"
+        ][name]
+
+        selected = (
+            "  <- best"
+            if name
+            == metrics["best_model"]
+            else ""
+        )
+
+        print(
+            f"  {name:8}"
+            f"{result['pr_auc']:>12.3f}"
+            f"{cross_validation['pr_auc_mean']:>12.3f}"
+            f"{cross_validation['pr_auc_std']:>11.3f}"
+            f"{result['brier']:>8.3f}"
+            f"{selected}"
+        )
+
+    def print_fairness(
+        title: str,
+        fairness_result: dict,
+    ) -> None:
+        print(
+            f"  {title} "
+            f"(split at rural="
+            f"{fairness_result['threshold']}):"
+        )
+
+        for label, result in fairness_result[
+            "strata"
+        ].items():
+            pr_auc = (
+                f"{result['pr_auc']:.3f}"
+                if result["pr_auc"]
+                is not None
+                else "n/a"
+            )
+
+            print(
+                f"    {label:11} "
+                f"n={result['n']:>3}  "
+                f"pos_rate="
+                f"{result['positive_rate']:.3f}  "
+                f"PR-AUC={pr_auc}"
+            )
+
+    print_fairness(
+        "rurality fairness (best model)",
+        metrics["fairness_by_rurality"],
+    )
+
+    print_fairness(
+        "after rurality-balanced retrain",
+        metrics[
+            "fairness_after_mitigation"
+        ],
+    )
+
+    if "tier_thresholds" in metrics:
+        thresholds = metrics[
+            "tier_thresholds"
+        ]
+
+        print(
+            "  fixed tiers: "
+            f"High >= "
+            f"{thresholds['high']:.3f}; "
+            f"Medium >= "
+            f"{thresholds['medium']:.3f}"
+        )
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target", choices=["county", "patient", "both"], default="both")
-    args = ap.parse_args()
-    for t in (["county", "patient"] if args.target == "both" else [args.target]):
-        train_one(t)
-    print(f"\nSaved best models + full metrics to {MODELS_DIR.relative_to(REPO_ROOT)}/")
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--target",
+        choices=[
+            "county",
+            "patient",
+            "both",
+        ],
+        default="both",
+    )
+
+    args = parser.parse_args()
+
+    targets = (
+        ["county", "patient"]
+        if args.target == "both"
+        else [args.target]
+    )
+
+    for target in targets:
+        train_one(target)
+
+    print(
+        "\nSaved best models and metrics to "
+        f"{MODELS_DIR.relative_to(REPO_ROOT)}/"
+    )
+
     return 0
 
 
