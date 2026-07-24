@@ -14,6 +14,8 @@ from typing import Any, Iterable, Mapping
 GEO_KEY_COUNTY_FIPS = "county_fips"
 UNMATCHED_RULE_RETAIN_WITH_NULL_CONTEXT = "retain_unmatched_with_null_context"
 RURALITY_METHOD_POPULATION_PROXY = "county_population_inverse_share_proxy"
+# Locked rurality measure: USDA ERS Rural-Urban Continuum Codes 2023, normalized to 0-1 (US-007).
+RURALITY_METHOD_RUCC_2023 = "usda_ers_rucc_2023_normalized"
 SDOH_DOMAINS = ("economic", "education", "food", "environment", "access")
 
 # Placeholder features from the clinic-needs survey that can be populated once

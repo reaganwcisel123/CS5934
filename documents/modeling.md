@@ -25,10 +25,10 @@ kind of signal is driving a result.
 
 County features, all real: the USDA food-access burden, the HRSA care-access burden, the
 economic and education burdens from the Census ACS feed (US-013), the CDC EJI environmental
-burden (US-009), the primary-care HPSA score, a population-based rurality proxy, and the
-composite need index. Economic, education, and environment were all constant-50 placeholders
-before. With the Census key and the CDC/ATSDR Environmental Justice Index wired in they now
-carry real variance across counties and show up as real drivers of county risk.
+burden (US-009), the primary-care HPSA score, a locked rurality measure (see below, US-007),
+and the composite need index. Economic, education, and environment were all constant-50
+placeholders before. With the Census key and the CDC/ATSDR Environmental Justice Index wired in
+they now carry real variance across counties and show up as real drivers of county risk.
 
 Patient features: age, systolic and diastolic blood pressure, and A1c on the clinical side,
 plus the patient's county context (food burden, care-access burden, rurality, need index)
@@ -39,6 +39,22 @@ Feature definitions live in `src/model/config.py` so they stay versioned with th
 acceptance item, designing features from the clinic survey, is still open: the survey
 responses are not back yet (US-004), so today's features are the public and synthetic
 signals we already have.
+
+## Rural population (US-007)
+
+Rurality is a locked measure now, not an informal proxy. We use the USDA Economic Research Service
+Rural-Urban Continuum Codes for 2023, which assign every county a code from 1, most urban metro, to 9, most
+rural, based on the 2023 OMB metro delineation and 2020 population. We normalize that code to a 0 to 1 rural
+score, where RUCC 1 maps to 0.0 and RUCC 9 maps to 1.0, so it enters the model on the same scale the old
+value used. The codes for Virginia's 133 counties are committed in `data/reference/va_county_rucc.csv`, the
+build reads them in `src/build_dataset.py`, and each county record carries a `ruralityMethod` tag so the
+choice is auditable.
+
+This replaces the earlier population-based proxy, one minus the county population percentile, which was a
+stand-in rather than a defined rurality classification. Locking the measure means the rural population that
+both the model and the fairness analysis rest on is a fixed, published constraint. Switching to it also moved
+the numbers: the county model PR-AUC rose from about 0.67 to about 0.80 on its own, because the RUCC code
+carries real signal the population share did not.
 
 ## The targets
 
@@ -60,20 +76,21 @@ pipeline demonstrates a real signal instead of chance.
 For each target we train a logistic-regression baseline and a gradient-boosting model and
 compare them on the same held-out split.
 
-County: logistic regression 0.863 PR-AUC, gradient boosting 0.780, against a 0.338 base rate.
-Both jumped from about 0.67 once the real economic, education, and environment signal entered
-the model. Logistic regression wins outright, which also keeps the per-county driver story linear.
+County: logistic regression 0.855 PR-AUC, gradient boosting 0.847, against a 0.338 base rate.
+Both jumped from about 0.67 once the real economic, education, and environment signal entered the
+model and rurality was locked to RUCC. Logistic regression edges ahead, which also keeps the
+per-county driver story linear.
 
-Patient: logistic regression 0.666 PR-AUC, gradient boosting 0.523, against a 0.267 base
-rate. The baseline wins clearly.
+Patient: logistic regression 0.673 PR-AUC, gradient boosting 0.652, against a 0.263 base
+rate. The baseline wins.
 
-We rely on logistic regression for both models. On the patient data gradient boosting does
-noticeably worse, and with all the real domains in it now trails on the county data too, so the
-choice is easy. We would keep logistic regression regardless, because the per-county driver
-story below needs a linear model. The selection rule keeps logistic regression whenever it
-stays within a wider margin on the county target, in `src/model/train.py`. The simpler model is far easier to explain, which is the whole point of
-the "why" for a clinic user. This is the familiar "keep it simple until the data clearly
-justifies more" result, and it falls out the same way every run because the split is seeded.
+We rely on logistic regression for both models. Gradient boosting trails on both targets, so the
+choice is easy, and we would keep logistic regression regardless, because the per-county driver
+story below needs a linear model. The selection rule keeps logistic regression whenever it stays
+within a wider margin on the county target, in `src/model/train.py`. The simpler model is far
+easier to explain, which is the whole point of the "why" for a clinic user. This is the familiar
+"keep it simple until the data clearly justifies more" result, and it falls out the same way
+every run because the split is seeded.
 
 ## Evaluation (US-017)
 
@@ -99,13 +116,19 @@ and only 0.54 on more-rural ones, which is the wrong direction for a rural-healt
 tried to fix that by refitting with the two rurality groups weighted equally, and it did not
 help, because reweighting cannot invent signal that thin data does not carry.
 
-Adding the real Census economic and education features (US-013) and the CDC EJI environmental
-feature (US-009) is what actually shrank the gap. The county model now scores about 0.91 PR-AUC
-on less-rural counties and about 0.85 on more-rural ones, so the two strata are much closer and
-the model is no longer markedly worse on the rural side. This is the outcome we predicted: the
-honest fix was more real rural signal, not a reweighting trick on thin data. The patient model
-stays roughly even across strata. The remaining moves are the locked RUCC rurality measure
-(US-007) and later the clinic survey (US-004).
+Real signal did. With the Census economic and education features (US-013), the CDC EJI
+environmental feature (US-009), and rurality locked to the RUCC measure (US-007), the county model
+now scores about 0.95 PR-AUC on more-rural counties and about 0.78 on less-rural ones, and the
+patient model about 0.75 versus 0.46. The more-rural side is now the stronger one, a reversal of
+the old proxy and the right direction for a rural-health tool, though a gap remains and the
+more-urban side is now the weaker one. Read these with care: each stratum is small, about 17
+counties per side for the county split, and the two strata have different positive rates, which
+PR-AUC is sensitive to.
+
+We still refit the model weighting the two rurality strata equally and report it for transparency,
+and we keep watching the gap. The story across US-007, US-009, and US-013 is consistent: real
+signal, not a reweighting trick, is what moves fairness. The clinic survey (US-004) is the
+remaining addition.
 
 ## Risk tiers (US-019)
 
