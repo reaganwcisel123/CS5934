@@ -154,6 +154,33 @@
   .rec-action .btn.primary { background:var(--signal-600); color:#fff; border-color:var(--signal-600); }
   .rec-action textarea { width:100%; box-sizing:border-box; font-family:var(--font-sans); font-size:13px; padding:8px; border:1px solid var(--border-default); border-radius:var(--radius-md); resize:vertical; }
 
+  /* US-32 signal-flow explainer: navy structure, amber pulses. Pure CSS stroke-dash
+     animation (pathLength=100 normalizes edges), so reduced motion works pre-hydration. */
+  .nnviz svg { display:block; width:100%; max-width:820px; margin:0 auto; }
+  .nnviz .nn-cap { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; fill:var(--slate-400); }
+  .nnviz .nn-edge { fill:none; stroke:var(--slate-900); stroke-opacity:.16; stroke-width:1; }
+  .nnviz .nn-in { fill:var(--surface-card); stroke:var(--signal-600); stroke-width:2; }
+  .nnviz .nn-hid { fill:var(--surface-card); stroke:var(--slate-400); stroke-width:1.5; }
+  .nnviz .nn-out { fill:var(--command-500); }
+  .nnviz .nn-label { font-size:12px; fill:var(--slate-600); }
+  .nnviz .nn-out-label { font-size:12px; font-weight:600; fill:var(--command-600); }
+  .nnviz .pulse {
+    fill:none; stroke:var(--command-500); stroke-width:2.5; stroke-linecap:round;
+    stroke-dasharray:7 93;      /* a 7%-long dash, 93% gap */
+    stroke-dashoffset:107;      /* parked before the path start */
+    opacity:0;
+    animation:nnflow ease-in-out infinite;
+  }
+  @keyframes nnflow {
+    0%        { stroke-dashoffset:107; opacity:0; }
+    8%        { opacity:.9; }
+    55%       { stroke-dashoffset:-7; opacity:.9; }
+    60%, 100% { stroke-dashoffset:-7; opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .nnviz .pulse { display:none; animation:none; } }
+  .nnviz.paused .pulse { animation-play-state:paused; }
+  .nnviz .nn-caption { margin:10px 0 0; font-size:12px; color:var(--text-muted); text-align:center; }
+
   /* Explainer chatbot */
   .chat-fab { position:fixed; right:22px; bottom:22px; width:52px; height:52px; border-radius:50%; border:0; background:var(--signal-600); color:#fff; box-shadow:var(--shadow-lg); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:70; transition:var(--transition-control); }
   .chat-fab:hover { background:var(--signal-500); }
@@ -610,6 +637,69 @@ function IntroBanner(){
   );
 }
 
+// US-32: "From data to prediction" diagram, fixed geometry. The deployed model is a
+// logistic regression, so the copy says "weighted combination", never "neural network".
+const NN_IN_X=165, NN_H1_X=390, NN_H2_X=550, NN_OUT_X=675, NN_OUT_Y=174;
+const NN_IN_Y=[62,118,174,230,286], NN_H1_Y=[90,146,202,258], NN_H2_Y=[118,174,230];
+const NN_INPUTS=["Economic hardship","Food & housing","Care access","Provider shortage","Need index"];
+// Cubic Bezier with horizontal tangents: reads as flow, not hairball.
+function nnEdge(x1,y1,x2,y2){ const dx=(x2-x1)*0.45; return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`; }
+// Pulses ride a hand-picked edge subset; staggered timing keeps only a few lit at once.
+const NN_PULSES=[
+  { d:nnEdge(NN_IN_X,NN_IN_Y[0],NN_H1_X,NN_H1_Y[0]), dur:5.2, delay:0   },
+  { d:nnEdge(NN_IN_X,NN_IN_Y[2],NN_H1_X,NN_H1_Y[1]), dur:6.4, delay:1.6 },
+  { d:nnEdge(NN_IN_X,NN_IN_Y[4],NN_H1_X,NN_H1_Y[3]), dur:4.6, delay:3.1 },
+  { d:nnEdge(NN_IN_X,NN_IN_Y[1],NN_H1_X,NN_H1_Y[2]), dur:7.2, delay:0.8 },
+  { d:nnEdge(NN_H1_X,NN_H1_Y[0],NN_H2_X,NN_H2_Y[0]), dur:5.8, delay:2.4 },
+  { d:nnEdge(NN_H1_X,NN_H1_Y[3],NN_H2_X,NN_H2_Y[2]), dur:4.2, delay:4.6 },
+  { d:nnEdge(NN_H1_X,NN_H1_Y[1],NN_H2_X,NN_H2_Y[1]), dur:6.8, delay:1.2 },
+  { d:nnEdge(NN_H2_X,NN_H2_Y[1],NN_OUT_X,NN_OUT_Y),  dur:4.9, delay:3.7 },
+];
+function NeuralFlowViz(){
+  const ref=React.useRef(null);
+  // Pause pulses while the diagram is off-screen or the tab is hidden.
+  React.useEffect(()=>{
+    const el=ref.current; if(!el) return;
+    let offscreen=false;
+    const set=()=>el.classList.toggle("paused", offscreen||document.hidden);
+    const io=new IntersectionObserver(es=>{ offscreen=!es[0].isIntersecting; set(); },{threshold:0.05});
+    io.observe(el);
+    document.addEventListener("visibilitychange",set);
+    return ()=>{ io.disconnect(); document.removeEventListener("visibilitychange",set); };
+  },[]);
+  const edges=[
+    ...NN_IN_Y.flatMap(y1=>NN_H1_Y.map(y2=>nnEdge(NN_IN_X,y1,NN_H1_X,y2))),
+    ...NN_H1_Y.flatMap(y1=>NN_H2_Y.map(y2=>nnEdge(NN_H1_X,y1,NN_H2_X,y2))),
+    ...NN_H2_Y.map(y1=>nnEdge(NN_H2_X,y1,NN_OUT_X,NN_OUT_Y)),
+  ];
+  return (
+    <div className="nnviz" ref={ref}>
+      <svg viewBox="0 0 800 340" role="img"
+        aria-label="Diagram of the county model: five county factors (economic hardship, food and housing, care access, provider shortage, and the composite need index) flow through a weighted combination into one need signal for the county.">
+        <text className="nn-cap" x={NN_IN_X} y={26} textAnchor="middle">County factors</text>
+        <text className="nn-cap" x={(NN_H1_X+NN_H2_X)/2} y={26} textAnchor="middle">Weighted combination</text>
+        <text className="nn-cap" x={NN_OUT_X} y={26} textAnchor="middle">Prediction</text>
+        <g>{edges.map((d,i)=><path key={i} className="nn-edge" d={d} />)}</g>
+        <g aria-hidden="true">{NN_PULSES.map((p,i)=>(
+          <path key={i} className="pulse" d={p.d} pathLength={100}
+            style={{animationDuration:p.dur+"s", animationDelay:p.delay+"s"}} />
+        ))}</g>
+        {NN_IN_Y.map((y,i)=>(
+          <g key={i}>
+            <circle className="nn-in" cx={NN_IN_X} cy={y} r={7} />
+            <text className="nn-label" x={NN_IN_X-16} y={y+4} textAnchor="end">{NN_INPUTS[i]}</text>
+          </g>
+        ))}
+        {NN_H1_Y.map((y,i)=><circle key={i} className="nn-hid" cx={NN_H1_X} cy={y} r={5} />)}
+        {NN_H2_Y.map((y,i)=><circle key={i} className="nn-hid" cx={NN_H2_X} cy={y} r={5} />)}
+        <circle className="nn-out" cx={NN_OUT_X} cy={NN_OUT_Y} r={9} />
+        <text className="nn-out-label" x={NN_OUT_X} y={NN_OUT_Y+28} textAnchor="middle">Need signal</text>
+      </svg>
+      <p className="nn-caption">How the signal flows from data to prediction: a logistic-regression model weighs these county factors into one calibrated need score. Higher signal means the county is likelier to sit in Virginia's top need tier.</p>
+    </div>
+  );
+}
+
 // US-019/020: the model's per-patient risk tiers + drivers -- the "who" and "why".
 // Renders only when patients carry model scores (static/scored atlas); hidden
 // otherwise (e.g. the live API doesn't serve patient rosters yet).
@@ -852,6 +942,9 @@ function App(){
           {tab==="predict" && (
             <React.Fragment>
               <CountyRiskCard county={c} />
+              <Panel icon="brain" title="From data to prediction" desc="county factors → weighted combination → prediction">
+                <NeuralFlowViz />
+              </Panel>
               <RiskPanel county={c} />
               <RecommendedAction county={c} tier={countyHeadlineTier(c)} domain={topDom} />
             </React.Fragment>
