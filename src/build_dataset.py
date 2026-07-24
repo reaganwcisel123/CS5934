@@ -53,7 +53,7 @@ DOMAIN_SPEC = {
     "education": [("pct_no_hs_diploma", "up")],
     "food": [("low_income_low_access_share", "up")],  # + hud_housing (stub)
     "access": [("primary_care_hpsa_score", "up")],
-    # "environment" comes from epa_ejscreen (stub) -> filled as placeholder.
+    # "environment" comes from cdc_eji (real Environmental Burden Module percentile).
 }
 OUTCOME_FIELDS = ["diabetes", "obesity", "mhlth", "bphigh"]      # cdc_places (real)
 MEASURE_FIELDS = ["htn_control", "dm_poor", "depr_screen",
@@ -64,7 +64,7 @@ NEED_WEIGHTS = {"economic": 0.25, "education": 0.15, "food": 0.20,
 # Which catalog source_id backs each dashboard field group (for provenance).
 FIELD_SOURCE = {
     "dom.economic": "census_acs_sdoh", "dom.education": "census_acs_sdoh",
-    "dom.food": "usda_food_access", "dom.environment": "epa_ejscreen",
+    "dom.food": "usda_food_access", "dom.environment": "cdc_eji",
     "dom.access": "hrsa_hpsa", "hpsaScore": "hrsa_hpsa",
     "patients": "county_population_estimates",
     "outcomes": "cdc_places", "measures": "hrsa_uds",
@@ -162,11 +162,11 @@ def build(refresh: bool = False) -> dict:
             available_domains.add(domain)
         else:
             dom_frames[domain] = pd.Series(50.0, index=merged.index)  # placeholder
-    # environment domain from epa_ejscreen (stub) -> placeholder 50.
-    env = frames.get("epa_ejscreen")
+    # environment domain from cdc_eji: real Environmental Burden Module percentile.
+    env = frames.get("cdc_eji")
     if env is not None and "environmental_burden_percentile" in env.columns:
         dom_frames["environment"] = env.set_index("county_fips")["environmental_burden_percentile"]
-        if status.get("epa_ejscreen") == Provenance.REAL:
+        if status.get("cdc_eji") == Provenance.REAL:
             available_domains.add("environment")
     else:
         dom_frames["environment"] = pd.Series(50.0, index=merged.index)

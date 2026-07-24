@@ -36,7 +36,7 @@ def _enforce_rate(key: str) -> None:
     dq.append(now)
 
 DOMAIN_META = {"economic": ("Economic", "Census ACS"), "education": ("Education", "Census ACS"),
-               "food": ("Food/Housing", "USDA"), "environment": ("Environment", "EPA EJSCREEN"),
+               "food": ("Food/Housing", "USDA"), "environment": ("Environment", "CDC EJI"),
                "access": ("Care access", "HRSA HPSA")}
 OUTCOME_META = {"diabetes": "Diabetes", "obesity": "Obesity",
                 "mhlth": "Mental distress", "bphigh": "High BP"}
