@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="ds/styles.css" />
+<title>Virginia — Base Map</title>
+<style>
+  :root { --accent: var(--signal-600); }
+  body { margin:0; background:var(--bg-app); color:var(--text-body); font-family:var(--font-sans); }
+  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+
+  .app { display:grid; grid-template-columns:244px 1fr; min-height:100vh; }
+
+  /* Sidebar — matches the Signal dashboard's left nav exactly */
+  .side { background:var(--slate-900); color:var(--slate-300); display:flex; flex-direction:column; padding:16px 12px; gap:6px; }
+  .side .wordmark { display:flex; align-items:center; gap:9px; color:#fff; font-weight:700; font-size:15px; padding:6px 8px 14px; }
+  .side .wordmark .mark { width:24px; height:24px; border-radius:6px; background:var(--brand); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .prod-switch { display:flex; flex-direction:column; gap:4px; padding:6px 4px 12px; }
+  .prod-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-md); font-size:14px; font-weight:600; color:var(--slate-300); transition:var(--transition-control); }
+  .prod-item.on { background:rgba(255,255,255,.10); color:#fff; }
+  .side-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--slate-500); padding:8px 10px 4px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-md); font-size:14px; color:var(--slate-300); cursor:pointer; transition:var(--transition-control); }
+  .nav-item:hover { background:rgba(255,255,255,.06); color:#fff; }
+  .nav-item.on { background:var(--signal-600); color:#fff; }
+  .side-foot { margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px; border-top:1px solid rgba(255,255,255,.08); }
+  .avatar { width:30px; height:30px; border-radius:50%; background:var(--signal-500); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+  .main { display:flex; flex-direction:column; min-width:0; }
+  @media (max-width:860px){ .app{ grid-template-columns:1fr; } .side{ display:none; } }
+
+  .wrap { max-width:1440px; margin:0 auto; padding:18px 22px 40px; }
+  .hdr { display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
+  .title h1 { font-size:24px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
+  .title p { font-size:13px; color:var(--text-muted); margin:4px 0 0; max-width:640px; }
+
+  .grid { display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; }
+  @media (max-width:1080px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel { background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); }
+  .panel-h { padding:12px 16px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:10px; }
+  .panel-h h3 { font-size:14px; color:var(--text-strong); margin:0; }
+  .panel-h .desc { font-size:12px; color:var(--text-muted); margin-left:auto; }
+  .panel-body { padding:14px 16px; }
+  .mapholder { width:100%; }
+  .mapholder svg { width:100%; height:auto; display:block; }
+
+  .backbtn, .toolbtn { height:28px; padding:0 10px; border:1px solid var(--border-default); border-radius:var(--radius-md);
+             background:var(--surface-card); color:var(--text-body); font-size:12.5px; font-weight:600; cursor:pointer; }
+  .backbtn:hover, .toolbtn:hover { background:var(--surface-sunken); }
+  .toolbtn.active { background:var(--signal-600); border-color:var(--signal-600); color:#fff; }
+
+  .leg-sect { padding:12px 0; border-bottom:1px solid var(--border-subtle); max-height:400px; overflow-y:auto; }
+  .leg-sect:last-child { border-bottom:none; }
+  .leg-sect h4 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); margin:0 0 8px; }
+  .leg-row { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-body); margin:5px 0; }
+  .leg-row .sw { width:11px; height:11px; border-radius:3px; flex:none; }
+  .leg-note { font-size:11.5px; color:var(--text-muted); line-height:1.5; margin-top:6px; }
+  .year-filter { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .year-filter .year-head { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-body); }
+  .year-filter .year-head strong { color:var(--text-strong); }
+  .year-filter input[type="range"] { width:100%; accent-color:var(--signal-600); }
+  .year-filter .year-hint { font-size:11.5px; color:var(--text-muted); line-height:1.5; }
+
+  .kv { display:flex; flex-wrap:wrap; gap:14px 22px; margin:2px 0 6px; }
+  .kv .k { font-size:11px; color:var(--text-muted); }
+  .kv .v { font-size:15px; font-weight:600; color:var(--text-strong); }
+
+  .county-count { font-size:12px; color:var(--text-muted); }
+
+  .tt { position:fixed; pointer-events:none; opacity:0; transition:opacity 120ms ease-out; background:var(--slate-900); color:#fff;
+        font-size:12px; padding:8px 10px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); max-width:280px; z-index:120; line-height:1.45; }
+  .tt b { color:#fff; } .tt .src { color:var(--slate-400); }
+  .empty { padding:60px; text-align:center; color:var(--text-muted); }
+  .hint { font-size:12px; color:var(--text-muted); line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="tt" id="tt"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script type="text/babel" data-presets="react">
+/* =========================================================================
+   Virginia — Base Map
+   Bare county-outline map, same visual system (panel/legend/tooltip pattern)
+   as the Clinic Needs Forest dashboard, but with no data layer yet.
+
+   TO ADD DATA LATER:
+   Each county feature already carries f.properties.fips (5-digit, e.g. "51087")
+   and f.properties.name. Build a lookup keyed by that FIPS code — e.g.
+   `const dataByFips = { "51087": {...}, ... }` — and read it inside the
+   `.on("mouseover", ...)` handler and the fill-color scale marked below.
+   Everything needed to drop a choropleth, dots, or glyphs onto this map is
+   already wired: projection, path generator, zoom, and tooltip.
+   ========================================================================= */
+
+const VA_FIPS = "51";
+const CURRENT_YEAR = new Date().getFullYear();
+const fmt0 = d3.format(".0f"), fmtC = d3.format(",");
+
+function extractYear(value) {
+  if (!value) return null;
+  const match = String(value).match(/(19|20)\d{2}/);
+  if (!match) return null;
+  return Number(match[0]);
+}
+
+function normalizeCountyName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\b(county|city)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeConditionRows(rawData) {
+  const rows = Array.isArray(rawData?.rows) ? rawData.rows : Array.isArray(rawData) ? rawData : [];
+  return rows
+    .map((row) => ({
+      year: Number(row.year ?? row.Year ?? row.year_num),
+      county: String(row.county ?? row.county_name ?? row.location ?? "").trim(),
+      countyFips: row.county_fips ?? row.fips ?? row.countyFips ?? null,
+      condition: String(row.condition ?? row.disease ?? row.metric ?? row.measure ?? "").trim(),
+      cases: Number(row.cases ?? row.case_count ?? row.count ?? row.value ?? 0),
+      rate: Number(row.rate ?? row.prevalence ?? row.value ?? 0),
+    }))
+    .filter((row) => Number.isFinite(row.year) && row.county && row.condition);
+}
+
+function toggleConditionSelection(selectedConditions, condition, allConditions) {
+  if (condition === "All Chronic Conditions") {
+    if (selectedConditions.length === allConditions.length) {
+      return [];
+    }
+    return [...allConditions];
+  }
+
+  let newSelected = selectedConditions.filter((item) => item !== condition);
+  if (selectedConditions.includes(condition)) {
+    newSelected = newSelected.filter((item) => item !== "All Chronic Conditions");
+    return newSelected;
+  }
+
+  newSelected = [...selectedConditions, condition];
+  const individualConditions = allConditions.filter((item) => item !== "All Chronic Conditions");
+  const allIndividualsSelected = individualConditions.every((item) => newSelected.includes(item));
+  if (allIndividualsSelected) {
+    newSelected.push("All Chronic Conditions");
+  }
+  return newSelected;
+}
+
+function buildCountyConditionLookup(rows, { year, conditions }) {
+  const includesAllConditions = (conditions || []).includes("All Chronic Conditions");
+  const activeConditions = includesAllConditions
+    ? null
+    : (conditions || []).filter((condition) => condition !== "All Chronic Conditions");
+  const grouped = {};
+  const values = [];
+
+  rows
+    .filter((row) => row.year <= year && (!activeConditions || activeConditions.includes(row.condition)))
+    .forEach((row) => {
+      const normalizedCounty = normalizeCountyName(row.county);
+      const key = row.countyFips ? `fips:${row.countyFips}` : `name:${normalizedCounty}`;
+      if (!grouped[key]) {
+        grouped[key] = { county: row.county, countyFips: row.countyFips, values: [] };
+      }
+      grouped[key].values.push(row);
+    });
+
+  Object.values(grouped).forEach((entry) => {
+    const value = d3.mean(entry.values, (item) => item.rate ?? item.cases ?? 0);
+    entry.value = Number.isFinite(value) ? value : null;
+    if (entry.value !== null) values.push(entry.value);
+  });
+
+  return {
+    lookup: grouped,
+    maxValue: values.length ? d3.max(values) : 0,
+  };
+}
+
+function getCountyConditionValue(feature, dataSummary) {
+  if (!dataSummary || !feature?.properties) return null;
+  const props = feature.properties;
+  const fipsKey = props.fips ? `fips:${props.fips}` : null;
+  const nameKey = props.name ? `name:${normalizeCountyName(props.name)}` : null;
+  if (fipsKey && dataSummary.lookup[fipsKey]) return dataSummary.lookup[fipsKey].value;
+  if (nameKey && dataSummary.lookup[nameKey]) return dataSummary.lookup[nameKey].value;
+  if (props.name) {
+    const fallbackKey = Object.keys(dataSummary.lookup).find((key) => key.startsWith("name:") && key.replace("name:", "") === normalizeCountyName(props.name));
+    if (fallbackKey) return dataSummary.lookup[fallbackKey].value;
+  }
+  return null;
+}
+
+function getCountyFillColor(feature, dataSummary) {
+  if (!dataSummary) return "var(--surface-sunken)";
+  const value = getCountyConditionValue(feature, dataSummary);
+  if (value == null || !Number.isFinite(value)) return "var(--surface-sunken)";
+  const ratio = dataSummary.maxValue > 0 ? Math.max(0.15, Math.min(1, value / dataSummary.maxValue)) : 0.15;
+  return d3.interpolateReds(ratio);
+}
+
+/* ---- Icon set --------------------------------------------------------
+   Small inline-SVG icon set (24x24, stroke=currentColor) so the sidebar
+   doesn't depend on an external icon bundle. Covers exactly the icons the
+   Signal sidebar uses. Add more `case`s here if new nav items need one. */
+function Icon({ name, size=18, color="currentColor" }){
+  const common = { width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:color,
+    strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round" };
+  switch(name){
+    case "radar": return (<svg {...common}><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 2v10l7 4"/><circle cx="12" cy="12" r="1.5" fill={color} stroke="none"/></svg>);
+    case "receipt": return (<svg {...common}><path d="M5 3h14v18l-2.5-1.5L14 21l-2.5-1.5L9 21l-2.5-1.5L4 21V3z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>);
+    case "stethoscope": return (<svg {...common}><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M6 3H4.5M14 3h1.5"/><path d="M18 12v2a6 6 0 0 1-12 0v-2"/><circle cx="19" cy="12" r="2"/></svg>);
+    case "network": return (<svg {...common}><circle cx="12" cy="4" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 6v4M12 10 5 17M12 10l7 7"/></svg>);
+    case "map": return (<svg {...common}><path d="M3 6.5 9 4l6 2.5 6-2.5v15L15 21l-6-2.5L3 21z"/><path d="M9 4v14.5M15 6.5V21"/></svg>);
+    case "git-branch": return (<svg {...common}><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 7v10M6 9a6 6 0 0 0 6 6h4"/></svg>);
+    case "heart-pulse": return (<svg {...common}><path d="M12 20s-7-4.35-9.5-9A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 21.5 11c-.6 1.2-1.4 2.3-2.3 3.4"/><path d="M3 12h4l2-4 3 7 2-5 1 2h6"/></svg>);
+    case "target": return (<svg {...common}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill={color} stroke="none"/></svg>);
+    case "activity": return (<svg {...common}><path d="M2 12h4l2 8 4-16 3 8h7"/></svg>);
+    case "bar-chart-3": return (<svg {...common}><path d="M4 20V10M12 20V4M20 20v-7"/></svg>);
+    case "settings": return (<svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3.9a7.5 7.5 0 0 0-1.7-1L14.8 3h-4l-.6 2.9a7.5 7.5 0 0 0-1.7 1l-2.3-.9-2 3.4L6 11a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7.5 7.5 0 0 0 1.7 1l.6 2.9h4l.6-2.9a7.5 7.5 0 0 0 1.7-1l2.3.9 2-3.4z"/></svg>);
+    default: return (<svg {...common}><circle cx="12" cy="12" r="8"/></svg>);
+  }
+}
+
+/* ---- Sidebar — identical structure/labels to the Signal dashboard.
+   `active` is left null on this page since Base Map isn't one of the listed
+   tabs; wire `onNav` up to real routing once this map is folded into a tab. */
+function Sidebar({ active, onNav }){
+  const prods=[["signal","Signal","radar"],["rev","Rev","receipt"],["core","Core","stethoscope"],["command","Command","network"]];
+  const nav=[
+    {label:"Atlas", glyph:"map", view:"atlas"},
+    {label:"Needs forest", glyph:"git-branch", view:"forest"},
+    {label:"Chronic Needs Analysis", glyph:"heart-pulse", view:"chronic"},
+    {label:"Shortage areas", glyph:"target", view:"shortage"},
+    {label:"Surveillance", glyph:"activity", view:"surveillance"},
+    {label:"Reports", glyph:"bar-chart-3", view:"reports"},
+    {label:"Settings", glyph:"settings", view:"settings"},
+  ];
+  return (
+    <aside className="side">
+      <div className="wordmark"><span className="mark">T</span>Triad</div>
+      <div className="prod-switch">{prods.map(([k,label,g])=>(
+        <div key={k} className={"prod-item"+(k==="signal"?" on":"")}><Icon name={g} size={18} color={k==="signal"?"#fff":"var(--slate-400)"} />{label}</div>
+      ))}</div>
+      <div className="side-label">Signal</div>
+      {nav.map(n=>{
+        const on = active===n.view;
+        return (
+          <div key={n.label} className={"nav-item"+(on?" on":"")} onClick={()=>onNav&&onNav(n.view)}>
+            <Icon name={n.glyph} size={18} color={on?"#fff":"var(--slate-400)"} />{n.label}
+          </div>
+        );
+      })}
+      <div className="side-foot"><span className="avatar">CA</span>
+        <div style={{lineHeight:1.3}}><div style={{color:"#fff",fontSize:13,fontWeight:600}}>Clinic Atlas</div><div style={{fontSize:11,color:"var(--slate-500)"}}>Virginia · 133 counties</div></div>
+      </div>
+    </aside>
+  );
+}
+
+const tt = document.getElementById("tt");
+const showTT = (html,e) => { tt.innerHTML=html; tt.style.opacity=1; moveTT(e); };
+const moveTT = e => { tt.style.left=(e.clientX+14)+"px"; tt.style.top=(e.clientY+14)+"px"; };
+const hideTT = () => { tt.style.opacity=0; };
+
+/* ---- Map builder -----------------------------------------------------
+   Renders VA county outlines from us-atlas topojson (counties-10m), with
+   zoom/pan and a hover tooltip. `onSelect` fires on click with the feature's
+   properties, ready to route to a future drill-down panel. */
+function buildMap(host, geo, { onHover, onSelect, conditionDataSummary } = {}){
+  const W=880, H=460;
+  const svg=d3.select(host).html("").append("svg").attr("viewBox",`0 0 ${W} ${H}`)
+    .attr("role","img").attr("aria-label","Map of Virginia counties.");
+  const projection=d3.geoConicConformal().parallels([37.5,39.5]).rotate([79,0]).fitExtent([[16,16],[W-16,H-16]],geo);
+  const path=d3.geoPath(projection);
+
+  const gZoom=svg.append("g");
+  const counties=gZoom.append("g").selectAll("path").data(geo.features).join("path")
+    .attr("d",path)
+    .attr("fill", d => getCountyFillColor(d, conditionDataSummary))
+    .attr("stroke","var(--slate-300)").attr("stroke-width",0.8)
+    .attr("vector-effect","non-scaling-stroke")
+    .style("cursor","pointer")
+    .on("mouseover",function(e,d){
+      const value = getCountyConditionValue(d, conditionDataSummary);
+      const valueText = value == null ? "No matching condition data" : `${value.toFixed(1)} age-adjusted rate`;
+      d3.select(this).attr("fill", getCountyFillColor(d, conditionDataSummary));
+      showTT(`<b>${d.properties.name} County</b><br><span class="src">${valueText} · FIPS ${d.properties.fips}</span>`,e);
+      onHover && onHover(d);
+    })
+    .on("mousemove",moveTT)
+    .on("mouseout",function(e,d){ d3.select(this).attr("fill", getCountyFillColor(d, conditionDataSummary)); hideTT(); })
+    .on("click",(e,d)=> onSelect && onSelect(d));
+
+  const zoom=d3.zoom().scaleExtent([1,10]).on("zoom",ev=>{
+    gZoom.attr("transform",ev.transform);
+    counties.attr("stroke-width",0.8/ev.transform.k);
+  });
+  svg.call(zoom).on("dblclick.zoom",null);
+
+  function reset(){ svg.transition().duration(500).call(zoom.transform,d3.zoomIdentity); }
+  return { reset, svg, projection, path };
+}
+
+function MapPanel({ geo, onHover, onSelect }){
+  const ref=React.useRef(null), api=React.useRef(null);
+  React.useEffect(()=>{ if(geo) api.current=buildMap(ref.current,geo,{onHover,onSelect}); },[geo]);
+  return { ref, api };
+}
+
+
+function Legend({ selectedYear, onYearChange, selectedConditions, onConditionsChange }) {
+  const conditions = [
+    "All Chronic Conditions",
+    "Alzheimer's Disease",
+    "Arthritis",
+    "Asthma",
+    "Cardiovascular Disease",
+    "Chronic Kidney Disease",
+    "Chronic Obstructive Pulmonary Disease",
+    "Dementia (Non-Alzheimer's)",
+    "Diabetes",
+    "High Blood Cholesterol",
+    "Hypertension",
+    "Ischemic Heart Disease",
+    "Stroke"
+  ];
+
+  const toggleCondition = (condition) => {
+    onConditionsChange(toggleConditionSelection(selectedConditions, condition, conditions));
+  };
+
+  return (
+    <div>
+      <div className="leg-sect">
+        <h4>Year filter</h4>
+        <div className="year-filter">
+          <div className="year-head">
+            <span>Show data through</span>
+            <strong>{selectedYear}</strong>
+          </div>
+          <input
+            type="range"
+            min="2016"
+            max={CURRENT_YEAR}
+            value={selectedYear}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+          />
+          <div className="year-hint">
+            Filters county-level patient records from 2016 through the selected year.
+          </div>
+        </div>
+      </div>
+
+      <div className="leg-sect">
+        <h4>Chronic Conditions</h4>
+
+        {conditions.map(condition => (
+          <label
+            key={condition}
+            className="leg-row"
+            style={{cursor:"pointer",display:"flex",alignItems:"center",gap:"8px"}}
+          >
+            <input
+              type="checkbox"
+              checked={selectedConditions.includes(condition)}
+              onChange={() => toggleCondition(condition)}
+            />
+            <span>{condition}</span>
+          </label>
+        ))}
+
+        <div className="leg-note">
+          Select one or more conditions to display on the map.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function SelectedPanel({ feature, onClear, conditionData, selectedYear, selectedConditions }){
+  if(!feature) return (
+    <div className="panel-body">
+      <p className="hint">Hover a county to preview it, or click one to pin its details here.</p>
+    </div>
+  );
+  const p=feature.properties;
+  const rows = normalizeConditionRows(conditionData);
+  const matches = rows.filter((row) => {
+    const sameCounty =
+      (p.fips && String(row.countyFips) === String(p.fips)) ||
+      normalizeCountyName(row.county) === normalizeCountyName(p.name);
+    const matchesYear = Number.isFinite(row.year) && row.year <= selectedYear;
+    const includesAllConditions = selectedConditions.includes("All Chronic Conditions");
+    const matchesCondition = includesAllConditions || selectedConditions.includes(row.condition);
+    return sameCounty && matchesYear && matchesCondition;
+  });
+
+  return (
+    <div className="panel-body">
+      <div className="kv">
+        <div><div className="k">County</div><div className="v">{p.name}</div></div>
+        <div><div className="k">FIPS</div><div className="v mono">{p.fips}</div></div>
+        <div><div className="k">Matches</div><div className="v">{matches.length}</div></div>
+      </div>
+      <p className="hint" style={{marginTop:10}}>
+        Showing mock condition data from 2016 through <strong>{selectedYear}</strong> for <span className="mono">{p.fips}</span>.
+      </p>
+      {matches.length > 0 ? (
+        <div className="hint" style={{marginTop:10, display:"grid", gap:"8px"}}>
+          {matches.slice(0,8).map((row, index) => (
+            <div key={`${row.condition}-${row.year}-${index}`} style={{border:"1px solid var(--border-subtle)", borderRadius:"8px", padding:"8px 10px", background:"var(--surface-sunken)"}}>
+              <div><strong>{row.condition}</strong></div>
+              <div>Hospitalization count: {row.cases}</div>
+              <div>Age-adjusted rate: {row.rate}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint" style={{marginTop:10}}>No mock condition rows matched the selected year and condition filters for this county.</p>
+      )}
+      <button className="backbtn" style={{marginTop:8}} onClick={onClear}>Clear selection</button>
+    </div>
+  );
+}
+
+function App(){
+  const [geo,setGeo]=React.useState(null);
+  const [conditionData,setConditionData]=React.useState(null);
+  const [err,setErr]=React.useState(null);
+  const [hovered,setHovered]=React.useState(null);
+  const [selected,setSelected]=React.useState(null);
+  const [selectedYear,setSelectedYear]=React.useState(CURRENT_YEAR);
+  const [selectedConditions,setSelectedConditions]=React.useState(["All Chronic Conditions"]);
+  const mapRef=React.useRef(null);
+  const apiRef=React.useRef(null);
+
+  React.useEffect(()=>{
+    fetch("https://unpkg.com/us-atlas@3/counties-10m.json").then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(topo=>{
+        const objName = topo.objects.counties ? "counties" : Object.keys(topo.objects)[0];
+        const all = topojson.feature(topo, topo.objects[objName]);
+        const va = {
+          type:"FeatureCollection",
+          features: all.features
+            .filter(f=>String(f.id).padStart(5,"0").slice(0,2)===VA_FIPS)
+            .map(f=>{
+              const fips=String(f.id).padStart(5,"0");
+              return { ...f, properties:{ ...f.properties, fips, name:(f.properties.name||"") } };
+            }),
+        };
+        setGeo(va);
+      })
+      .catch(e=>setErr("Could not load county topology (" + e.message + ")."));
+
+    fetch("./data/mock_chronic_conditions.json")
+      .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(data=>setConditionData(data))
+      .catch(()=>setConditionData(null));
+  },[]);
+
+  const normalizedConditionRows = React.useMemo(()=>normalizeConditionRows(conditionData),[conditionData]);
+  const conditionDataSummary = React.useMemo(()=>buildCountyConditionLookup(normalizedConditionRows,{year:selectedYear, conditions:selectedConditions}),[normalizedConditionRows, selectedYear, selectedConditions]);
+
+  React.useEffect(()=>{
+    if(geo && mapRef.current){
+      apiRef.current = buildMap(mapRef.current, geo, {
+        onHover: setHovered,
+        onSelect: setSelected,
+        conditionDataSummary,
+      });
+    }
+  },[geo, conditionDataSummary]);
+
+  if(err) return <div className="empty">{err}</div>;
+
+  return (
+    <div className="wrap">
+      <div className="hdr">
+        <div className="title">
+          <h1>Virginia Chronic Disease Explorer</h1>
+          <p>Explore county-level prevalence of chronic diseases across Virginia. 
+            Filter by year and condition to identify geographic trends and support healthcare planning..</p>
+        </div>
+      </div>
+
+      <div className="grid">
+        <section className="panel">
+          <div className="panel-h">
+            <h3>Virginia counties</h3>
+            <span className="county-count desc">{geo ? `${geo.features.length} counties` : "loading…"}</span>
+            <button className="toolbtn" style={{marginLeft:10}} onClick={()=>apiRef.current && apiRef.current.reset()}>Reset view</button>
+          </div>
+          <div className="panel-body" style={{padding:8}}>
+            {!geo && <div className="empty">Loading Virginia counties…</div>}
+            <div ref={mapRef} className="mapholder" style={{display:geo?"block":"none"}} />
+          </div>
+        </section>
+
+        <aside>
+          <div className="panel">
+            <div className="panel-h"><h3>Legend</h3><span className="desc">year + conditions</span></div>
+            <div className="panel-body" style={{paddingTop:4}}>
+              <Legend
+                selectedYear={selectedYear}
+                onYearChange={setSelectedYear}
+                selectedConditions={selectedConditions}
+                onConditionsChange={setSelectedConditions}
+              />
+            </div>
+          </div>
+          <div className="panel" style={{marginTop:16}}>
+            <div className="panel-h"><h3>{selected ? "Selected county" : "County preview"}</h3></div>
+            <SelectedPanel
+              feature={selected}
+              onClear={()=>setSelected(null)}
+              conditionData={conditionData}
+              selectedYear={selectedYear}
+              selectedConditions={selectedConditions}
+            />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
