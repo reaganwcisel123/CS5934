@@ -97,6 +97,7 @@ name = "Ingestion sources are mutually independent"
 type = "independence"
 modules = [
     "src.ingestion.cdc_places",
+    "src.ingestion.county_health_rankings",
     "src.ingestion.census_acs",
     "src.ingestion.census_pep",
     "src.ingestion.hrsa_hpsa",

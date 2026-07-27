@@ -80,3 +80,55 @@ uv run python data_source_catalog/scripts/validate_data_catalog.py
 Six sources are wired to real/synthetic data; the rest are catalogued **stubs**
 (`StubSource` subclasses in `src/ingestion/`) for another contributor to promote
 to `RealSource`. See `src/ingestion/registry.py` for the full list.
+
+## Rural Care Access Failure Model
+
+`access-failure` is a separate county planning model. Unlike the existing
+Virginia county model, whose label is a CDC PLACES chronic-disease burden, it
+uses observed **Preventable Hospital Stays** to estimate whether a county falls
+in the highest national quarter of preventable utilization associated with weak
+outpatient-care access. It is predictive, not causal, and is not a clinical or
+individual-patient prediction tool.
+
+The source is the official County Health Rankings & Roadmaps 2025 annual-release
+supplemental national county analytic CSV dated March 25, 2026. The adapter keeps
+only `v005_rawvalue` (Preventable Hospital Stays), `v003_rawvalue` (Uninsured
+Adults), provider population-to-provider ratios `v004_rawalternatevalue`,
+`v062_rawalternatevalue`, and `v131_rawalternatevalue`, plus `v166_rawvalue`
+(Broadband Access). The March 2026 refresh uses 2023 data for the target and
+uninsured measures; provider and broadband vintages are source-specific.
+
+Features are uninsured percentage, primary-care, mental-health, and other
+primary-care provider burdens, and `broadband_gap = 100 - broadband_access_percent`.
+The selected national file does not provide the project-wide rurality or need
+index inputs consistently, so the optional `rural_provider_shortage` and
+`need_access_gap` interactions are deliberately omitted rather than imputed.
+The national target is `high_access_failure = 1` at or above the observed,
+eligible-county 75th percentile of Preventable Hospital Stays. Missing predictors
+remain missing until median imputation inside the model pipeline. The target and
+all direct derivatives are excluded by an explicit feature allowlist.
+
+Train with both existing candidate families and choose by repeated-CV PR-AUC,
+preferring logistic regression within the established 0.02 explainability margin:
+
+```bash
+uv sync --extra model
+uv run python src/build_dataset.py --refresh
+uv run python -m src.model.train --target access-failure
+uv run python src/build_dataset.py
+```
+
+The final build is necessary to attach the optional `accessFailureRisk` object
+to Virginia county records in `dashboard/data/clinic_atlas.json`. It contains a
+rounded probability, display-only Low/Medium/High tier (0.33/0.67), predicted
+high-risk flag, observed Preventable Hospital Stays, up to three transparent
+driver labels, explanation method, source year, and model version. When no
+prediction artifact exists, the standard dashboard build succeeds unchanged and
+the field is omitted.
+
+Artifacts are written to `models/access_failure/`: `model.joblib`, `metrics.json`,
+`model_card.json`, and FIPS-keyed Virginia `predictions.json`. Metrics include
+PR-AUC, ROC-AUC, Brier score, positive-class recall, prevalence, split sizes,
+target threshold, selected model, and source year. The outcome is based on
+Medicare fee-for-service claims, largely representing older adults rather than
+all county residents; it should support county planning only.

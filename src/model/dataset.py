@@ -17,7 +17,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.catalog import REPO_ROOT
+from src.catalog import Catalog, REPO_ROOT
+from src.ingestion.county_health_rankings import CountyHealthRankings
 from src.model import config as C
 
 ATLAS_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
@@ -77,6 +78,92 @@ def county_frame(
         df[C.COUNTY_FEATURES].reset_index(drop=True),
         y.reset_index(drop=True),
         C.COUNTY_FEATURES,
+    )
+
+
+def access_failure_frame(
+    source_frame: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, pd.Series, list[str], pd.DataFrame]:
+    """Build a national, leakage-safe frame for access-failure prediction.
+
+    The target is the top national quartile of observed preventable hospital
+    stays. Missing predictors remain null here and are median-imputed only by
+    the model preprocessing pipeline.
+    """
+    if source_frame is None:
+        try:
+            source_frame = CountyHealthRankings(Catalog.load()).run()
+        except Exception as exc:
+            raise RuntimeError(
+                "County Health Rankings data is required for --target "
+                "access-failure. Set COUNTY_HEALTH_RANKINGS_PATH to a local "
+                "official analytic CSV or allow the source download."
+            ) from exc
+
+    required = {"county_fips", C.ACCESS_FAILURE_TARGET, "source_year"}
+    missing = required - set(source_frame.columns)
+    if missing:
+        raise ValueError(
+            "Access-failure source frame is missing required columns: "
+            + ", ".join(sorted(missing))
+        )
+
+    frame = source_frame.copy()
+    if "broadband_access_percent" in frame.columns:
+        frame["broadband_gap"] = 100 - frame["broadband_access_percent"]
+
+    features = [
+        feature
+        for feature in C.ACCESS_FAILURE_FEATURES
+        if feature in frame.columns and frame[feature].notna().any()
+    ]
+    forbidden = {
+        C.ACCESS_FAILURE_TARGET,
+        "high_access_failure",
+        "target_percentile",
+        "target_risk_tier",
+    }
+    overlap = forbidden & set(features)
+    if overlap:
+        raise ValueError(
+            "Target leakage in access-failure features: "
+            + ", ".join(sorted(overlap))
+        )
+    if not features:
+        raise ValueError("No usable access-failure predictors were found.")
+
+    eligible = frame.dropna(subset=[C.ACCESS_FAILURE_TARGET]).copy()
+    if len(eligible) < C.ACCESS_FAILURE_MIN_ROWS:
+        raise ValueError(
+            "Too few counties with observed preventable hospital stays for "
+            f"access-failure training ({len(eligible)}; need at least "
+            f"{C.ACCESS_FAILURE_MIN_ROWS})."
+        )
+
+    target_threshold = float(
+        eligible[C.ACCESS_FAILURE_TARGET].quantile(C.ACCESS_FAILURE_QUANTILE)
+    )
+    target = (
+        eligible[C.ACCESS_FAILURE_TARGET] >= target_threshold
+    ).astype(int).rename("high_access_failure")
+    if target.nunique() != 2:
+        raise ValueError(
+            "Access-failure target contains only one class after the national "
+            "quartile threshold was applied."
+        )
+
+    metadata = eligible[
+        ["county_fips", C.ACCESS_FAILURE_TARGET, "source_year"]
+    ].reset_index(drop=True)
+    metadata.attrs["target_threshold"] = target_threshold
+    metadata.attrs["source_year"] = int(
+        pd.to_numeric(metadata["source_year"], errors="coerce").dropna().iloc[0]
+    )
+    return (
+        eligible[features].reset_index(drop=True),
+        target.reset_index(drop=True),
+        features,
+        metadata,
     )
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -40,6 +41,15 @@ from src.transform.geographic_join import (
 )
 
 OUT_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
+ACCESS_FAILURE_PREDICTIONS_PATH = (
+    REPO_ROOT / "models" / "access_failure" / "predictions.json"
+)
+ACCESS_FAILURE_METRICS_PATH = (
+    REPO_ROOT / "models" / "access_failure" / "metrics.json"
+)
+ACCESS_FAILURE_MODEL_CARD_PATH = (
+    REPO_ROOT / "models" / "access_failure" / "model_card.json"
+)
 REGION_REF = REPO_ROOT / "data" / "reference" / "va_county_region.csv"
 # Locked rurality source: USDA ERS Rural-Urban Continuum Codes 2023 (US-007).
 RUCC_REF = REPO_ROOT / "data" / "reference" / "va_county_rucc.csv"
@@ -126,6 +136,7 @@ def build(refresh: bool = False) -> dict:
     # 1. Run real sources first to discover the county spine.
     real_ids = [sid for sid, cls in REGISTRY.items()
                 if cls.provenance in (Provenance.REAL, Provenance.SYNTHETIC)
+                and not getattr(cls, "training_only", False)
                 and sid != "synthetic_clinical_dataset"]
     frames, status = {}, {}
     for sid in real_ids:
@@ -226,17 +237,132 @@ def build(refresh: bool = False) -> dict:
             "patientsList": roster,
         })
 
+    # The national source is intentionally not part of the regular dashboard
+    # build. A separately trained artifact can be joined by FIPS when present.
+    access_failure_count = _attach_access_failure_predictions(records)
+    access_failure_model = _access_failure_model_metadata(catalog)
+
     # 6. Provenance + catalog traceability check.
     provenance = _provenance(status)
     _assert_traceable(provenance, catalog)
 
-    return {
+    result = {
         "generated_from": "src/build_dataset.py",
         "target_state_fips": "51",
         "county_count": len(records),
         "sdoh_join_coverage": summarize_join_coverages(join_coverages).to_dict(),
         "provenance": provenance,
         "records": records,
+    }
+    if access_failure_model is not None:
+        result["accessFailureModel"] = access_failure_model
+    return result
+
+
+def _attach_access_failure_predictions(
+    records: list[dict],
+    prediction_path: Path = ACCESS_FAILURE_PREDICTIONS_PATH,
+) -> int:
+    """Attach optional access-failure predictions by canonical county FIPS."""
+    if not prediction_path.exists():
+        return 0
+    try:
+        payload = json.loads(prediction_path.read_text(encoding="utf-8"))
+        predictions = payload["predictions"]
+    except (json.JSONDecodeError, KeyError, OSError, TypeError) as exc:
+        print(
+            "  [warn] access-failure predictions unavailable: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 0
+
+    by_fips = {}
+    for prediction in predictions:
+        if not isinstance(prediction, dict) or not prediction.get("county_fips"):
+            continue
+        probability = prediction.get("probability")
+        risk_tier = prediction.get("riskTier")
+        if (
+            not isinstance(probability, (int, float))
+            or not math.isfinite(probability)
+            or not 0 <= probability <= 1
+            or risk_tier not in {"Low", "Medium", "High"}
+        ):
+            continue
+        by_fips[str(prediction["county_fips"]).zfill(5)] = {
+            key: value
+            for key, value in prediction.items()
+            if key != "county_fips"
+        }
+    attached = 0
+    for record in records:
+        prediction = by_fips.get(str(record["id"]).zfill(5))
+        if prediction is not None:
+            record["accessFailureRisk"] = prediction
+            attached += 1
+    return attached
+
+
+def _access_failure_model_metadata(
+    catalog: Catalog,
+    metrics_path: Path = ACCESS_FAILURE_METRICS_PATH,
+    model_card_path: Path = ACCESS_FAILURE_MODEL_CARD_PATH,
+) -> dict | None:
+    """Return optional dashboard metadata from generated model artifacts.
+
+    Dashboard clients should not duplicate model numbers or source URLs. This
+    intentionally small object is omitted when artifacts have not been trained.
+    """
+    if not metrics_path.exists() or not model_card_path.exists():
+        return None
+    try:
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        model_card = json.loads(model_card_path.read_text(encoding="utf-8"))
+        selected_model = metrics["best_model"]
+        selected_metrics = metrics["models"][selected_model]
+        source = catalog.source("county_health_rankings")
+    except (json.JSONDecodeError, KeyError, OSError, TypeError) as exc:
+        print(
+            "  [warn] access-failure model metadata unavailable: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return None
+
+    performance = {
+        "prAuc": selected_metrics.get("pr_auc"),
+        "rocAuc": selected_metrics.get("roc_auc"),
+        "brierScore": selected_metrics.get("brier"),
+        "recallPositive": selected_metrics.get("recall_positive"),
+        "confusionMatrix": selected_metrics.get("confusion_matrix"),
+    }
+    return {
+        "modelVersion": model_card.get("modelVersion"),
+        "outcome": model_card.get("outcome"),
+        "sourceYear": model_card.get("sourceYear"),
+        "targetThreshold": model_card.get("targetThreshold"),
+        "sourcePopulation": model_card.get("sourcePopulation"),
+        "limitation": model_card.get("limitation"),
+        "targetDefinition": metrics.get("target_definition"),
+        "selectedModel": selected_model,
+        "selectionMetric": metrics.get("selection_metric"),
+        "features": metrics.get("features"),
+        "positiveRate": metrics.get("positive_rate"),
+        "splitStrategy": metrics.get("split_strategy"),
+        "nTotal": metrics.get("n_total"),
+        "nTrain": metrics.get("n_train"),
+        "nTest": metrics.get("n_test"),
+        "virginiaPredictionCount": metrics.get("virginia_prediction_count"),
+        "performance": performance,
+        "candidatePerformance": metrics.get("models"),
+        "displayThresholds": metrics.get("display_tier_thresholds"),
+        "sourceName": source.get("source_name"),
+        "sourceRelease": source.get("schema_version"),
+        "sourceUrl": source.get("access_url"),
+        "documentationUrl": source.get("documentation_url"),
+        "catalogVerifiedDate": source.get("last_verified_date"),
+        "sourceLimitations": source.get("limitations"),
     }
 
 

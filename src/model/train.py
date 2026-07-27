@@ -31,10 +31,13 @@ import numpy as np  # noqa: E402
 
 from sklearn.base import clone  # noqa: E402
 from sklearn.ensemble import HistGradientBoostingClassifier  # noqa: E402
+from sklearn.impute import SimpleImputer  # noqa: E402
 from sklearn.linear_model import LogisticRegression  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
     average_precision_score,
     brier_score_loss,
+    confusion_matrix,
+    recall_score,
     roc_auc_score,
 )
 from sklearn.model_selection import (  # noqa: E402
@@ -52,23 +55,46 @@ from src.model import config as C  # noqa: E402
 from src.model import dataset  # noqa: E402
 
 MODELS_DIR = REPO_ROOT / "models"
+ACCESS_FAILURE_DIR = MODELS_DIR / "access_failure"
 
 
 def _build(target: str):
     """Build the feature frame, target, features, and optional county groups."""
     if target == "county":
         X, y, features = dataset.county_frame()
-        return X, y, features, None
+        return X, y, features, None, None
 
     if target == "patient":
         X, y, features, metadata = dataset.patient_frame()
-        return X, y, features, metadata["county_fips"]
+        return X, y, features, metadata["county_fips"], None
+
+    if target == "access-failure":
+        X, y, features, metadata = dataset.access_failure_frame()
+        return X, y, features, None, metadata
 
     raise ValueError(f"Unknown target: {target}")
 
 
-def _make_models() -> dict:
+def _make_models(target: str) -> dict:
     """Return the baseline and advanced candidate models."""
+    if target == "access-failure":
+        return {
+            "logreg": make_pipeline(
+                SimpleImputer(strategy="median"),
+                StandardScaler(),
+                LogisticRegression(
+                    max_iter=1000,
+                    class_weight="balanced",
+                    random_state=C.RANDOM_STATE,
+                ),
+            ),
+            "gboost": make_pipeline(
+                SimpleImputer(strategy="median"),
+                HistGradientBoostingClassifier(
+                    random_state=C.RANDOM_STATE,
+                ),
+            ),
+        }
     return {
         "logreg": make_pipeline(
             StandardScaler(),
@@ -91,11 +117,18 @@ def _fit(name: str, model, X_train, y_train):
             "balanced",
             y_train,
         )
-        model.fit(
-            X_train,
-            y_train,
-            sample_weight=sample_weights,
-        )
+        if "histgradientboostingclassifier" in getattr(model, "named_steps", {}):
+            model.fit(
+                X_train,
+                y_train,
+                histgradientboostingclassifier__sample_weight=sample_weights,
+            )
+        else:
+            model.fit(
+                X_train,
+                y_train,
+                sample_weight=sample_weights,
+            )
     else:
         model.fit(X_train, y_train)
 
@@ -198,7 +231,7 @@ def _cv_splits(
     groups=None,
 ):
     """Yield repeated cross-validation splits."""
-    if target == "county":
+    if target != "patient":
         cross_validator = RepeatedStratifiedKFold(
             n_splits=C.CV_SPLITS,
             n_repeats=C.CV_REPEATS,
@@ -464,7 +497,7 @@ def _select_best(
 
 def train_one(target: str) -> dict:
     """Train candidates, evaluate them, and persist the selected model."""
-    X, y, features, groups = _build(target)
+    X, y, features, groups, metadata = _build(target)
 
     train_indices, test_indices = _holdout_indices(
         target,
@@ -478,7 +511,7 @@ def train_one(target: str) -> dict:
     y_train = y.iloc[train_indices]
     y_test = y.iloc[test_indices]
 
-    candidates = _make_models()
+    candidates = _make_models(target)
 
     fitted_models = {}
     holdout_results = {}
@@ -512,26 +545,37 @@ def train_one(target: str) -> dict:
             y_test,
             probabilities,
         )
+        if target == "access-failure":
+            holdout_results[name]["recall_positive"] = round(
+                float(recall_score(y_test, probabilities >= 0.5)),
+                3,
+            )
+            holdout_results[name]["confusion_matrix"] = confusion_matrix(
+                y_test,
+                probabilities >= 0.5,
+            ).tolist()
 
     best_model_name = _select_best(
         target,
         cross_validation_results,
     )
 
-    fairness = fairness_by_rurality(
-        holdout_probabilities[best_model_name],
-        y_test,
-        X_test["rural"].to_numpy(),
-    )
-
-    mitigated_fairness = _rurality_mitigation(
-        fitted_models[best_model_name],
-        best_model_name,
-        X_train,
-        y_train,
-        X_test,
-        y_test,
-    )
+    fairness = None
+    mitigated_fairness = None
+    if "rural" in X.columns:
+        fairness = fairness_by_rurality(
+            holdout_probabilities[best_model_name],
+            y_test,
+            X_test["rural"].to_numpy(),
+        )
+        mitigated_fairness = _rurality_mitigation(
+            fitted_models[best_model_name],
+            best_model_name,
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+        )
 
     metrics = {
         "target": target,
@@ -626,18 +670,47 @@ def train_one(target: str) -> dict:
             ]
         )
 
-    MODELS_DIR.mkdir(exist_ok=True)
+    if target == "access-failure":
+        assert metadata is not None
+        target_threshold = float(metadata.attrs["target_threshold"])
+        source_year = int(metadata.attrs["source_year"])
+        model_artifact.update(
+            {
+                "target_threshold": target_threshold,
+                "source_year": source_year,
+                "model_version": C.ACCESS_FAILURE_MODEL_VERSION,
+            }
+        )
+        metrics.update(
+            {
+                "target_threshold": target_threshold,
+                "source_year": source_year,
+                "target_definition": (
+                    "Observed preventable hospital stays at or above the "
+                    "national 75th percentile among counties with data."
+                ),
+                "virginia_prediction_count": int(
+                    metadata["county_fips"].astype(str).str.startswith("51").sum()
+                ),
+                "display_tier_thresholds": C.ACCESS_FAILURE_TIER_THRESHOLDS,
+            }
+        )
 
-    joblib.dump(
-        model_artifact,
-        MODELS_DIR
-        / f"{target}_model.joblib",
+    artifact_dir = ACCESS_FAILURE_DIR if target == "access-failure" else MODELS_DIR
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    model_path = (
+        artifact_dir / "model.joblib"
+        if target == "access-failure"
+        else artifact_dir / f"{target}_model.joblib"
+    )
+    metrics_path = (
+        artifact_dir / "metrics.json"
+        if target == "access-failure"
+        else artifact_dir / f"{target}_metrics.json"
     )
 
-    (
-        MODELS_DIR
-        / f"{target}_metrics.json"
-    ).write_text(
+    joblib.dump(model_artifact, model_path)
+    metrics_path.write_text(
         json.dumps(
             metrics,
             indent=2,
@@ -645,8 +718,125 @@ def train_one(target: str) -> dict:
         encoding="utf-8",
     )
 
+    if target == "access-failure":
+        _write_access_failure_predictions(
+            final_model,
+            best_model_name,
+            X,
+            metadata,
+            features,
+        )
+
     _report(metrics)
     return metrics
+
+
+def _access_failure_drivers(
+    model,
+    model_name: str,
+    X,
+    features: list[str],
+) -> tuple[list[list[str]], str]:
+    """Return at most three transparent local risk labels for each county."""
+    if model_name == "logreg":
+        imputed = model.named_steps["simpleimputer"].transform(X)
+        scaler = model.named_steps["standardscaler"]
+        coefficients = model.named_steps["logisticregression"].coef_[0]
+        contributions = coefficients * ((imputed - scaler.mean_) / scaler.scale_)
+        method = "logistic-coefficients"
+    else:
+        medians = X.median(numeric_only=True).replace(0, 1.0)
+        imputed = X.fillna(medians).to_numpy(dtype=float)
+        contributions = imputed / medians[features].to_numpy(dtype=float)
+        method = "burden-ranking"
+
+    output = []
+    for row in contributions:
+        labels = []
+        for index in np.argsort(row)[::-1]:
+            label = C.ACCESS_FAILURE_DRIVER_LABELS.get(features[index])
+            if label and label not in labels:
+                labels.append(label)
+            if len(labels) == 3:
+                break
+        output.append(labels)
+    return output, method
+
+
+def _write_access_failure_predictions(
+    model,
+    model_name: str,
+    X,
+    metadata,
+    features: list[str],
+) -> None:
+    """Persist dashboard-ready Virginia predictions, keyed only by county FIPS."""
+    probabilities = model.predict_proba(X)[:, 1]
+    drivers, explanation_method = _access_failure_drivers(
+        model,
+        model_name,
+        X,
+        features,
+    )
+    predictions = []
+    for index, probability in enumerate(probabilities):
+        county_fips = str(metadata.iloc[index]["county_fips"]).zfill(5)
+        if not county_fips.startswith("51"):
+            continue
+        probability = float(probability)
+        if probability >= C.ACCESS_FAILURE_TIER_THRESHOLDS["high"]:
+            risk_tier = "High"
+        elif probability >= C.ACCESS_FAILURE_TIER_THRESHOLDS["medium"]:
+            risk_tier = "Medium"
+        else:
+            risk_tier = "Low"
+        predictions.append(
+            {
+                "county_fips": county_fips,
+                "probability": round(probability, 3),
+                "riskTier": risk_tier,
+                "predictedHighRisk": bool(probability >= 0.5),
+                "observedPreventableStays": round(
+                    float(metadata.iloc[index][C.ACCESS_FAILURE_TARGET]),
+                    1,
+                ),
+                "topDrivers": drivers[index],
+                "explanationMethod": explanation_method,
+                "dataYear": int(metadata.attrs["source_year"]),
+                "modelVersion": C.ACCESS_FAILURE_MODEL_VERSION,
+            }
+        )
+
+    (ACCESS_FAILURE_DIR / "predictions.json").write_text(
+        json.dumps(
+            {
+                "modelVersion": C.ACCESS_FAILURE_MODEL_VERSION,
+                "predictions": predictions,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (ACCESS_FAILURE_DIR / "model_card.json").write_text(
+        json.dumps(
+            {
+                "modelVersion": C.ACCESS_FAILURE_MODEL_VERSION,
+                "outcome": "High preventable hospital stays",
+                "targetThreshold": float(metadata.attrs["target_threshold"]),
+                "sourceYear": int(metadata.attrs["source_year"]),
+                "sourcePopulation": (
+                    "Medicare fee-for-service beneficiaries; this is not a "
+                    "measure of all county residents."
+                ),
+                "limitation": (
+                    "County planning model only. Predictions are not clinical "
+                    "or causal conclusions."
+                ),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _report(metrics: dict) -> None:
@@ -734,17 +924,22 @@ def _report(metrics: dict) -> None:
                 f"PR-AUC={pr_auc}"
             )
 
-    print_fairness(
-        "rurality fairness (best model)",
-        metrics["fairness_by_rurality"],
-    )
+    if metrics["fairness_by_rurality"] is not None:
+        print_fairness(
+            "rurality fairness (best model)",
+            metrics["fairness_by_rurality"],
+        )
+        print_fairness(
+            "after rurality-balanced retrain",
+            metrics["fairness_after_mitigation"],
+        )
 
-    print_fairness(
-        "after rurality-balanced retrain",
-        metrics[
-            "fairness_after_mitigation"
-        ],
-    )
+    if "target_threshold" in metrics:
+        print(
+            "  access-failure target: "
+            f"preventable stays >= {metrics['target_threshold']:.1f}; "
+            f"Virginia predictions={metrics['virginia_prediction_count']}"
+        )
 
     if "tier_thresholds" in metrics:
         thresholds = metrics[
@@ -769,6 +964,7 @@ def main() -> int:
             "county",
             "patient",
             "both",
+            "access-failure",
         ],
         default="both",
     )

@@ -31,6 +31,31 @@ COUNTY_FEATURES = [
 COUNTY_TARGET_OUTCOMES = ["diabetes", "bphigh", "obesity"]
 COUNTY_TOP_QUANTILE = 2 / 3  # top tercile -> positive
 
+# --- Rural Care Access Failure model (REAL national county data) -------------
+ACCESS_FAILURE_FEATURES = [
+    "uninsured_percent",
+    "primary_care_physician_burden",
+    "mental_health_provider_burden",
+    "other_primary_care_provider_burden",
+    "broadband_gap",
+]
+ACCESS_FAILURE_TARGET = "preventable_hospital_stays"
+ACCESS_FAILURE_QUANTILE = 0.75
+ACCESS_FAILURE_MIN_ROWS = 20
+ACCESS_FAILURE_MODEL_VERSION = "access-failure-v1"
+ACCESS_FAILURE_TIER_THRESHOLDS = {"high": 0.67, "medium": 0.33}
+ACCESS_FAILURE_DRIVER_LABELS = {
+    "primary_care_physician_burden": "Limited primary-care capacity",
+    "mental_health_provider_burden": "Limited mental-health provider capacity",
+    "other_primary_care_provider_burden": "Limited alternative primary-care capacity",
+    "uninsured_percent": "High uninsured population",
+    "broadband_gap": "Limited broadband access",
+    "rural_provider_shortage": "Rural provider shortage",
+    "need_access_gap": "High need combined with poor access",
+    "hpsaScore": "Severe provider shortage designation",
+    "needIndex": "High underlying community need",
+}
+
 # --- Patient model (SYNTHETIC label) ------------------------------------------
 # Features the model trains on: patient clinical signals + their county context.
 PATIENT_FEATURES = [
