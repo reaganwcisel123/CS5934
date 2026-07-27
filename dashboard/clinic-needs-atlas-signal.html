@@ -400,6 +400,7 @@ function Sidebar({ active, onNav }){
   const nav=[
     {label:"Atlas", glyph:"map", view:"atlas"},
     {label:"Needs forest", glyph:"git-branch", view:"forest"},
+    {label:"Chronic Needs Analysis", glyph:"heart-pulse", view:"chronic"},
     {label:"Shortage areas", glyph:"target"},
     {label:"Surveillance", glyph:"activity"},
     {label:"Reports", glyph:"bar-chart-3"},
@@ -839,7 +840,7 @@ function App(){
   const [selectedId,setSelectedId]=React.useState(null);
   const [baselineMode,setBaselineMode]=React.useState("va");
   const [tab,setTab]=React.useState("profile");
-  const [nav,setNav]=React.useState("atlas");   // sidebar view: "atlas" | "forest"
+  const [nav,setNav]=React.useState("atlas");   // sidebar view: "atlas" | "forest" | "chronic"
   const [err,setErr]=React.useState(null);
   const [token,setToken]=React.useState(()=>{ try{ return localStorage.getItem("atlas_token")||""; }catch(e){ return ""; } });
 
@@ -891,6 +892,8 @@ function App(){
       <div className="main">
         {nav==="forest" ? (
           <iframe className="forest-frame" src="clinic-needs-forest.html" title="Clinic Needs Forest" />
+        ) : nav==="chronic" ? (
+          <iframe className="forest-frame" src="clinic-needs-atlas-chronic-disease.html" title="Chronic Needs Analysis" />
         ) : (<React.Fragment>
         <div className="topbar">
           <ProductBadge product="signal" />

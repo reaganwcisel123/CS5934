@@ -139,6 +139,97 @@
       "original_field": "preventable_hospitalization_flag",
       "transformation": "Use only synthetic, non-PHI rows; version generation logic.",
       "required_for_mvp": true
+    },
+    {
+      "final_field": "access_failure_county_fips",
+      "source_id": "county_health_rankings",
+      "original_field": "fipscode",
+      "transformation": "Normalize numeric FIPS to five digits; remove national and state aggregate rows while retaining county equivalents.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "preventable_hospital_stays",
+      "source_id": "county_health_rankings",
+      "original_field": "v005_rawvalue",
+      "transformation": "Parse finite age-adjusted preventable hospital stays per 100,000 Medicare fee-for-service enrollees; suppression remains null.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "uninsured_percent",
+      "source_id": "county_health_rankings",
+      "original_field": "v003_rawvalue",
+      "transformation": "Convert documented proportion or percentage to a consistent 0-100 uninsured-adult percentage.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "primary_care_physician_burden",
+      "source_id": "county_health_rankings",
+      "original_field": "v004_rawalternatevalue",
+      "transformation": "Use CHR&R population-to-primary-care-physician ratio directly so larger values mean less capacity.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "mental_health_provider_burden",
+      "source_id": "county_health_rankings",
+      "original_field": "v062_rawalternatevalue",
+      "transformation": "Use CHR&R population-to-mental-health-provider ratio directly so larger values mean less capacity.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "other_primary_care_provider_burden",
+      "source_id": "county_health_rankings",
+      "original_field": "v131_rawalternatevalue",
+      "transformation": "Use CHR&R population-to-other-primary-care-provider ratio directly so larger values mean less capacity.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "broadband_access_percent",
+      "source_id": "county_health_rankings",
+      "original_field": "v166_rawvalue",
+      "transformation": "Convert documented proportion or percentage to a consistent 0-100 broadband-access percentage.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "broadband_gap",
+      "source_id": "county_health_rankings",
+      "original_field": "v166_rawvalue",
+      "transformation": "Calculate 100 minus broadband_access_percent; higher values indicate worse access.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "high_access_failure",
+      "source_id": "county_health_rankings",
+      "original_field": "v005_rawvalue",
+      "transformation": "Assign 1 when observed preventable hospital stays are at or above the national eligible-county 75th percentile; otherwise assign 0.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "access_failure_probability",
+      "source_id": "county_health_rankings",
+      "original_field": "Access-failure model prediction",
+      "transformation": "Train national logistic-regression and histogram-gradient-boosting candidates on an explicit non-target feature allowlist; serialize the selected probability for Virginia counties.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "access_failure_risk_tier",
+      "source_id": "county_health_rankings",
+      "original_field": "Access-failure model prediction",
+      "transformation": "Display High at probability >=0.67, Medium at >=0.33, and Low below 0.33; display tiers are not clinical cutoffs.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "access_failure_top_drivers",
+      "source_id": "county_health_rankings",
+      "original_field": "Selected model features",
+      "transformation": "Emit up to three logistic-coefficient contributions or deterministic burden-ranked labels; labels are not causal claims.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "access_failure_source_year",
+      "source_id": "county_health_rankings",
+      "original_field": "supplement",
+      "transformation": "Extract the four-digit supplemental release year, defaulting to the documented 2026 release year.",
+      "required_for_mvp": false
     }
   ]
 }

@@ -87,6 +87,7 @@
   .footnote{padding:0 28px 44px;color:var(--muted);font-size:12px;max-width:1040px;line-height:1.65}
   @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+<link rel="stylesheet" href="access-failure-tab.css">
 </head>
 <body>
 <header>
@@ -100,6 +101,12 @@
   </div>
 </header>
 
+<nav class="access-failure-tabs" role="tablist" aria-label="Clinic Needs Atlas views">
+  <button class="access-failure-tabs__button" id="atlas-tab" role="tab" aria-selected="true" aria-controls="atlas-panel" data-access-failure-view="atlas">Comparative Atlas</button>
+  <button class="access-failure-tabs__button" id="access-tab" role="tab" aria-selected="false" aria-controls="access-panel" data-access-failure-view="access">Access Failure Risk</button>
+</nav>
+
+<main id="atlas-panel" role="tabpanel" aria-labelledby="atlas-tab">
 <div class="toolbar">
   <div class="ctl">
     <label for="clinicSelect">County / area</label>
@@ -172,10 +179,71 @@
   survey-with-error). Forecasting is deliberately omitted — clinic <i>n</i> is small and the SDOH layer updates
   too slowly to predict against; this stays descriptive and diagnostic.
 </div>
+</main>
+
+<main id="access-panel" class="access-failure-tab" role="tabpanel" aria-labelledby="access-tab" hidden>
+  <section class="access-failure-tab__hero" aria-labelledby="access-heading">
+    <h2 id="access-heading">Rural Care Access Failure Risk</h2>
+    <p>Estimates which counties are more likely to have unusually high preventable hospital stays based on insurance coverage, provider capacity, and broadband access. It is a county planning signal, not an individual clinical prediction or a causal finding.</p>
+    <div id="access-meta" class="access-failure-tab__meta" aria-live="polite"></div>
+  </section>
+
+  <div id="access-empty" class="access-failure-tab__empty" role="status" hidden></div>
+  <div id="access-content" hidden>
+    <section id="access-summary" class="access-failure-tab__summary" aria-label="Access failure risk summary"></section>
+    <div class="access-failure-tab__grid">
+      <section class="access-failure-tab__panel" aria-labelledby="access-overview-heading">
+        <h3 id="access-overview-heading">County risk overview</h3>
+        <p id="access-table-note">Review scored Virginia counties by predicted risk. Select a county to inspect the prediction and its reported access drivers.</p>
+        <div class="access-failure-tab__controls">
+          <label for="access-search">Find county
+            <input id="access-search" type="search" autocomplete="off" placeholder="County name or FIPS" aria-label="Find an access failure county">
+          </label>
+          <label for="access-tier-filter">Risk tier
+            <select id="access-tier-filter" aria-label="Filter by access failure risk tier">
+              <option value="all">All tiers</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </label>
+          <label for="access-sort">Sort by
+            <select id="access-sort" aria-label="Sort access failure counties">
+              <option value="risk-desc">Highest predicted risk</option>
+              <option value="risk-asc">Lowest predicted risk</option>
+              <option value="observed-desc">Highest observed stays</option>
+              <option value="county-asc">County name</option>
+            </select>
+          </label>
+        </div>
+        <div class="access-failure-tab__table-wrap">
+          <table class="access-failure-tab__table" aria-describedby="access-table-note">
+            <thead><tr><th scope="col">County</th><th scope="col">Predicted risk</th><th scope="col">Tier</th><th scope="col">Observed preventable stays</th><th scope="col">Rurality</th></tr></thead>
+            <tbody id="access-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <aside class="access-failure-tab__panel" aria-labelledby="access-detail-heading">
+        <h3 id="access-detail-heading">Selected county</h3>
+        <div id="access-detail" aria-live="polite"></div>
+      </aside>
+    </div>
+
+    <section class="access-failure-tab__methodology" aria-labelledby="access-method-heading">
+      <details>
+        <summary id="access-method-heading">Model methodology and performance</summary>
+        <div id="access-methodology"></div>
+      </details>
+    </section>
+    <section id="access-source" class="access-failure-tab__source-note" aria-label="County Health Rankings source citation"></section>
+    <p id="access-limitations" class="access-failure-tab__limits"></p>
+  </div>
+</main>
 
 <div class="tooltip" id="tt" role="status"></div>
 <div id="live" class="visually-hidden" aria-live="polite"></div>
 
+<script src="access-failure-tab.js"></script>
 <script>
 //////////////////// 0. utilities ////////////////////
 const tt = d3.select("#tt");
@@ -771,10 +839,11 @@ function renderProvenance(prov){
 
 async function boot(){
   let prov=null;
+  let tabPayload=null;
   try{
     const d=await fetch("data/clinic_atlas.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); });
     if(!d.records || !d.records.length) throw new Error("empty dataset");
-    CLINICS=d.records; prov=d.provenance;
+    CLINICS=d.records; prov=d.provenance; tabPayload=d;
   }catch(e){
     // Offline / not served over HTTP -> fall back to the synthetic generator.
     CLINICS=makeClinics();
@@ -785,6 +854,7 @@ async function boot(){
   selectedId=CLINICS[0].id;
   populateSelector();
   renderProvenance(prov);
+  if(window.AccessFailureTab) window.AccessFailureTab.init(tabPayload);
   renderAll();
   selectClinic(selectedId);
 }

@@ -626,3 +626,42 @@ sources:
     ingestion_status: ingestion_wired
     ingestion_script: src/ingestion/synthetic_clinical.py
     last_verified_date: "2026-07-12"
+  -
+    source_id: county_health_rankings
+    source_name: County Health Rankings & Roadmaps National County Analytic Data
+    provider: County Health Rankings & Roadmaps / University of Wisconsin Population Health Institute
+    source_category: county_health_and_access_indicators
+    access_method: Public national CSV download with optional COUNTY_HEALTH_RANKINGS_PATH local-file override
+    access_url: "https://www.countyhealthrankings.org/sites/default/files/media/document/analytic_supplement_20260325%5B1%5D.csv"
+    documentation_url: "https://www.countyhealthrankings.org/health-data/methodology-and-sources/data-documentation"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - nation
+      - state
+      - county
+      - county_equivalent
+    temporal_granularity: 2025 annual release supplemental refresh dated 2026-03-25
+    refresh_cadence: publisher supplemental or annual release; verify the file schema on refresh
+    schema_version: "2025 Annual Data Release supplemental analytic CSV, March 25 2026"
+    join_keys:
+      - fipscode
+      - county_fips
+    fields_used:
+      - v005_rawvalue
+      - v003_rawvalue
+      - v004_rawalternatevalue
+      - v062_rawalternatevalue
+      - v131_rawalternatevalue
+      - v166_rawvalue
+    limitations:
+      - "Preventable Hospital Stays is an age-adjusted rate per 100,000 Medicare fee-for-service enrollees, not all residents."
+      - "The source contains release-specific measurement years; the March 2026 refresh uses 2023 data for preventable stays and uninsured adults."
+      - "Provider ratio values may be suppressed; zero providers are not converted into arbitrary extreme burdens."
+      - "This source is optional for the standard Virginia dashboard build but required for access-failure training."
+    privacy_classification: public_aggregate
+    ingestion_status: ingestion_wired
+    ingestion_script: src/ingestion/county_health_rankings.py
+    last_verified_date: "2026-07-27"
+    optional_for_dashboard: true
+    required_for_access_failure_training: true

@@ -8,41 +8,91 @@ from __future__ import annotations
 
 RANDOM_STATE = 42
 TEST_SIZE = 0.25
+CV_SPLITS = 5
+CV_REPEATS = 5
 
 # --- County model (REAL data) -------------------------------------------------
 # Real-variance SDoH only. economic and education are live from the Census ACS
 # feed (US-013), and environment is the real CDC EJI Environmental Burden Module
 # percentile (US-009), so all three join the model.
-COUNTY_FEATURES = ["food", "access", "economic", "education", "environment", "hpsaScore", "rural", "needIndex"]
+COUNTY_FEATURES = [
+    "food",
+    "access",
+    "economic",
+    "education",
+    "environment",
+    "hpsaScore",
+    "rural",
+    "needIndex",
+]
+
 # Target: a county is "high preventable-need" if its chronic-disease burden
 # (CDC PLACES) is in the top third. Documented ambulatory-care-sensitive proxy.
 COUNTY_TARGET_OUTCOMES = ["diabetes", "bphigh", "obesity"]
 COUNTY_TOP_QUANTILE = 2 / 3  # top tercile -> positive
 
+# --- Rural Care Access Failure model (REAL national county data) -------------
+ACCESS_FAILURE_FEATURES = [
+    "uninsured_percent",
+    "primary_care_physician_burden",
+    "mental_health_provider_burden",
+    "other_primary_care_provider_burden",
+    "broadband_gap",
+]
+ACCESS_FAILURE_TARGET = "preventable_hospital_stays"
+ACCESS_FAILURE_QUANTILE = 0.75
+ACCESS_FAILURE_MIN_ROWS = 20
+ACCESS_FAILURE_MODEL_VERSION = "access-failure-v1"
+ACCESS_FAILURE_TIER_THRESHOLDS = {"high": 0.67, "medium": 0.33}
+ACCESS_FAILURE_DRIVER_LABELS = {
+    "primary_care_physician_burden": "Limited primary-care capacity",
+    "mental_health_provider_burden": "Limited mental-health provider capacity",
+    "other_primary_care_provider_burden": "Limited alternative primary-care capacity",
+    "uninsured_percent": "High uninsured population",
+    "broadband_gap": "Limited broadband access",
+    "rural_provider_shortage": "Rural provider shortage",
+    "need_access_gap": "High need combined with poor access",
+    "hpsaScore": "Severe provider shortage designation",
+    "needIndex": "High underlying community need",
+}
+
 # --- Patient model (SYNTHETIC label) ------------------------------------------
 # Features the model trains on: patient clinical signals + their county context.
-PATIENT_FEATURES = ["age", "sys", "dia", "a1c", "ctx_food", "ctx_access", "rural", "needIndex"]
+PATIENT_FEATURES = [
+    "age",
+    "sys",
+    "dia",
+    "a1c",
+    "ctx_food",
+    "ctx_access",
+    "rural",
+    "needIndex",
+]
 
 # Documented generative risk model for the synthetic label. The label is a
 # function of only these TRUE drivers (a subset of the features above) plus
 # noise, so the classifier has a real learning task and cannot perfectly recover
 # it. z_* terms are standardized across the patient population; SDoH terms are
 # scaled to 0-1. Tuned to ~20% positive prevalence.
-LABEL_PREVALENCE = 0.20        # target share of at-risk patients
-LABEL_SIGNAL_STRENGTH = 1.3    # how separable the true signal is (higher = easier)
-LABEL_NOISE_SD = 0.45          # gaussian noise on the linear predictor
+LABEL_PREVALENCE = 0.20
+LABEL_SIGNAL_STRENGTH = 1.3
+LABEL_NOISE_SD = 0.45
+
 LABEL_DRIVERS = {
-    "z_a1c": 0.9,      # higher A1c -> higher risk (diabetes control)
+    "z_a1c": 0.9,      # higher A1c -> higher risk
     "z_sys": 0.6,      # higher systolic BP -> higher risk
     "z_age": 0.5,      # older -> higher risk
-    "access": 1.1,     # worse care-access burden (0-1) -> higher risk
-    "food": 0.7,       # worse food/housing burden (0-1) -> higher risk
-    "rural": 0.6,      # more rural (0-1) -> higher risk
+    "access": 1.1,     # worse care-access burden -> higher risk
+    "food": 0.7,       # worse food/housing burden -> higher risk
+    "rural": 0.6,      # more rural -> higher risk
 }
 
-# Risk tiers by percentile of scored risk (relative prioritization pyramid):
-# top 20% = High, next 30% = Medium, bottom 50% = Low.
-TIER_QUANTILES = {"high": 0.80, "medium": 0.50}
+# These quantiles are converted to fixed probability thresholds during training
+# and stored with the patient model. Scoring reuses those stored thresholds.
+TIER_QUANTILES = {
+    "high": 0.80,
+    "medium": 0.50,
+}
 
 # Human-readable driver labels for per-patient explainability (US-020).
 DRIVER_LABELS = {
@@ -56,9 +106,8 @@ DRIVER_LABELS = {
     "needIndex": "High community need",
 }
 
-# County-level driver labels (why a county is high-risk). needIndex is left out
-# on purpose: it is the SDoH composite, so it would just restate the risk rather
-# than explain it. We show the underlying, actionable SDoH factors instead.
+# County-level driver labels. needIndex is omitted because it is the SDoH
+# composite; the underlying actionable factors are more useful explanations.
 COUNTY_DRIVER_LABELS = {
     "access": "Poor care access",
     "food": "Food & housing burden",

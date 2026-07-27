@@ -1,0 +1,309 @@
+.access-failure-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.access-failure-tabs__button {
+  appearance: none;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.access-failure-tabs__button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 650;
+}
+
+.access-failure-tab {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 28px 44px;
+}
+
+.access-failure-tab__hero {
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 18px;
+  margin-bottom: 18px;
+}
+
+.access-failure-tab__hero h2 {
+  margin: 0 0 7px;
+  font-size: 21px;
+  font-weight: 650;
+}
+
+.access-failure-tab__hero p,
+.access-failure-tab__panel p,
+.access-failure-tab__empty,
+.access-failure-tab__limits {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.access-failure-tab__hero p {
+  max-width: 900px;
+  margin: 0;
+}
+
+.access-failure-tab__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.access-failure-tab__meta b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.access-failure-tab__summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.access-failure-tab__metric,
+.access-failure-tab__panel,
+.access-failure-tab__methodology details {
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.access-failure-tab__metric { padding: 12px; }
+
+.access-failure-tab__label {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.access-failure-tab__metric-value {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.access-failure-tab__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.access-failure-tab__panel { padding: 16px; }
+.access-failure-tab__panel h3 { margin: 0 0 4px; font-size: 15px; }
+
+.access-failure-tab__panel p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.access-failure-tab__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.access-failure-tab__controls label {
+  display: grid;
+  min-width: 130px;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.access-failure-tab__controls input,
+.access-failure-tab__controls select {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.access-failure-tab__controls input { width: 190px; }
+
+.access-failure-tab__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.access-failure-tab__table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.access-failure-tab__table th,
+.access-failure-tab__table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.access-failure-tab__table th {
+  background: #11161d;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .5px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.access-failure-tab__table tbody tr:last-child td { border-bottom: 0; }
+.access-failure-tab__table tbody tr:hover { background: var(--panel2); }
+
+.access-failure-tab__table tbody tr.is-selected {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  background: #23303f;
+}
+
+.access-failure-tab__county-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.access-failure-tab__county-button:hover { text-decoration: underline; }
+.access-failure-tab__source-text { color: var(--muted); }
+
+.access-failure-tab__tier {
+  display: inline-flex;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.access-failure-tab__tier--high { color: #ff9d8a; background: #3a1f1a; }
+.access-failure-tab__tier--medium { color: #ffd166; background: #3d3215; }
+.access-failure-tab__tier--low { color: #8fc6f5; background: #142b3e; }
+
+.access-failure-tab__county-name {
+  margin-bottom: 12px !important;
+  color: var(--ink) !important;
+  font-size: 18px !important;
+  font-weight: 650;
+}
+
+.access-failure-tab__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.access-failure-tab__detail-item {
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.access-failure-tab__value {
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.access-failure-tab__driver-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.access-failure-tab__empty {
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+.access-failure-tab__methodology { margin-top: 16px; }
+.access-failure-tab__methodology details { padding: 12px 14px; }
+
+.access-failure-tab__methodology summary {
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.access-failure-tab__method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.access-failure-tab__method-item {
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.access-failure-tab__source-note {
+  margin-top: 16px;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.access-failure-tab__source-note a { color: var(--accent); }
+
+.access-failure-tab__limits {
+  margin-top: 14px;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .access-failure-tab__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .access-failure-tab__grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .access-failure-tabs { padding-left: 12px; overflow-x: auto; }
+  .access-failure-tabs__button { white-space: nowrap; }
+  .access-failure-tab { padding: 18px 16px 36px; }
+  .access-failure-tab__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .access-failure-tab__controls input { width: 100%; }
+  .access-failure-tab__controls label { flex: 1 1 130px; }
+  .access-failure-tab__method-grid,
+  .access-failure-tab__detail-grid { grid-template-columns: 1fr; }
+  .access-failure-tab__hero h2 { font-size: 19px; }
+}
