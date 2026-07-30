@@ -107,6 +107,41 @@ def test_panel_covers_multiple_conditions_independently():
     assert pd.isna(first_shig["lag_1"])
 
 
+def test_panel_is_virginia_only_when_given_a_regional_frame():
+    # The history file now carries VA plus six neighbours. Without a filter every
+    # condition appears seven times per week, which corrupts every lag feature
+    # while nothing raises.
+    va = _series("Pertussis", 60, seed=1)
+    regional = pd.concat(
+        [va] + [_series("Pertussis", 60, seed=i).assign(jurisdiction=j)
+                for i, j in enumerate(["MARYLAND", "KENTUCKY", "TENNESSEE"], start=2)],
+        ignore_index=True,
+    )
+
+    panel = fd.condition_panel(regional, conditions=["Pertussis"])
+
+    assert len(panel) == 60
+    assert panel["week_idx"].nunique() == 60
+    assert set(panel["jurisdiction"].str.upper()) == {"VIRGINIA"}
+
+
+def test_virginia_only_passes_through_a_frame_without_a_jurisdiction_column():
+    plain = pd.DataFrame([{"condition": "Pertussis", "mmwr_year": 2026,
+                           "mmwr_week": 1, "cases": 4.0}])
+
+    assert len(fd.virginia_only(plain)) == 1
+
+
+def test_virginia_only_is_case_insensitive():
+    mixed = pd.DataFrame([
+        {"jurisdiction": "Virginia", "condition": "X", "mmwr_year": 2026, "mmwr_week": 1, "cases": 1.0},
+        {"jurisdiction": "VIRGINIA", "condition": "X", "mmwr_year": 2026, "mmwr_week": 2, "cases": 1.0},
+        {"jurisdiction": "MARYLAND", "condition": "X", "mmwr_year": 2026, "mmwr_week": 1, "cases": 1.0},
+    ])
+
+    assert len(fd.virginia_only(mixed)) == 2
+
+
 def test_panel_survives_a_filtered_sparse_index():
     # Regression: filtering to a subset leaves a sparse index, and week_index()
     # returns a 0..n-1 Series, so a plain assignment aligned by label into NaN.

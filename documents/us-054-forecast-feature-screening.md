@@ -108,3 +108,71 @@ forecast at any stage, consistent with the project's standing non-PHI constraint
    rather than 0, but a *silently* under-reported week is indistinguishable from
    a genuinely quiet one.
 3. **Single jurisdiction.** All conclusions here hold for Virginia only.
+
+
+---
+
+# Addendum: threat-ranking screening (US-056)
+
+The ranking in `src/model/threat_ranking.py` is a new inference surface and is
+screened here on the same terms as the forecast features.
+
+## Inputs
+
+| Input | Verdict | Reasoning |
+|---|---|---|
+| Recent 8-week mean, Virginia | **Keep** | Observed counts. No demographic content. |
+| Seasonal baseline (same weeks, prior 4 years) | **Keep** | Carries prior-year reporting inequity forward, which is a data-quality issue rather than encoded bias. |
+| Neighbouring-state ratios | **Keep, with a caveat** | Six jurisdictions with differing surveillance capacity. See below. |
+| Volume floor (3 cases/week) | **Keep, documented** | An explicit value judgement, not a neutral filter. See below. |
+
+No demographic variable enters the ranking. The inputs are case counts by
+condition, week and jurisdiction.
+
+## The primary concern: reporting effort masquerading as incidence
+
+Ranking by rise means **any change in reporting behaviour is indistinguishable
+from a change in disease**. A jurisdiction that hires an epidemiologist, clears a
+backlog, or adopts electronic case reporting will show a rise across many
+conditions at once, and this ranking would present that as a threat.
+
+This matters for equity because surveillance capacity tracks health-department
+funding, which tracks the resourcing of the communities served. A
+well-resourced department makes its population *look* sicker.
+
+**Mitigations, none of them complete:**
+
+- Regional corroboration helps: a rise in four states is less likely to be one
+  department's backlog. It does not help against a *regional* reporting change,
+  such as a multi-state reporting-standard update.
+- The seasonal baseline absorbs stable differences in reporting effort, since a
+  jurisdiction is compared against itself.
+- **Not corrected.** There is no reporting-volume denominator in NNDSS to
+  normalise against. It is documented in the model card as the ranking's largest
+  weakness.
+
+## The volume floor is a value judgement
+
+`MIN_RECENT_CASES = 3` keeps a 1-to-4-case jump off the board. It also means a
+condition running at 2 cases/week **cannot rank however severe it is**, which
+disadvantages rare high-consequence disease and, by extension, the small
+populations such disease tends to concentrate in.
+
+Retained because the alternative — an unfiltered list dominated by
+single-case noise — is less useful to a clinic. Recorded here so the trade is
+visible rather than implicit.
+
+## Condition selection is no longer a gate
+
+The ranking runs over all 139 reported conditions, which removes the selection
+bias documented above for the forecast set: Cyclosporiasis and Measles are
+surfaced despite never having been in `FORECAST_CONDITIONS`. What remains is a
+**guidance** gap rather than a visibility gap — a ranked condition without a
+supply mapping renders as "no stocking guidance yet" rather than disappearing.
+
+## Blurb provenance
+
+Stocking blurbs were compiled from published CDC guidance by the development
+team, **not by a clinician**. `condition_supply_map.yml` carries
+`clinical_review: pending` and the UI renders that state on every threat board.
+Removing the flag requires a qualified sign-off, not an edit.

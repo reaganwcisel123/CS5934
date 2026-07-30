@@ -56,6 +56,45 @@
 
   .unknown { color:var(--text-muted); font-style:italic; font-size:12.5px; }
 
+  /* --- threat cards (US-056) --- */
+  .lede { font-size:15px; color:var(--text-strong); margin:0 0 14px; line-height:1.55; max-width:820px; }
+  .lede b { font-weight:700; }
+
+  .cards { display:grid; gap:12px; margin-bottom:20px; }
+  .card { background:var(--surface-card); border:1px solid var(--border-subtle);
+    border-left:3px solid var(--signal-600); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-sm); padding:14px 16px; }
+  .card.rank-1 { border-left-color:var(--danger-600,#dc2626); }
+  .card.rank-2 { border-left-color:var(--amber-500,#f59e0b); }
+
+  .card-h { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .card-h .name { font-size:15px; font-weight:700; color:var(--text-strong); }
+  .card-h .mult { font-size:19px; font-weight:800; color:var(--danger-700,#b91c1c);
+    font-family:var(--font-mono); margin-left:auto; }
+  .card-sub { font-size:12px; color:var(--text-muted); margin-top:3px; }
+  .card-blurb { font-size:13px; line-height:1.6; color:var(--text-body); margin:10px 0 0; }
+
+  .corro { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:999px;
+    background:var(--signal-50,#eff6ff); color:var(--signal-700,#1d4ed8);
+    font-size:11px; font-weight:600; }
+  .corro.solo { background:var(--slate-100,#f1f5f9); color:var(--slate-600,#475569); }
+
+  .spark { display:flex; align-items:flex-end; gap:2px; height:26px; margin-top:9px; }
+  .spark i { flex:1; background:var(--signal-300,#93c5fd); border-radius:1px 1px 0 0; min-height:1px; }
+  .spark i.gap { background:repeating-linear-gradient(45deg,var(--slate-200,#e2e8f0),
+    var(--slate-200,#e2e8f0) 2px,transparent 2px,transparent 4px); }
+  .spark i.last { background:var(--signal-600); }
+
+  .review { display:flex; gap:9px; align-items:flex-start; margin:0 0 16px;
+    padding:9px 13px; border-radius:var(--radius-md);
+    background:var(--slate-50,#f8fafc); border:1px dashed var(--border-default);
+    color:var(--text-muted); font-size:12px; line-height:1.5; }
+
+  details.more { margin-top:8px; }
+  details.more > summary { cursor:pointer; font-size:12.5px; font-weight:600;
+    color:var(--signal-700,#1d4ed8); padding:6px 0; list-style:revert; }
+  details.more[open] > summary { margin-bottom:6px; }
+
   select { width:100%; height:34px; padding:0 9px; font-size:13px; font-family:inherit;
     color:var(--text-body); background:var(--surface-card);
     border:1px solid var(--border-default); border-radius:var(--radius-md); }
@@ -72,7 +111,17 @@
 <body>
 <div id="root"></div>
 
+<!-- Deploy-time API base (live mode). No-op locally; ?api= below still wins. -->
 <script src="config.js"></script>
+<script>
+// Runtime config, matching clinic-needs-atlas-signal.html:
+//   ?api=http://localhost:8010/api   -> live API mode
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.get("api")) window.CLINIC_ATLAS_API = q.get("api").replace(/\/$/, "");
+  if (q.get("auth") === "1") window.CLINIC_ATLAS_AUTH = true;
+})();
+</script>
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
@@ -143,6 +192,111 @@ function ConditionRow({ row, max }){
         {row.as_of_week ? ` · from week ${row.as_of_week}/${row.as_of_year}` : ""}
       </div>
     </div>
+  );
+}
+
+/* --- threat cards (US-056) ------------------------------------------------ */
+
+function Sparkline({ points }){
+  const values = points.map(p => p.cases).filter(v => v != null);
+  if(!values.length) return null;
+  const max = Math.max(...values, 1);
+  return (
+    <div className="spark" title="Reported cases per week, most recent 16 weeks">
+      {points.map((p, i) => (
+        <i key={i}
+           className={p.cases == null ? "gap" : (i === points.length - 1 ? "last" : "")}
+           style={{ height: p.cases == null ? "100%" : Math.max(2, (p.cases / max) * 26) + "px" }}
+           title={p.cases == null ? `W${p.week}: not reported` : `W${p.week}: ${p.cases}`} />
+      ))}
+    </div>
+  );
+}
+
+function Corroboration({ threat }){
+  const states = threat.neighbor_states || [];
+  if(!states.length){
+    return <span className="corro solo">Virginia only — not yet seen regionally</span>;
+  }
+  return (
+    <span className="corro">
+      Also rising in {states.length === 1 ? states[0] : `${states.length} neighbouring states`}
+      {states.length > 1 ? `: ${states.join(", ")}` : ""}
+    </span>
+  );
+}
+
+function ThreatCard({ threat, rank, county }){
+  const c = threat.county || county;
+  return (
+    <div className={`card rank-${rank}`}>
+      <div className="card-h">
+        <span className="name">{threat.condition}</span>
+        <span className="mult">{threat.ratio}&times;</span>
+      </div>
+      <div className="card-sub mono">
+        {fmt(threat.recent_weekly_mean)} cases/week now vs {fmt(threat.seasonal_baseline)} normal for{" "}
+        {threat.weeks_compared} &middot; {threat.baseline_years}-year seasonal average
+      </div>
+      <div style={{marginTop:7}}><Corroboration threat={threat} /></div>
+
+      <Sparkline points={threat.recent_series || []} />
+
+      {threat.blurb && <p className="card-blurb">{threat.blurb}</p>}
+
+      {c && c.supplies && c.supplies.length > 0 && (
+        <details className="more">
+          <summary>
+            What to hold in this county
+            {c.expected_cases != null && ` (~${c.expected_cases < 1 ? "under 1" : fmt(c.expected_cases)} cases expected over ${c.horizon_weeks} weeks)`}
+          </summary>
+          <SupplyTable warning={c} />
+          <div className="card-sub" style={{marginTop:6}}>
+            <span className="chip alloc">allocated, not observed</span>{" "}
+            county share of the statewide rate, carried forward {c.horizon_weeks} weeks
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ThreatBoard({ state, countyState }){
+  if(state.loading) return <div className="row-sub muted">Assessing current threats…</div>;
+  if(state.error)   return <div className="err">Could not load threats: {state.error}</div>;
+
+  const threats = state.data?.threats ?? [];
+  if(!threats.length) return <div className="row-sub unknown">No conditions are running above their seasonal norm.</div>;
+
+  // Prefer the county-specific payload when a county is selected.
+  const byCondition = {};
+  (countyState?.data?.threats ?? []).forEach(t => { byCondition[t.condition] = t.county; });
+
+  const review = state.data?.clinical_review;
+  const top = threats[0];
+
+  return (
+    <React.Fragment>
+      <p className="lede">
+        <b>{threats.length} conditions</b> are running above their seasonal norm in Virginia.{" "}
+        <b>{top.condition}</b> is the furthest out at <b>{top.ratio}&times;</b> its usual level for
+        this time of year
+        {top.neighbors_rising > 0 && <span> and is rising in {top.neighbors_rising} neighbouring {top.neighbors_rising === 1 ? "state" : "states"}</span>}.
+      </p>
+
+      {review && review.clinical_review !== "approved" && (
+        <div className="review">
+          <span>&#9998;</span>
+          <div><b>Stocking guidance is pending clinical review.</b> {review.note}</div>
+        </div>
+      )}
+
+      <div className="cards">
+        {threats.map((t, i) => (
+          <ThreatCard key={t.condition} threat={t} rank={i + 1} county={byCondition[t.condition]} />
+        ))}
+      </div>
+    </React.Fragment>
   );
 }
 
@@ -236,6 +390,9 @@ function App(){
   }, [atlas.data]);
 
   const horizon = state.data?.horizon_weeks;
+  const threats = useJson(API_BASE ? `${API_BASE}/threats?top_n=5` : null);
+  const countyThreats = useJson(API_BASE && fips ? `${API_BASE}/threats/counties/${fips}?top_n=5` : null);
+  const asOf = threats.data?.threats?.[0];
 
   return (
     <div className="wrap">
@@ -243,48 +400,60 @@ function App(){
         <div className="title">
           <h1>Early warning</h1>
           <p>
-            Where notifiable disease is heading in Virginia over the next{" "}
-            {horizon ? `${horizon} weeks` : "few weeks"}, and what a clinic should hold before demand arrives.
+            Which notifiable diseases most threaten Virginia clinics right now, and what to
+            hold before demand arrives.
+            {asOf && <span className="mono"> Through week {asOf.as_of_week}/{asOf.as_of_year}.</span>}
           </p>
         </div>
-      </div>
-
-      <div className="disclosure">
-        <span>&#9888;</span>
-        <div>
-          <b>County figures are allocated, not measured.</b> CDC NNDSS reports at the state
-          level only. County numbers here are Virginia&rsquo;s forecast split by county
-          population share, so they show relative expected load — not observed local cases.
-          Quantities are a planning aid, not a procurement instruction or a clinical protocol.
+        <div style={{marginLeft:"auto", minWidth:220}}>
+          <select value={fips || ""} onChange={e => setFips(e.target.value)}>
+            <option value="">All of Virginia — pick a county…</option>
+            {counties.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </div>
       </div>
 
       {!API_BASE && (
         <div className="disclosure">
           <span>&#9432;</span>
-          <div>No API configured, so no live forecast is available. Set
-          <span className="mono"> window.CLINIC_ATLAS_API</span> in <span className="mono">config.js</span>.</div>
+          <div>No API configured. Append <span className="mono">?api=http://localhost:8010/api</span> to
+          this URL, or set <span className="mono">window.CLINIC_ATLAS_API</span> in <span className="mono">config.js</span>.</div>
         </div>
       )}
 
-      <div className="grid">
-        <div className="panel">
-          <div className="panel-h">
-            <h3>Statewide outlook</h3>
-            <span className="desc">
-              {horizon ? `${horizon}-week lead time · 80% interval` : "80% interval"}
-            </span>
-          </div>
-          <StatePanel state={state} />
-        </div>
+      <ThreatBoard state={threats} countyState={countyThreats} />
 
-        <CountyPanel counties={counties} fips={fips} onPick={setFips} />
+      <div className="disclosure">
+        <span>&#9888;</span>
+        <div>
+          <b>County figures are allocated, not measured.</b> CDC NNDSS reports at the state
+          level only. County numbers here are Virginia&rsquo;s statewide figure split by county
+          population share, so they show relative expected load — not observed local cases.
+          Quantities are a planning aid, not a procurement instruction or a clinical protocol.
+        </div>
       </div>
 
+      <details className="more">
+        <summary>All tracked conditions — {horizon || 4}-week forecast with 80% intervals</summary>
+        <div className="grid" style={{marginTop:10}}>
+          <div className="panel">
+            <div className="panel-h">
+              <h3>Statewide forecast</h3>
+              <span className="desc">
+                {horizon ? `${horizon}-week lead time · 80% interval` : "80% interval"}
+              </span>
+            </div>
+            <StatePanel state={state} />
+          </div>
+
+          <CountyPanel counties={counties} fips={fips} onPick={setFips} />
+        </div>
+      </details>
+
       <p className="row-sub muted" style={{marginTop:16, maxWidth:820}}>
-        Forecasts inform a stocking decision; they do not make one. A care team is expected
-        to review and override these figures. See the model card for how the forecast is
-        evaluated and where it is weakest.
+        This informs a stocking decision; it does not make one. A care team is expected to
+        review and override these figures. See the model card for how the ranking and the
+        forecast are evaluated, and where each is weakest.
       </p>
     </div>
   );

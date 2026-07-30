@@ -11,11 +11,26 @@
 # Conditions absent from this file are surfaced as "unmapped" by
 # src/model/supply_needs.py, never silently dropped.
 
-version: 1
+version: 2
 units_note: "per_case counts are units per forecast case; ranges come from the forecast interval."
+
+# Every blurb is written from CDC treatment and infection-control guidance, cited
+# per entry. None of it has been reviewed by a clinician on this project, so the
+# UI renders the whole set behind a "pending clinical review" flag. Do not remove
+# that flag without a qualified sign-off.
+clinical_review: pending
+clinical_review_note: >
+  Blurbs and per_case factors were compiled from published CDC guidance by the
+  development team, not by a clinician. Treat them as a starting point for a
+  stocking conversation, not as clinical direction.
 
 conditions:
   Chlamydia trachomatis infection:
+    blurb: >
+      High steady volume rather than a surge condition. Keep NAAT collection kits
+      stocked at roughly twice your case count so partners can be tested at the same
+      visit, and hold doxycycline for the standard 7-day course. Source: CDC STI
+      Treatment Guidelines 2021.
     rationale: >
       Diagnosis is by nucleic acid amplification test; CDC first-line treatment is
       doxycycline for 7 days. Partner treatment drives test volume above case count.
@@ -29,6 +44,11 @@ conditions:
         per_case: 2.0
 
   Gonorrhea:
+    blurb: >
+      Frequently co-occurs with chlamydia, so test and treat together. The binding
+      constraint is usually ceftriaxone vials and injection supplies rather than
+      test kits, since treatment is a single IM dose. Source: CDC STI Treatment
+      Guidelines 2021.
     rationale: >
       CDC recommends a single intramuscular ceftriaxone dose, so injection
       supplies scale with cases. Co-infection with chlamydia is common.
@@ -41,6 +61,11 @@ conditions:
         per_case: 1.1
 
   Campylobacteriosis:
+    blurb: >
+      The most common bacterial enteric infection in Virginia and reliably worse in
+      summer. Most cases are self-limiting, so plan for stool collection and oral
+      rehydration rather than antibiotics; reserve azithromycin for severe or
+      high-risk patients. Source: CDC Campylobacter, clinical guidance.
     rationale: >
       Mostly self-limiting; the clinic burden is stool culture and oral
       rehydration rather than antibiotics.
@@ -54,6 +79,12 @@ conditions:
         note: reserved for severe or high-risk cases
 
   Salmonellosis (excluding Salmonella Typhi infection and Salmonella Paratyphi infection):
+    blurb: >
+      Summer foodborne surges are routine, and clusters often trace to a shared
+      source, so a rise may arrive as several patients at once. Antibiotics are
+      reserved for severe disease, infants and immunocompromised patients, which is
+      why the antibiotic factor is deliberately low. Source: CDC Salmonella,
+      information for healthcare professionals.
     rationale: >
       Same pattern as campylobacteriosis. Antibiotics are reserved for severe
       cases and infants, so the antibiotic factor stays low deliberately.
@@ -66,6 +97,12 @@ conditions:
         per_case: 0.15
 
   Shiga toxin-producing Escherichia coli (STEC):
+    blurb: >
+      Stock diagnostics, not antibiotics. Antibiotics are contraindicated because
+      they increase the risk of haemolytic uraemic syndrome, so the clinic need is
+      Shiga toxin testing plus supportive rehydration and a clear referral path for
+      deteriorating patients. Source: CDC STEC, information for healthcare
+      professionals.
     rationale: >
       Requires Shiga toxin testing, and antibiotics are contraindicated because
       they raise haemolytic uraemic syndrome risk. Supplies are diagnostic only.
@@ -78,6 +115,11 @@ conditions:
         per_case: 4.0
 
   Shigellosis:
+    blurb: >
+      Spreads person to person at very low infectious dose, so household contacts
+      often present together and testing volume runs above case count. Antibiotic
+      treatment is more common than in other enteric infections, and resistance is
+      rising. Source: CDC Shigella, clinical guidance.
     rationale: >
       Person-to-person spread means household contacts present together;
       antibiotic treatment is more common than in other enteric infections.
@@ -90,6 +132,11 @@ conditions:
         per_case: 3.0
 
   Cryptosporidiosis:
+    blurb: >
+      Peaks with summer recreational water use. Requires a specific antigen or
+      ova-and-parasite request; a routine stool culture will miss it. Nitazoxanide
+      is used mainly for immunocompetent patients with prolonged illness. Source:
+      CDC Cryptosporidiosis, information for healthcare providers.
     rationale: >
       Diagnosis needs a specific ova-and-parasite or antigen test; nitazoxanide
       is used mainly for immunocompetent patients with prolonged illness.
@@ -102,6 +149,11 @@ conditions:
         per_case: 3.0
 
   Giardiasis:
+    blurb: >
+      Also water-associated and also missed by routine culture, so order antigen or
+      O&P testing explicitly. Treatment rate is high once confirmed, so keep
+      metronidazole in proportion to confirmed cases rather than tests. Source: CDC
+      Giardia, information for health professionals.
     rationale: >
       Antigen testing plus a short metronidazole or tinidazole course; treatment
       rate is high once confirmed.
@@ -112,6 +164,12 @@ conditions:
         per_case: 0.9
 
   Pertussis:
+    blurb: >
+      The clearest stock-ahead case on the board. One index case drives PCR testing,
+      a macrolide course, post-exposure prophylaxis for the whole household, and
+      respiratory PPE for staff, which is why the azithromycin factor exceeds one
+      per case. Check Tdap status for contacts. Source: CDC Pertussis, treatment and
+      postexposure prophylaxis.
     rationale: >
       The clearest surge-and-stock case. PCR confirmation, macrolide treatment,
       post-exposure prophylaxis for household contacts, and respiratory PPE for
@@ -129,6 +187,11 @@ conditions:
         note: catch-up vaccination for under-immunised contacts
 
   Legionellosis:
+    blurb: >
+      Diagnosed by urinary antigen, and most confirmed cases are referred for
+      inpatient care, so the clinic-side need is diagnostic. A local cluster points
+      at a shared water system and should be reported to the health district
+      promptly. Source: CDC Legionella, clinical features and diagnosis.
     rationale: >
       Diagnosed by urinary antigen; most confirmed cases are referred onward, so
       the clinic-side supply is diagnostic rather than therapeutic.
@@ -139,6 +202,11 @@ conditions:
         per_case: 0.4
 
   Tuberculosis:
+    blurb: >
+      Airborne precautions and referral rather than clinic-managed treatment. The
+      volume driver is contact investigation, not the index case, which is why the
+      IGRA factor is several times the case count. Ensure N95 fit-testing is current
+      before you need it. Source: CDC Tuberculosis, testing and diagnosis.
     rationale: >
       Airborne precautions and referral rather than clinic-managed treatment.
       Contact investigation drives most of the testing volume.
@@ -149,4 +217,314 @@ conditions:
       - item: N95 respirator
         per_case: 10.0
       - item: Chest X-ray referral
+        per_case: 1.0
+
+  # --- Added in US-056: conditions the threat ranking can surface that the
+  # original 11-condition forecast set could not see. ---
+
+  Measles, Indigenous:
+    blurb: >
+      A completely different posture from the enteric conditions on this board.
+      Measles is airborne and one of the most transmissible diseases known, so the
+      first need is an isolation plan, not a medication: mask the patient, use an
+      airborne-isolation room if you have one, and keep the room vacant for an hour
+      afterwards. Confirm MMR status for staff and contacts, and notify your health
+      district immediately. Source: CDC Measles, for healthcare providers.
+    rationale: >
+      Airborne precautions, contact tracing and catch-up vaccination drive the
+      supply need. Treatment is supportive; vitamin A is recommended for children.
+      Testing volume far exceeds case count because contact investigation is wide.
+    supplies:
+      - item: N95 respirator
+        per_case: 15.0
+        note: staff exposure during the visit and follow-up
+      - item: Measles PCR / IgM test kit
+        per_case: 4.0
+        note: index case plus symptomatic contacts
+      - item: MMR vaccine dose
+        per_case: 8.0
+        note: catch-up for under-immunised contacts
+      - item: Vitamin A (paediatric dose)
+        per_case: 1.0
+
+  Cyclosporiasis:
+    blurb: >
+      A summer, produce-associated parasite that routine stool culture does not
+      detect. You must request cyclospora testing specifically, or the case is
+      missed. TMP-SMX is the treatment of choice, and clusters usually trace to a
+      common fresh-produce source, so a rise is worth reporting rather than treating
+      case by case. Source: CDC Cyclosporiasis, information for health professionals.
+    rationale: >
+      Requires a specifically ordered O&P or molecular test. Treatment rate is high
+      once confirmed; symptoms are prolonged and relapsing without it.
+    supplies:
+      - item: Ova and parasite test kit (cyclospora requested)
+        per_case: 1.5
+      - item: TMP-SMX course
+        per_case: 0.9
+      - item: Oral rehydration salts sachet
+        per_case: 3.0
+
+  Hepatitis A, Confirmed:
+    blurb: >
+      Vaccine-preventable and often presenting in clusters among close contacts.
+      The stock-ahead item is hepatitis A vaccine for post-exposure prophylaxis,
+      which is effective within 14 days of exposure, so speed matters more than
+      volume. Source: CDC Hepatitis A, clinical overview.
+    rationale: >
+      Post-exposure prophylaxis for contacts drives vaccine demand well above the
+      case count. Treatment of the index case is supportive.
+    supplies:
+      - item: Hepatitis A vaccine dose
+        per_case: 6.0
+        note: post-exposure prophylaxis for close contacts
+      - item: Hepatitis A IgM serology
+        per_case: 2.0
+      - item: Immune globulin dose
+        per_case: 0.3
+        note: for infants and immunocompromised contacts
+
+  Hepatitis B, chronic, Confirmed:
+    blurb: >
+      Chronic rather than acute, so this is a linkage-to-care load rather than a
+      surge. Expect confirmatory serology, viral load testing, and referral for
+      antiviral assessment; also screen and vaccinate household contacts. Source:
+      CDC Hepatitis B, clinical care and treatment.
+    rationale: >
+      Case volume translates into confirmatory panels and specialist referral, plus
+      contact screening and vaccination, rather than clinic-administered treatment.
+    supplies:
+      - item: Hepatitis B serology panel
+        per_case: 1.5
+      - item: HBV DNA viral load test
+        per_case: 1.0
+      - item: Hepatitis B vaccine dose
+        per_case: 2.5
+        note: susceptible household contacts
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Hepatitis B, chronic, Probable:
+    blurb: >
+      Probable cases still need confirmatory testing before they are counted or
+      treated, so plan for serology volume rather than treatment. Many resolve to
+      confirmed or discarded on follow-up. Source: CDC Hepatitis B, clinical care
+      and treatment.
+    rationale: >
+      Confirmation testing is the dominant cost; treatment decisions follow only
+      after a case is confirmed.
+    supplies:
+      - item: Hepatitis B serology panel
+        per_case: 1.5
+      - item: HBV DNA viral load test
+        per_case: 0.6
+
+  Hepatitis C, chronic, Confirmed:
+    blurb: >
+      Curable with direct-acting antivirals, so the priority is confirmatory RNA
+      testing and getting patients linked to treatment rather than anything held on
+      the shelf. High and rising counts usually reflect screening effort as much as
+      incidence. Source: CDC Hepatitis C, clinical screening and diagnosis.
+    rationale: >
+      HCV RNA confirmation plus referral for direct-acting antiviral therapy. Most
+      of the burden is testing and care coordination.
+    supplies:
+      - item: HCV RNA confirmatory test
+        per_case: 1.2
+      - item: Liver function panel
+        per_case: 1.0
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Hepatitis C, chronic, Probable:
+    blurb: >
+      An antibody-positive result without RNA confirmation. Roughly a quarter of
+      antibody-positive people have cleared the virus, so the single most useful
+      thing to stock is confirmatory RNA testing. Source: CDC Hepatitis C, clinical
+      screening and diagnosis.
+    rationale: >
+      Reflex RNA confirmation is the deciding test; treatment follows only for
+      confirmed active infection.
+    supplies:
+      - item: HCV RNA confirmatory test
+        per_case: 1.0
+      - item: Liver function panel
+        per_case: 0.8
+
+  Vibriosis (any species of the family Vibrionaceae, other than toxigenic Vibrio cholerae O1 or O139), Probable:
+    blurb: >
+      Warm-water and shellfish associated, so it peaks in late summer along the
+      coast. Wound infections can progress quickly in patients with liver disease or
+      immunosuppression, so keep a low threshold for referral alongside doxycycline
+      and a third-generation cephalosporin. Source: CDC Vibrio, information for
+      health professionals.
+    rationale: >
+      Combined doxycycline and ceftriaxone is the recommended regimen for severe
+      infection. Wound care supplies scale with the wound-associated share.
+    supplies:
+      - item: Wound / stool culture kit
+        per_case: 1.2
+      - item: Doxycycline course
+        per_case: 0.7
+      - item: Ceftriaxone vial
+        per_case: 0.5
+      - item: Wound care dressing pack
+        per_case: 1.5
+
+  Syphilis, Primary and secondary:
+    blurb: >
+      Benzathine penicillin G is the only recommended treatment and has been subject
+      to national shortages, so it is worth confirming supply before you need it.
+      Partner services drive testing above case count. Source: CDC STI Treatment
+      Guidelines 2021.
+    rationale: >
+      Single-dose benzathine penicillin G for primary and secondary disease, plus
+      RPR/treponemal testing for the index case and partners.
+    supplies:
+      - item: Benzathine penicillin G 2.4M unit syringe
+        per_case: 1.1
+      - item: RPR / treponemal test
+        per_case: 3.0
+        note: index case plus partner services
+      - item: IM injection kit (syringe, needle, swab)
+        per_case: 1.1
+
+  Varicella disease:
+    blurb: >
+      Airborne and droplet spread, so the same isolation thinking as measles applies
+      on a smaller scale. Vaccine is effective as post-exposure prophylaxis within
+      3-5 days, which makes speed the operative constraint for susceptible contacts.
+      Source: CDC Chickenpox, for healthcare professionals.
+    rationale: >
+      Post-exposure vaccination for susceptible contacts and antivirals for
+      high-risk patients; PPE for staff during the visit.
+    supplies:
+      - item: Varicella vaccine dose
+        per_case: 4.0
+        note: post-exposure prophylaxis for susceptible contacts
+      - item: Acyclovir course
+        per_case: 0.5
+        note: adolescents, adults and immunocompromised patients
+      - item: N95 respirator
+        per_case: 4.0
+
+  Mumps:
+    blurb: >
+      Droplet precautions and a 5-day isolation period from parotitis onset. There
+      is no specific treatment, so the load is testing, contact tracing and MMR
+      catch-up rather than medication. Source: CDC Mumps, for healthcare providers.
+    rationale: >
+      Buccal swab PCR plus serology for the index case, MMR catch-up for
+      under-immunised contacts, and droplet PPE. Treatment is supportive.
+    supplies:
+      - item: Mumps PCR buccal swab
+        per_case: 2.5
+      - item: MMR vaccine dose
+        per_case: 5.0
+      - item: Surgical mask (droplet precautions)
+        per_case: 10.0
+
+  Haemophilus influenzae, invasive disease, All ages, all serotypes:
+    blurb: >
+      Invasive disease is a referral, but the clinic-side action is prophylaxis:
+      rifampin for household contacts when there is an unvaccinated or
+      under-vaccinated child, and Hib catch-up vaccination. Source: CDC Haemophilus
+      influenzae disease, for clinicians.
+    rationale: >
+      Contact chemoprophylaxis and catch-up vaccination drive the supply need; the
+      index case is managed in hospital.
+    supplies:
+      - item: Rifampin prophylaxis course
+        per_case: 3.5
+        note: household contacts
+      - item: Hib vaccine dose
+        per_case: 2.0
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Carbapenemase-Producing Organisms (CPO), Total:
+    blurb: >
+      A resistance and infection-control signal rather than a treatment one. The
+      response is contact precautions, dedicated equipment and prompt notification
+      to your health district; treatment decisions belong with infectious disease.
+      Source: CDC CRE, healthcare-associated infections guidance.
+    rationale: >
+      Contact precautions and screening drive supply; there is no clinic-level
+      empiric regimen for carbapenemase producers.
+    supplies:
+      - item: Contact precaution gown and glove set
+        per_case: 20.0
+      - item: Screening swab (rectal / wound)
+        per_case: 4.0
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Candida auris, clinical:
+    blurb: >
+      Persists on surfaces and resists common disinfectants, so the operative supply
+      is an EPA List P sporicidal cleaner plus contact precautions. Standard
+      quaternary disinfectant is not sufficient. Source: CDC Candida auris,
+      infection prevention and control.
+    rationale: >
+      Environmental persistence and multidrug resistance make cleaning and isolation
+      the clinic-level response; antifungal choice is a specialist decision.
+    supplies:
+      - item: EPA List P sporicidal disinfectant (unit)
+        per_case: 6.0
+      - item: Contact precaution gown and glove set
+        per_case: 20.0
+      - item: Screening swab (axilla / groin)
+        per_case: 4.0
+
+  Malaria:
+    blurb: >
+      Nearly all Virginia cases are travel-associated, so a travel history is the
+      diagnostic key. Falciparum malaria is a medical emergency: confirm with a
+      rapid diagnostic test and smear, and refer rather than manage in clinic.
+      Source: CDC Malaria, diagnosis and treatment in the United States.
+    rationale: >
+      Rapid diagnostic testing and thick/thin smears for diagnosis; species-specific
+      treatment is directed by specialist consultation.
+    supplies:
+      - item: Malaria rapid diagnostic test
+        per_case: 1.5
+      - item: Thick / thin smear slide set
+        per_case: 1.5
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Listeriosis, Confirmed:
+    blurb: >
+      Low volume but high consequence, especially in pregnancy, the elderly and the
+      immunocompromised. Clusters trace to a common food source, so a rise is an
+      outbreak-investigation trigger. Ampicillin is the treatment of choice. Source:
+      CDC Listeria, information for health professionals.
+    rationale: >
+      Blood culture for diagnosis and prompt ampicillin, usually with hospital
+      referral given the risk profile of affected patients.
+    supplies:
+      - item: Blood culture set
+        per_case: 2.0
+      - item: Ampicillin course
+        per_case: 0.8
+      - item: Specialist referral packet
+        per_case: 1.0
+
+  Ehrlichiosis and Anaplasmosis, Ehrlichia chaffeensis infection:
+    blurb: >
+      Tick-borne and concentrated in late spring through summer. Doxycycline should
+      be started on clinical suspicion rather than waiting for serology, because
+      early treatment prevents severe disease and confirmatory titres lag. Source:
+      CDC Ehrlichiosis, information for healthcare providers.
+    rationale: >
+      Empiric doxycycline for suspected cases means treatment volume exceeds
+      confirmed case count; serology is confirmatory and often paired acute and
+      convalescent.
+    supplies:
+      - item: Doxycycline course
+        per_case: 2.0
+        note: started empirically on suspicion
+      - item: Ehrlichia serology (paired)
+        per_case: 2.0
+      - item: CBC with differential
         per_case: 1.0
