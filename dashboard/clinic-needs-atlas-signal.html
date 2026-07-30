@@ -402,7 +402,7 @@ function Sidebar({ active, onNav }){
     {label:"Needs forest", glyph:"git-branch", view:"forest"},
     {label:"Chronic Needs Analysis", glyph:"heart-pulse", view:"chronic"},
     {label:"Shortage areas", glyph:"target"},
-    {label:"Surveillance", glyph:"activity"},
+    {label:"Surveillance", glyph:"activity", view:"surveillance"},
     {label:"Reports", glyph:"bar-chart-3"},
     {label:"Settings", glyph:"settings"},
   ];
@@ -894,6 +894,8 @@ function App(){
           <iframe className="forest-frame" src="clinic-needs-forest.html" title="Clinic Needs Forest" />
         ) : nav==="chronic" ? (
           <iframe className="forest-frame" src="clinic-needs-atlas-chronic-disease.html" title="Chronic Needs Analysis" />
+        ) : nav==="surveillance" ? (
+          <iframe className="forest-frame" src="clinic-needs-atlas-early-warning.html" title="Early Warning" />
         ) : (<React.Fragment>
         <div className="topbar">
           <ProductBadge product="signal" />
