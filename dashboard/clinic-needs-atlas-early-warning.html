@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="ds/styles.css" />
+<title>Virginia — Early Warning</title>
+<style>
+  :root { --accent: var(--signal-600); }
+  body { margin:0; background:var(--bg-app); color:var(--text-body); font-family:var(--font-sans); }
+  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .wrap { max-width:1440px; margin:0 auto; padding:18px 22px 40px; }
+
+  .hdr { display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; margin-bottom:14px; }
+  .title h1 { font-size:24px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
+  .title p { font-size:13px; color:var(--text-muted); margin:4px 0 0; max-width:680px; }
+
+  /* Allocation disclosure. Deliberately loud: every county number on this page
+     is derived from state surveillance, never observed locally. */
+  .disclosure { display:flex; gap:10px; align-items:flex-start; margin:0 0 16px;
+    padding:11px 14px; border-radius:var(--radius-md);
+    background:var(--amber-50, #fffbeb); border:1px solid var(--amber-300, #fcd34d);
+    color:var(--amber-900, #78350f); font-size:12.5px; line-height:1.5; }
+  .disclosure b { font-weight:700; }
+
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+  @media (max-width:1080px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel { background:var(--surface-card); border:1px solid var(--border-subtle);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); }
+  .panel-h { padding:12px 16px; border-bottom:1px solid var(--border-subtle);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .panel-h h3 { font-size:14px; color:var(--text-strong); margin:0; }
+  .panel-h .desc { font-size:12px; color:var(--text-muted); margin-left:auto; }
+  .panel-body { padding:6px 16px 14px; }
+
+  .row { padding:11px 0; border-bottom:1px solid var(--border-subtle); }
+  .row:last-child { border-bottom:none; }
+  .row-top { display:flex; align-items:baseline; gap:10px; }
+  .row-name { font-size:13.5px; color:var(--text-strong); font-weight:600; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row-val { font-size:14px; font-weight:700; color:var(--text-strong); }
+  .row-sub { font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+
+  /* Interval bar: width encodes uncertainty, so a wide band reads as uncertain. */
+  .bar { position:relative; height:7px; margin-top:7px; border-radius:4px;
+    background:var(--surface-sunken); overflow:hidden; }
+  .bar .band { position:absolute; top:0; bottom:0; background:var(--signal-200, #bfdbfe); }
+  .bar .pt { position:absolute; top:-2px; width:2px; height:11px; background:var(--signal-600); }
+
+  .chip { display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:999px;
+    font-size:10.5px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; }
+  .chip.stale { background:var(--amber-100,#fef3c7); color:var(--amber-900,#78350f); }
+  .chip.none  { background:var(--slate-200,#e2e8f0); color:var(--slate-600,#475569); }
+  .chip.alloc { background:var(--slate-100,#f1f5f9); color:var(--slate-600,#475569); text-transform:none; font-weight:600; }
+
+  .unknown { color:var(--text-muted); font-style:italic; font-size:12.5px; }
+
+  select { width:100%; height:34px; padding:0 9px; font-size:13px; font-family:inherit;
+    color:var(--text-body); background:var(--surface-card);
+    border:1px solid var(--border-default); border-radius:var(--radius-md); }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-muted); font-weight:700; padding:7px 0; border-bottom:1px solid var(--border-subtle); }
+  td { padding:6px 0; border-bottom:1px solid var(--border-subtle); vertical-align:top; }
+  td.qty { text-align:right; white-space:nowrap; }
+  .muted { color:var(--text-muted); }
+  .err { padding:14px 16px; font-size:13px; color:var(--danger-700,#b91c1c); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="config.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+
+const API_BASE = window.CLINIC_ATLAS_API || null;
+const token = (()=>{ try { return localStorage.getItem("atlas_token"); } catch(e){ return null; } })();
+const authHeaders = token ? { Authorization: "Bearer " + token } : {};
+
+const fmt = n => n == null ? "—" : (n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(1));
+
+function useJson(url){
+  const [state, setState] = React.useState({ loading: true, data: null, error: null });
+  React.useEffect(()=>{
+    if(!url){ setState({ loading:false, data:null, error:null }); return; }
+    let alive = true;
+    setState({ loading:true, data:null, error:null });
+    fetch(url, { headers: authHeaders })
+      .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(d => alive && setState({ loading:false, data:d, error:null }))
+      .catch(e => alive && setState({ loading:false, data:null, error:e.message }));
+    return ()=>{ alive = false; };
+  }, [url]);
+  return state;
+}
+
+/* A forecast anchored to an old week is not current intelligence; say so. */
+function StaleChip({ weeks }){
+  if(!weeks) return null;
+  return <span className="chip stale">{weeks}w stale</span>;
+}
+
+function IntervalBar({ lower, point, upper, max }){
+  if(point == null || !max) return null;
+  const pct = v => Math.max(0, Math.min(100, (v / max) * 100));
+  const lo = pct(lower ?? point), hi = pct(upper ?? point);
+  return (
+    <div className="bar" title={`80% interval: ${fmt(lower)} to ${fmt(upper)}`}>
+      <div className="band" style={{ left: lo + "%", width: Math.max(1, hi - lo) + "%" }} />
+      <div className="pt" style={{ left: pct(point) + "%" }} />
+    </div>
+  );
+}
+
+function ConditionRow({ row, max }){
+  if(row.status !== "ok"){
+    return (
+      <div className="row">
+        <div className="row-top">
+          <span className="row-name">{row.condition}</span>
+          <span className="chip none">no forecast</span>
+        </div>
+        {/* Never rendered as a low number: unknown and quiet are different. */}
+        <div className="row-sub unknown">Not enough reporting history to forecast this condition.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="row">
+      <div className="row-top">
+        <span className="row-name">{row.condition}</span>
+        <StaleChip weeks={row.weeks_stale} />
+        <span className="row-val mono">{fmt(row.point)}</span>
+      </div>
+      <IntervalBar lower={row.lower} point={row.point} upper={row.upper} max={max} />
+      <div className="row-sub mono">
+        {fmt(row.lower)} – {fmt(row.upper)} expected statewide over the next {row.horizon_weeks} weeks
+        {row.as_of_week ? ` · from week ${row.as_of_week}/${row.as_of_year}` : ""}
+      </div>
+    </div>
+  );
+}
+
+function StatePanel({ state }){
+  if(state.loading) return <div className="panel-body muted">Loading forecasts…</div>;
+  if(state.error)   return <div className="err">Could not load forecasts: {state.error}</div>;
+
+  const rows = state.data?.forecasts ?? [];
+  const ok = rows.filter(r => r.status === "ok");
+  const max = Math.max(1, ...ok.map(r => r.upper ?? r.point ?? 0));
+  const sorted = [...ok].sort((a,b)=>(b.point ?? 0)-(a.point ?? 0))
+    .concat(rows.filter(r => r.status !== "ok"));
+
+  return (
+    <div className="panel-body">
+      {sorted.map(r => <ConditionRow key={r.condition} row={r} max={max} />)}
+    </div>
+  );
+}
+
+function SupplyTable({ warning }){
+  const items = warning.supplies ?? [];
+  if(!items.length) return <div className="row-sub unknown">No supply mapping for this condition.</div>;
+  return (
+    <table>
+      <thead><tr><th>Item</th><th style={{textAlign:"right"}}>Units to hold</th></tr></thead>
+      <tbody>
+        {items.map(it => (
+          <tr key={it.item}>
+            <td>{it.item}{it.note ? <div className="muted" style={{fontSize:11}}>{it.note}</div> : null}</td>
+            <td className="qty mono">{it.quantity_low ?? "—"} – {it.quantity_high ?? "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function CountyPanel({ counties, fips, onPick }){
+  const url = API_BASE && fips ? `${API_BASE}/forecast/counties/${fips}` : null;
+  const state = useJson(url);
+  const warnings = (state.data?.warnings ?? []).slice(0, 4);
+
+  return (
+    <div className="panel">
+      <div className="panel-h"><h3>County outlook</h3></div>
+      <div className="panel-body">
+        <select value={fips || ""} onChange={e => onPick(e.target.value)}>
+          <option value="">Select a county…</option>
+          {counties.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+
+        {!fips && <div className="row-sub muted" style={{marginTop:12}}>
+          Pick a county to see its allocated share and what to hold.
+        </div>}
+
+        {fips && state.loading && <div className="row-sub muted" style={{marginTop:12}}>Loading…</div>}
+        {fips && state.error && <div className="err" style={{padding:"12px 0"}}>
+          Could not load this county: {state.error}
+        </div>}
+
+        {warnings.map(w => (
+          <div className="row" key={w.condition}>
+            <div className="row-top">
+              <span className="row-name">{w.condition}</span>
+              <span className="row-val mono">{fmt(w.point)}</span>
+            </div>
+            <div className="row-sub mono">
+              {fmt(w.lower)} – {fmt(w.upper)} cases · <span className="chip alloc">allocated, not observed</span>
+            </div>
+            <div style={{marginTop:8}}><SupplyTable warning={w} /></div>
+          </div>
+        ))}
+
+        {fips && !state.loading && !state.error && !warnings.length &&
+          <div className="row-sub unknown" style={{marginTop:12}}>No active warnings for this county.</div>}
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const forecastUrl = API_BASE ? `${API_BASE}/forecast` : null;
+  const state = useJson(forecastUrl);
+  const atlas = useJson(API_BASE ? `${API_BASE}/counties` : "data/clinic_atlas.json");
+  const [fips, setFips] = React.useState("");
+
+  const counties = React.useMemo(()=>{
+    const recs = atlas.data?.records ?? [];
+    return [...recs].map(r => ({ id: r.id, name: r.name })).sort((a,b)=>a.name.localeCompare(b.name));
+  }, [atlas.data]);
+
+  const horizon = state.data?.horizon_weeks;
+
+  return (
+    <div className="wrap">
+      <div className="hdr">
+        <div className="title">
+          <h1>Early warning</h1>
+          <p>
+            Where notifiable disease is heading in Virginia over the next{" "}
+            {horizon ? `${horizon} weeks` : "few weeks"}, and what a clinic should hold before demand arrives.
+          </p>
+        </div>
+      </div>
+
+      <div className="disclosure">
+        <span>&#9888;</span>
+        <div>
+          <b>County figures are allocated, not measured.</b> CDC NNDSS reports at the state
+          level only. County numbers here are Virginia&rsquo;s forecast split by county
+          population share, so they show relative expected load — not observed local cases.
+          Quantities are a planning aid, not a procurement instruction or a clinical protocol.
+        </div>
+      </div>
+
+      {!API_BASE && (
+        <div className="disclosure">
+          <span>&#9432;</span>
+          <div>No API configured, so no live forecast is available. Set
+          <span className="mono"> window.CLINIC_ATLAS_API</span> in <span className="mono">config.js</span>.</div>
+        </div>
+      )}
+
+      <div className="grid">
+        <div className="panel">
+          <div className="panel-h">
+            <h3>Statewide outlook</h3>
+            <span className="desc">
+              {horizon ? `${horizon}-week lead time · 80% interval` : "80% interval"}
+            </span>
+          </div>
+          <StatePanel state={state} />
+        </div>
+
+        <CountyPanel counties={counties} fips={fips} onPick={setFips} />
+      </div>
+
+      <p className="row-sub muted" style={{marginTop:16, maxWidth:820}}>
+        Forecasts inform a stocking decision; they do not make one. A care team is expected
+        to review and override these figures. See the model card for how the forecast is
+        evaluated and where it is weakest.
+      </p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

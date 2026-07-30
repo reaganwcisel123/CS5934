@@ -1,0 +1,152 @@
+# Condition -> clinic supply mapping (US-051).
+#
+# Hand-authored and reviewable. NOT model-generated: a model must never invent
+# what a clinic should stock. Every entry carries a rationale so a clinician can
+# audit the reasoning and override it.
+#
+# per_case is the expected units of that item per forecast case. Values are
+# planning approximations for a small rural clinic, not procurement guidance and
+# not a clinical protocol. A care team is expected to adjust them.
+#
+# Conditions absent from this file are surfaced as "unmapped" by
+# src/model/supply_needs.py, never silently dropped.
+
+version: 1
+units_note: "per_case counts are units per forecast case; ranges come from the forecast interval."
+
+conditions:
+  Chlamydia trachomatis infection:
+    rationale: >
+      Diagnosis is by nucleic acid amplification test; CDC first-line treatment is
+      doxycycline for 7 days. Partner treatment drives test volume above case count.
+    supplies:
+      - item: NAAT specimen collection kit
+        per_case: 2.0
+        note: index patient plus partner testing
+      - item: Doxycycline 100mg course
+        per_case: 1.2
+      - item: Patient counselling leaflet
+        per_case: 2.0
+
+  Gonorrhea:
+    rationale: >
+      CDC recommends a single intramuscular ceftriaxone dose, so injection
+      supplies scale with cases. Co-infection with chlamydia is common.
+    supplies:
+      - item: NAAT specimen collection kit
+        per_case: 2.0
+      - item: Ceftriaxone 500mg vial
+        per_case: 1.1
+      - item: IM injection kit (syringe, needle, swab)
+        per_case: 1.1
+
+  Campylobacteriosis:
+    rationale: >
+      Mostly self-limiting; the clinic burden is stool culture and oral
+      rehydration rather than antibiotics.
+    supplies:
+      - item: Stool culture collection kit
+        per_case: 1.0
+      - item: Oral rehydration salts sachet
+        per_case: 4.0
+      - item: Azithromycin course
+        per_case: 0.2
+        note: reserved for severe or high-risk cases
+
+  Salmonellosis (excluding Salmonella Typhi infection and Salmonella Paratyphi infection):
+    rationale: >
+      Same pattern as campylobacteriosis. Antibiotics are reserved for severe
+      cases and infants, so the antibiotic factor stays low deliberately.
+    supplies:
+      - item: Stool culture collection kit
+        per_case: 1.0
+      - item: Oral rehydration salts sachet
+        per_case: 4.0
+      - item: Ciprofloxacin course
+        per_case: 0.15
+
+  Shiga toxin-producing Escherichia coli (STEC):
+    rationale: >
+      Requires Shiga toxin testing, and antibiotics are contraindicated because
+      they raise haemolytic uraemic syndrome risk. Supplies are diagnostic only.
+    supplies:
+      - item: Shiga toxin EIA test
+        per_case: 1.0
+      - item: Stool culture collection kit
+        per_case: 1.0
+      - item: Oral rehydration salts sachet
+        per_case: 4.0
+
+  Shigellosis:
+    rationale: >
+      Person-to-person spread means household contacts present together;
+      antibiotic treatment is more common than in other enteric infections.
+    supplies:
+      - item: Stool culture collection kit
+        per_case: 1.5
+      - item: Azithromycin course
+        per_case: 0.6
+      - item: Oral rehydration salts sachet
+        per_case: 3.0
+
+  Cryptosporidiosis:
+    rationale: >
+      Diagnosis needs a specific ova-and-parasite or antigen test; nitazoxanide
+      is used mainly for immunocompetent patients with prolonged illness.
+    supplies:
+      - item: Ova and parasite test kit
+        per_case: 1.0
+      - item: Nitazoxanide course
+        per_case: 0.5
+      - item: Oral rehydration salts sachet
+        per_case: 3.0
+
+  Giardiasis:
+    rationale: >
+      Antigen testing plus a short metronidazole or tinidazole course; treatment
+      rate is high once confirmed.
+    supplies:
+      - item: Ova and parasite test kit
+        per_case: 1.0
+      - item: Metronidazole course
+        per_case: 0.9
+
+  Pertussis:
+    rationale: >
+      The clearest surge-and-stock case. PCR confirmation, macrolide treatment,
+      post-exposure prophylaxis for household contacts, and respiratory PPE for
+      staff. Contact prophylaxis is why the macrolide factor exceeds 1.
+    supplies:
+      - item: Pertussis PCR swab
+        per_case: 1.5
+      - item: Azithromycin course
+        per_case: 3.5
+        note: index case plus household post-exposure prophylaxis
+      - item: N95 respirator
+        per_case: 6.0
+      - item: Tdap vaccine dose
+        per_case: 2.0
+        note: catch-up vaccination for under-immunised contacts
+
+  Legionellosis:
+    rationale: >
+      Diagnosed by urinary antigen; most confirmed cases are referred onward, so
+      the clinic-side supply is diagnostic rather than therapeutic.
+    supplies:
+      - item: Legionella urinary antigen test
+        per_case: 1.0
+      - item: Levofloxacin course
+        per_case: 0.4
+
+  Tuberculosis:
+    rationale: >
+      Airborne precautions and referral rather than clinic-managed treatment.
+      Contact investigation drives most of the testing volume.
+    supplies:
+      - item: IGRA blood test
+        per_case: 8.0
+        note: contact investigation, not just the index case
+      - item: N95 respirator
+        per_case: 10.0
+      - item: Chest X-ray referral
+        per_case: 1.0

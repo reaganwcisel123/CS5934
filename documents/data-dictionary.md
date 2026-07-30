@@ -54,3 +54,29 @@ Provenance: **real** (live source) · **synthetic** (generated non-PHI) · **stu
 |---|---|
 | `provenance` | map of field-group → `{source_id, status}`; drives the dashboard badges |
 | `county_count`, `generated_from`, `target_state_fips` | build header |
+
+## Notifiable-disease surveillance (`cdc_nndss`, US-048/049)
+State-level weekly series. **NNDSS has no county dimension**, so nothing here is a
+county observation.
+
+| Field | Source | Transform | Provenance |
+|---|---|---|---|
+| `condition` | `cdc_nndss` | trimmed NNDSS `label`; the series key | real |
+| `mmwr_year`, `mmwr_week` | `cdc_nndss` | MMWR year and week as integers | real |
+| `cases` | `cdc_nndss` | current-week count (`m1`). Rows flagged `N`/`U`/`NC` become NULL, never 0 | real |
+
+### Forecast panel (`src/model/forecast_dataset.py`)
+| Field | Meaning |
+|---|---|
+| `week_idx` | monotonic week counter; ranks observed `(mmwr_year, mmwr_week)` pairs so lags cross 52- and 53-week years correctly |
+| `lag_1…lag_8`, `lag_52` | `cases` shifted N weeks; `lag_52` is the seasonal term |
+| `roll_mean_4/8`, `roll_std_4/8` | rolling stats over weeks **before** the target (`shift(1)` then roll) |
+| `woy_sin`, `woy_cos` | week-of-year as a cycle, so week 52 neighbours week 1 |
+
+### County allocation
+| Field | Meaning |
+|---|---|
+| `population_share` | county population ÷ state total |
+| `allocated_value` | state value × `population_share` |
+| `allocation_method` | `population_share_of_state` |
+| `is_observed` | always `false` — allocated, never measured |
