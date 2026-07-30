@@ -1,0 +1,25 @@
+/* Data-viz tokens: chart color lives here, not as raw hex in chart JS
+   (app/theme.js resolves them once for D3). The region palette is validated
+   for CVD separation and contrast — re-check if you change a hue. */
+
+:root {
+  /* Categorical: the five Virginia regions, fixed assignment (never cycled) */
+  --viz-region-northern:  #3257b8;  /* royal   */
+  --viz-region-central:   #b08a2e;  /* gold    */
+  --viz-region-valley:    #0d9488;  /* teal    */
+  --viz-region-southwest: #a21caf;  /* plum    */
+  --viz-region-tidewater: #c2410c;  /* rust    */
+
+  /* Diverging (better ← neutral → worse) for baseline comparisons */
+  --viz-div-neg: #3257b8;
+  --viz-div-mid: #e2e8f0;
+  --viz-div-pos: #dc2626;
+
+  /* Sequential need ramp (low → high need): darker means more unmet need */
+  --viz-seq-0: #fdeae5;
+  --viz-seq-1: #f6bfb2;
+  --viz-seq-2: #ea9184;
+  --viz-seq-3: #d95f4f;
+  --viz-seq-4: #b93a2b;
+  --viz-seq-5: #8f2317;
+}

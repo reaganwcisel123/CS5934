@@ -12,9 +12,9 @@
 .lp .wrap { max-width: 1120px; margin: 0 auto; }
 .lp section { padding: clamp(72px, 10vw, 140px) clamp(20px, 6vw, 64px); }
 
-/* Accent gradient text clip (amber "signal" on dark) */
+/* Accent gradient text clip (gold "signal" on dark) */
 .lp .sig-grad {
-  background: linear-gradient(100deg, #fcd34d, var(--command-500) 45%, #b45309);
+  background: linear-gradient(100deg, #e9cf8f, var(--command-500) 45%, #a8801f);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -51,7 +51,7 @@
 .lp .hero {
   position: relative; min-height: 100vh;
   display: grid; place-items: center;
-  background: radial-gradient(120% 90% at 50% 0%, #1c1638, var(--slate-950) 55%, #03050c);
+  background: radial-gradient(120% 90% at 50% 0%, var(--royal-900, #16264d), var(--navy-950, #0b1226) 55%, #03050c);
   padding: 120px clamp(20px, 6vw, 64px) 90px;
 }
 .lp .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -198,7 +198,7 @@
 
 /* ---------- Final CTA + footer ---------- */
 .lp .final {
-  background: radial-gradient(110% 130% at 50% 0%, #1c1638, var(--slate-950) 60%);
+  background: radial-gradient(110% 130% at 50% 0%, var(--royal-900, #16264d), var(--navy-950, #0b1226) 60%);
   text-align: center;
 }
 .lp .final h2 { margin: 0 0 14px; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.015em; color: #fff; }

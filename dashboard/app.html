@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="ds/styles.css" />
+<link rel="stylesheet" href="app/app.css" />
+<title>Signal — Clinic Needs Atlas</title>
+<!--
+  The Triad Signal app shell — one page, hash-routed. Babel executes the
+  text/babel scripts below strictly in DOM order, so the script list IS the
+  dependency graph (each file is an IIFE over window.Atlas). Do not switch to
+  data-type="module": Babel does not transpile natively-imported files.
+  Serve over HTTP. Live API: app.html?api=http://localhost:8010/api (&auth=1).
+-->
+</head>
+<body>
+<div id="root"></div>
+<div class="tt" id="tt"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
+<!-- Deploy-time API base (live mode). No-op locally; ?api= below still wins. -->
+<script src="config.js"></script>
+<script>
+window.Atlas = {};   // the one namespace all app modules attach to
+// Runtime config: point the dashboard at a backend without editing code.
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.get("api")) window.CLINIC_ATLAS_API = q.get("api").replace(/\/$/, "");
+  if (q.get("auth") === "1") window.CLINIC_ATLAS_AUTH = true;
+})();
+</script>
+
+<!-- leaves -->
+<script type="text/babel" data-presets="react" src="app/format.js"></script>
+<script type="text/babel" data-presets="react" src="app/theme.js"></script>
+<script type="text/babel" data-presets="react" src="app/tooltip.js"></script>
+<script type="text/babel" data-presets="react" src="app/domain.js"></script>
+<script type="text/babel" data-presets="react" src="app/api.js"></script>
+<script type="text/babel" data-presets="react" src="app/router.js"></script>
+<script type="text/babel" data-presets="react" src="app/store.js"></script>
+<!-- components -->
+<script type="text/babel" data-presets="react" src="app/components/icon.js"></script>
+<script type="text/babel" data-presets="react" src="app/components/ui.js"></script>
+<script type="text/babel" data-presets="react" src="app/components/shell.js"></script>
+<script type="text/babel" data-presets="react" src="app/components/chat.js"></script>
+<script type="text/babel" data-presets="react" src="app/components/login.js"></script>
+<!-- charts -->
+<script type="text/babel" data-presets="react" src="app/charts/choropleth.js"></script>
+<script type="text/babel" data-presets="react" src="app/charts/heatmap.js"></script>
+<script type="text/babel" data-presets="react" src="app/charts/scatter.js"></script>
+<script type="text/babel" data-presets="react" src="app/charts/gapchart.js"></script>
+<script type="text/babel" data-presets="react" src="app/charts/glyphmap.js"></script>
+<!-- views -->
+<script type="text/babel" data-presets="react" src="app/views/overview.js"></script>
+<script type="text/babel" data-presets="react" src="app/views/county.js"></script>
+<script type="text/babel" data-presets="react" src="app/views/worklist.js"></script>
+<script type="text/babel" data-presets="react" src="app/views/trends.js"></script>
+<script type="text/babel" data-presets="react" src="app/views/explore.js"></script>
+<script type="text/babel" data-presets="react" src="app/views/methods.js"></script>
+<!-- entry -->
+<script type="text/babel" data-presets="react" src="app/main.js"></script>
+</body>
+</html>

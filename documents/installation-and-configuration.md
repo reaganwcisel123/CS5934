@@ -150,7 +150,7 @@ uv run --frozen python -m http.server 8000
 Open the dashboard in API mode:
 
 ```text
-http://localhost:8000/dashboard/clinic-needs-atlas-signal.html?api=http://localhost:8001/api
+http://localhost:8000/dashboard/app.html?api=http://localhost:8001/api
 ```
 
 Useful endpoints:
@@ -218,7 +218,7 @@ uv run --frozen python -m http.server 8000
 Open the authenticated local dashboard:
 
 ```text
-http://localhost:8000/dashboard/clinic-needs-atlas-signal.html?api=http://localhost:8001/api&auth=1
+http://localhost:8000/dashboard/app.html?api=http://localhost:8001/api&auth=1
 ```
 
 The migrations currently create a demonstration-only account:
