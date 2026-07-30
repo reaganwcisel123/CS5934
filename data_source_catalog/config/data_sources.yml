@@ -80,8 +80,8 @@ sources:
     source_name: CDC National Notifiable Diseases Surveillance System Tables
     provider: Centers for Disease Control and Prevention
     source_category: public_health_surveillance
-    access_method: "CDC NNDSS tables / CDC WONDER / Data.CDC.gov machine-readable tables"
-    access_url: "https://www.cdc.gov/nndss/infectious-disease/index.html"
+    access_method: "Data.CDC.gov Socrata Open Data API / CSV download"
+    access_url: "https://data.cdc.gov/NNDSS/NNDSS-Weekly-Data/x9gk-5huc"
     documentation_url: "https://wonder.cdc.gov/nndss.html"
     auth_required: "no"
     api_key_env_var: null
@@ -93,7 +93,7 @@ sources:
       - weekly_provisional
       - annual_finalized
     refresh_cadence: weekly provisional and annual finalized releases
-    schema_version: "NNDSS weekly/annual table version - verify disease table IDs"
+    schema_version: "Socrata x9gk-5huc; Virginia coverage 2022 W1 - 2026 W28 (237 weeks) as of 2026-07-28"
     join_keys:
       - state
       - mmwr_year
@@ -110,10 +110,17 @@ sources:
       - Weekly data are provisional and may change.
       - Reporting practices can vary by condition and jurisdiction.
       - "Mostly state-level; may not directly support county-level modeling."
+      - "State-keyed only: this source has no county dimension. County figures
+        derived from it are allocated downstream, never observed."
+      - "The `states` column changes casing partway through the dataset
+        (VIRGINIA for 2022-2024, Virginia for 2025+). Filters must be
+        case-insensitive or the two most recent years are silently dropped."
+      - "m1 (current week) is used; m2 (cumulative year-to-date) is not, because
+        it resets each MMWR year and would inject a sawtooth into lag features."
     privacy_classification: public_aggregate
-    ingestion_status: schema_reviewed
+    ingestion_status: sample_pull_successful
     ingestion_script: src/ingestion/cdc_nndss.py
-    last_verified_date: "2026-06-29"
+    last_verified_date: "2026-07-28"
   -
     source_id: hrsa_hpsa
     source_name: HRSA Health Professional Shortage Area Designations

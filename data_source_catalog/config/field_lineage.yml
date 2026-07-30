@@ -122,3 +122,29 @@ fields:
     original_field: preventable_hospitalization_flag
     transformation: "Use only synthetic, non-PHI rows; version generation logic."
     required_for_mvp: true
+  -
+    final_field: condition
+    source_id: cdc_nndss
+    original_field: label
+    transformation: "Trim the NNDSS condition label; used verbatim as the series key."
+    required_for_mvp: false
+  -
+    final_field: mmwr_year
+    source_id: cdc_nndss
+    original_field: year
+    transformation: "Cast the MMWR year to integer."
+    required_for_mvp: false
+  -
+    final_field: mmwr_week
+    source_id: cdc_nndss
+    original_field: week
+    transformation: "Cast the MMWR week to integer (1-53)."
+    required_for_mvp: false
+  -
+    final_field: cases
+    source_id: cdc_nndss
+    original_field: m1
+    transformation: "Current-week case count. Rows carrying an m1_flag other than '-' are
+      reporting artifacts (N/U/NC) and become NULL, never 0. Duplicated condition-weeks
+      keep the last row, since provisional weeks are reissued."
+    required_for_mvp: false
