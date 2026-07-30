@@ -93,7 +93,7 @@ sources:
       - weekly_provisional
       - annual_finalized
     refresh_cadence: weekly provisional and annual finalized releases
-    schema_version: "Socrata x9gk-5huc; Virginia coverage 2022 W1 - 2026 W28 (237 weeks) as of 2026-07-28"
+    schema_version: "Socrata x9gk-5huc; VA + 6 neighbouring jurisdictions, 2022 W1 - 2026 W29 (238 weeks) as of 2026-07-29"
     join_keys:
       - state
       - mmwr_year
@@ -117,6 +117,11 @@ sources:
         case-insensitive or the two most recent years are silently dropped."
       - "m1 (current week) is used; m2 (cumulative year-to-date) is not, because
         it resets each MMWR year and would inject a sawtooth into lag features."
+      - "Pulls Virginia plus Maryland, West Virginia, Kentucky, Tennessee, North
+        Carolina and DC so threat ranking can corroborate a rise regionally.
+        Anything modelling Virginia must filter on jurisdiction first."
+      - "Surveillance effort is not separable from incidence: a jurisdiction
+        clearing a reporting backlog is indistinguishable from a real rise."
     privacy_classification: public_aggregate
     ingestion_status: sample_pull_successful
     ingestion_script: src/ingestion/cdc_nndss.py

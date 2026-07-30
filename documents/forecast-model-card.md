@@ -79,6 +79,62 @@ Chlamydia is the worst (1.28) and also the highest-volume series, so it dominate
 raw error totals — its 65% coverage is the weakest interval in the set. For
 Chlamydia and Giardiasis, last week's count is a better predictor than this model.
 
+## Threat ranking (US-056)
+
+A separate inference from the forecast, answering "what is unusual right now"
+rather than "how many cases next month". It runs over **all 139 reported
+conditions**, not just the 11 that are forecast.
+
+```
+recent        = mean weekly cases over the last 8 reported weeks
+seasonal_base = mean over the SAME MMWR weeks in the prior 4 years
+ratio         = (recent + 1) / (seasonal_base + 1)
+neighbours    = neighbouring states where ratio > 1.2 and recent >= 2
+score         = ratio * (1 + 0.10 * neighbours)
+```
+
+Filtered to `recent >= 3` cases/week.
+
+**Why the baseline is seasonal.** Against a trailing 26-week window
+Cyclosporiasis reads as a 16x rise every July, which is a restatement of the
+calendar rather than a finding. Against the same weeks in prior years it is 2.4x,
+which is an actual anomaly. The seasonal baseline also moves Measles from
+mid-table to a clear first, which is the clinically correct answer.
+
+**Why the +1 smoothing.** Measles has no prior-year reports in 3 of the last 4
+years. An unsmoothed ratio divides by ~0 and returns infinity, which would sort
+above everything regardless of how few cases it represents.
+
+**Regional corroboration.** Virginia is compared against Maryland, West Virginia,
+Kentucky, Tennessee, North Carolina and DC. All seven report through the same
+MMWR week, so the comparison is fair. Corroboration separates a real regional
+signal from a Virginia reporting artifact — but it cannot separate a regional
+*reporting* change from a regional *disease* change.
+
+### Ranking as of 2026 W29
+
+| Condition | Now /wk | Seasonal norm | Ratio | Neighbours |
+|---|---|---|---|---|
+| Measles, Indigenous | 12.3 | 1.0 | 6.67x | 2 |
+| Cyclosporiasis | 16.0 | 6.1 | 2.40x | 4 |
+| Giardiasis | 7.9 | 3.5 | 1.96x | 2 |
+| Hepatitis C, chronic, Probable | 98.5 | 46.4 | 2.10x | 1 |
+| Hepatitis B, chronic, Confirmed | 16.6 | 6.7 | 2.27x | 0 |
+
+### Limitations specific to the ranking
+
+1. **Reporting effort is indistinguishable from incidence.** A health department
+   that clears a backlog produces the same signal as an outbreak. This is the
+   ranking's biggest weakness and it cannot be corrected from this data alone.
+2. **County figures under a threat are an extrapolation, not a forecast.** Most
+   ranked conditions are outside the forecast set, so the county number is the
+   current observed rate carried forward and allocated by population share. The
+   API labels it `projection_basis: observed_rate`.
+3. **Four prior years is a thin baseline**, and 2022-2023 reporting was still
+   COVID-disrupted for some conditions.
+4. **The volume floor hides small but serious conditions.** A condition running
+   at 2 cases/week cannot rank, however severe.
+
 ## Fairness
 
 Full analysis in `documents/us-054-forecast-feature-screening.md`.

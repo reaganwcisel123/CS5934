@@ -21,16 +21,30 @@ from src.ingestion.base import RealSource, Provenance
 
 TARGET_JURISDICTION = "VIRGINIA"
 
+# Neighbours are pulled so threat ranking can corroborate a Virginia rise against
+# the region (US-056). Anything modelling Virginia must filter to
+# TARGET_JURISDICTION -- this frame is no longer one row per condition-week.
+NEIGHBOR_JURISDICTIONS = [
+    "MARYLAND", "WEST VIRGINIA", "KENTUCKY",
+    "TENNESSEE", "NORTH CAROLINA", "DISTRICT OF COLUMBIA",
+]
+REGION_JURISDICTIONS = [TARGET_JURISDICTION, *NEIGHBOR_JURISDICTIONS]
+
 # CDC writes "VIRGINIA" for 2022-2024 and "Virginia" from 2025 on, so an
 # equality filter silently drops the two most recent years.
-_STATE_PREDICATE = "upper(states)='{jurisdiction}'"
+_STATE_PREDICATE = "upper(states) in ({jurisdictions})"
 
 # m1 is the current-week count. m2 (cumulative YTD) is skipped: it resets each
 # MMWR year and would put a sawtooth into every lag feature.
 COLUMN_MAP = {"year": "mmwr_year", "week": "mmwr_week", "label": "condition", "m1": "cases"}
 
 NO_FLAG = "-"
-OUT_PATH = REPO_ROOT / "data" / "processed" / "va_condition_history.csv"
+OUT_PATH = REPO_ROOT / "data" / "processed" / "region_condition_history.csv"
+
+
+def _state_predicate(jurisdictions: list[str] = None) -> str:
+    names = jurisdictions or REGION_JURISDICTIONS
+    return _STATE_PREDICATE.format(jurisdictions=",".join(f"'{n}'" for n in names))
 
 
 def _socrata_id(access_url: str) -> str:
@@ -44,9 +58,9 @@ class CdcNndss(RealSource):
     def fetch_raw(self) -> None:
         endpoint = f"https://data.cdc.gov/resource/{_socrata_id(self.access_url)}.csv"
         params = {
-            "$select": "year,week,label,m1,m1_flag",
-            "$where": _STATE_PREDICATE.format(jurisdiction=TARGET_JURISDICTION),
-            "$limit": "200000",
+            "$select": "year,week,label,m1,m1_flag,states",
+            "$where": _state_predicate(),
+            "$limit": "400000",
         }
         resp = requests.get(endpoint, params=params, timeout=180)
         resp.raise_for_status()
@@ -69,6 +83,10 @@ class CdcNndss(RealSource):
         out["cases"] = pd.to_numeric(out.get("cases"), errors="coerce")
         out["condition"] = out["condition"].astype(str).str.strip()
 
+        # Upper-cased so the 2022-2024 / 2025+ casing split collapses to one key.
+        out["jurisdiction"] = (out["states"].astype(str).str.strip().str.upper()
+                               if "states" in out.columns else TARGET_JURISDICTION)
+
         # A flagged row (N/U/NC) is unreported, not zero cases.
         if "m1_flag" in out.columns:
             flagged = out["m1_flag"].notna() & (out["m1_flag"].astype(str).str.strip() != NO_FLAG)
@@ -78,11 +96,11 @@ class CdcNndss(RealSource):
         out = out[out["condition"] != ""]
 
         # Provisional weeks get reissued; the latest revision wins.
-        out = (out.sort_values(["condition", "mmwr_year", "mmwr_week"])
-                  .drop_duplicates(subset=["condition", "mmwr_year", "mmwr_week"], keep="last")
+        key = ["jurisdiction", "condition", "mmwr_year", "mmwr_week"]
+        out = (out.sort_values(key)
+                  .drop_duplicates(subset=key, keep="last")
                   .reset_index(drop=True))
 
-        out["jurisdiction"] = TARGET_JURISDICTION
         return out[["jurisdiction", "condition", "mmwr_year", "mmwr_week", "cases"]]
 
     def run(self, use_cache: bool = True) -> pd.DataFrame:
@@ -96,12 +114,14 @@ class CdcNndss(RealSource):
 
 def _assert_condition_week_keyed(df: pd.DataFrame) -> None:
     """State-level analogue of BaseSource's county_fips check."""
-    required = {"condition", "mmwr_year", "mmwr_week"}
+    required = {"jurisdiction", "condition", "mmwr_year", "mmwr_week"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"cdc_nndss: extract() must return {sorted(required)}; missing {sorted(missing)}")
-    if df.duplicated(subset=["condition", "mmwr_year", "mmwr_week"]).any():
-        raise ValueError("cdc_nndss: duplicate (condition, mmwr_year, mmwr_week) rows survived cleaning")
+    if df.duplicated(subset=sorted(required)).any():
+        raise ValueError(
+            "cdc_nndss: duplicate (jurisdiction, condition, mmwr_year, mmwr_week) rows survived cleaning"
+        )
 
 
 def main() -> int:
@@ -113,7 +133,8 @@ def main() -> int:
 
     reported = int(df["cases"].notna().sum())
     print(f"Wrote {OUT_PATH.relative_to(REPO_ROOT)}")
-    print(f"  {len(df)} rows | {df['condition'].nunique()} conditions | "
+    print(f"  {len(df)} rows | {df['jurisdiction'].nunique()} jurisdictions | "
+          f"{df['condition'].nunique()} conditions | "
           f"{df.groupby(['mmwr_year', 'mmwr_week']).ngroups} weeks")
     print(f"  {reported} reported, {len(df) - reported} suppressed (kept NULL)")
     return 0

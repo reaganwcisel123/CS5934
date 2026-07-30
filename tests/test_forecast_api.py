@@ -90,6 +90,66 @@ def test_health_still_responds_after_mounting_the_router():
     assert client.get("/api/health").status_code == 200
 
 
+def test_threat_endpoints_are_registered():
+    paths = app.openapi()["paths"]
+
+    assert "/api/threats" in paths
+    assert "/api/threats/counties/{fips}" in paths
+
+
+def test_threats_response_carries_its_method_and_review_status():
+    response = client.get("/api/threats?top_n=3")
+
+    assert response.status_code in (200, 503)
+    if response.status_code == 200:
+        body = response.json()
+        assert body["method"]["baseline"] == "same MMWR weeks in prior years"
+        assert len(body["method"]["neighbor_states"]) == 6
+        # Un-reviewed clinical guidance must announce itself on every payload.
+        assert body["clinical_review"]["clinical_review"] == "pending"
+
+
+def test_threats_top_n_is_clamped():
+    response = client.get("/api/threats?top_n=999")
+
+    if response.status_code == 200:
+        assert len(response.json()["threats"]) <= 10
+
+
+def test_county_threats_label_their_basis_as_observed_rate(monkeypatch):
+    # Threats span conditions outside the forecast set, so the county number is
+    # the current rate carried forward, not a model forecast. Conflating the two
+    # would overstate what the model actually claims.
+    from src.api import forecast as api_forecast
+
+    monkeypatch.setattr(api_forecast, "load_atlas", lambda: {"records": [
+        {"id": "51001", "patients": 20_000}, {"id": "51003", "patients": 80_000},
+    ]})
+    monkeypatch.setattr(api_forecast, "threats", lambda top_n=5: {
+        "threats": [{"condition": "Pertussis", "recent_weekly_mean": 10.0,
+                     "seasonal_baseline": 4.0}]})
+
+    body = api_forecast.county_threats("51001", top_n=1)
+    county = body["threats"][0]["county"]
+
+    assert county["projection_basis"] == "observed_rate"
+    assert county["is_observed"] is False
+    assert county["allocation_method"] == FC.ALLOCATION_METHOD
+    # 10/wk * 4 weeks * 20% share = 8
+    assert county["expected_cases"] == pytest.approx(8.0)
+    assert county["range_low"] == pytest.approx(3.2)
+
+
+def test_county_threats_404_on_an_unknown_county(monkeypatch):
+    from src.api import forecast as api_forecast
+
+    monkeypatch.setattr(api_forecast, "load_atlas", lambda: {"records": [{"id": "51001", "patients": 1}]})
+    monkeypatch.setattr(api_forecast, "threats", lambda top_n=5: {"threats": []})
+
+    with pytest.raises(Exception):
+        api_forecast.county_threats("99999")
+
+
 def test_county_supplies_are_sized_from_the_allocated_share(monkeypatch):
     # Regression: supplies were sized off the state forecast and attached to
     # county rows, telling one county to stock for all of Virginia.

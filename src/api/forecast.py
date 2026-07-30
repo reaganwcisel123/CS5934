@@ -15,6 +15,91 @@ from src.model import forecast_config as FC
 router = APIRouter(prefix="/api", tags=["forecast"])
 
 
+@router.get("/threats")
+def threats(top_n: int = 5) -> dict:
+    """The conditions running furthest above their seasonal norm in Virginia."""
+    from src.model import supply_needs as sn
+    from src.model import threat_ranking as tr
+
+    try:
+        region = tr.load_region()
+    except FileNotFoundError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+    ranked = tr.rank_threats(region, top_n=max(1, min(top_n, 10)))
+    supply_map = sn.load_supply_map()
+
+    for row in ranked:
+        row["blurb"] = sn.blurb_for(row["condition"], supply_map)
+        row["recent_series"] = tr.recent_series(region, row["condition"])
+
+    return {
+        "jurisdiction": "Virginia",
+        "threats": ranked,
+        "method": {
+            "recent_weeks": tr.RECENT_WEEKS,
+            "baseline": "same MMWR weeks in prior years",
+            "baseline_years": tr.BASELINE_YEARS,
+            "min_recent_cases": tr.MIN_RECENT_CASES,
+            "neighbor_states": [tr._title(n) for n in tr.NEIGHBOR_JURISDICTIONS],
+        },
+        # Carried on every response so the UI cannot present un-reviewed
+        # clinical guidance as settled.
+        "clinical_review": sn.review_status(supply_map),
+    }
+
+
+@router.get("/threats/counties/{fips}")
+def county_threats(fips: str, top_n: int = 5) -> dict:
+    """Top threats with their county-allocated case load and supply estimates.
+
+    Threats are ranked on observed data across all reported conditions, most of
+    which are outside the 11-condition forecast set. So the county figure is the
+    current observed rate carried over the horizon, not a model forecast, and is
+    labelled `projection_basis: observed_rate` to keep the two apart.
+    """
+    from src.model import supply_needs as sn
+
+    payload = threats(top_n=top_n)
+    records = load_atlas()["records"]
+    if not any(r["id"] == fips for r in records):
+        raise HTTPException(404, f"county {fips} not found")
+
+    share = _share(fips, {r["id"]: float(r.get("patients") or 0) for r in records})
+    horizon = FC.HORIZON_WEEKS
+
+    projected = [
+        {"condition": t["condition"], "status": "ok",
+         "point": round(t["recent_weekly_mean"] * horizon * share, 2),
+         # Band from the seasonal baseline up to the current rate, so a county
+         # sees the range between "back to normal" and "this keeps up".
+         "lower": round(t["seasonal_baseline"] * horizon * share, 2),
+         "upper": round(t["recent_weekly_mean"] * horizon * share, 2),
+         "horizon_weeks": horizon}
+        for t in payload["threats"]
+    ]
+    supplies = {s["condition"]: s for s in sn.supply_needs(projected)}
+
+    for row, proj in zip(payload["threats"], projected):
+        row["county"] = {
+            "county_fips": fips,
+            "expected_cases": proj["point"],
+            "range_low": proj["lower"],
+            "range_high": proj["upper"],
+            "horizon_weeks": horizon,
+            "population_share": round(share, 6),
+            "allocation_method": FC.ALLOCATION_METHOD,
+            "projection_basis": "observed_rate",
+            "is_observed": False,
+            "supplies": supplies.get(row["condition"], {}).get("items", []),
+        }
+
+    payload["county_fips"] = fips
+    payload["allocation_method"] = FC.ALLOCATION_METHOD
+    payload["disclosure"] = FC.ALLOCATION_DISCLOSURE
+    return payload
+
+
 @router.get("/forecast")
 def forecasts() -> dict:
     """State-level condition forecasts for Virginia."""

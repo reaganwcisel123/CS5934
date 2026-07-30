@@ -18,20 +18,32 @@ import numpy as np
 import pandas as pd
 
 from src.catalog import REPO_ROOT
-from src.ingestion.cdc_nndss import OUT_PATH as HISTORY_PATH
+from src.ingestion.cdc_nndss import OUT_PATH as HISTORY_PATH, TARGET_JURISDICTION
 from src.model import forecast_config as FC
 
 ATLAS_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 
 
 def load_history(path=None) -> pd.DataFrame:
-    """Read the series written by `python -m src.ingestion.cdc_nndss`."""
+    """Read the series written by `python -m src.ingestion.cdc_nndss`.
+
+    That file now covers Virginia *and* its neighbours (for threat corroboration),
+    so this filters to Virginia. Without it every condition would appear seven
+    times per week and silently corrupt every lag feature.
+    """
     p = path or HISTORY_PATH
     if not p.exists():
         raise FileNotFoundError(
             f"{p} not found. Run `uv run python -m src.ingestion.cdc_nndss` first."
         )
-    return pd.read_csv(p)
+    return virginia_only(pd.read_csv(p))
+
+
+def virginia_only(df: pd.DataFrame) -> pd.DataFrame:
+    """Restrict a regional frame to Virginia."""
+    if "jurisdiction" not in df.columns:
+        return df
+    return df[df["jurisdiction"].astype(str).str.upper() == TARGET_JURISDICTION].reset_index(drop=True)
 
 
 def week_index(df: pd.DataFrame) -> pd.Series:
@@ -50,7 +62,8 @@ def condition_panel(
     conditions: list[str] | None = None,
 ) -> pd.DataFrame:
     """One row per condition-week with its features and target."""
-    df = history if history is not None else load_history()
+    # Filter again even when a frame is passed in: callers pass regional frames.
+    df = virginia_only(history) if history is not None else load_history()
     wanted = conditions if conditions is not None else FC.FORECAST_CONDITIONS
 
     # reset_index is load-bearing: week_index() returns a merge-derived Series

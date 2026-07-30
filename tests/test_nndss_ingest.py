@@ -11,15 +11,16 @@ import pytest
 from src.catalog import Catalog
 from src.ingestion.cdc_nndss import (
     CdcNndss,
+    REGION_JURISDICTIONS,
     TARGET_JURISDICTION,
-    _STATE_PREDICATE,
     _assert_condition_week_keyed,
     _socrata_id,
+    _state_predicate,
 )
 
 
 def _raw(rows: list[dict]) -> pd.DataFrame:
-    return pd.DataFrame([{"m1_flag": "-", **r} for r in rows])
+    return pd.DataFrame([{"m1_flag": "-", "states": "VIRGINIA", **r} for r in rows])
 
 
 def test_clean_renames_and_types_the_series_key():
@@ -91,23 +92,57 @@ def test_output_is_unique_per_condition_week():
     assert len(out) == 6
 
 
-def test_key_assertion_rejects_duplicate_condition_weeks():
+def test_state_filter_is_case_insensitive():
+    # CDC writes "VIRGINIA" pre-2025 and "Virginia" after; an equality filter
+    # would silently drop the two most recent years.
+    predicate = _state_predicate()
+
+    assert "upper(states)" in predicate
+    assert all(j.isupper() for j in REGION_JURISDICTIONS)
+
+
+def test_predicate_covers_virginia_and_its_six_neighbours():
+    predicate = _state_predicate()
+
+    assert len(REGION_JURISDICTIONS) == 7
+    assert TARGET_JURISDICTION in REGION_JURISDICTIONS
+    for name in REGION_JURISDICTIONS:
+        assert f"'{name}'" in predicate
+
+
+def test_clean_keys_rows_by_their_own_jurisdiction():
+    # Regression: _clean used to stamp every row VIRGINIA, which would have
+    # relabelled all six neighbours as Virginia.
+    out = CdcNndss._clean(_raw([
+        {"year": "2026", "week": "20", "label": "Measles", "m1": "5", "states": "VIRGINIA"},
+        {"year": "2026", "week": "20", "label": "Measles", "m1": "9", "states": "Maryland"},
+    ]))
+
+    assert set(out["jurisdiction"]) == {"VIRGINIA", "MARYLAND"}
+    assert len(out) == 2
+
+
+def test_same_condition_week_survives_in_each_jurisdiction():
+    # Dedup must key on jurisdiction too, or six neighbours collapse into one row.
+    out = CdcNndss._clean(_raw([
+        {"year": "2026", "week": "20", "label": "Giardiasis", "m1": "3", "states": s}
+        for s in ("VIRGINIA", "Maryland", "KENTUCKY", "Tennessee")
+    ]))
+
+    _assert_condition_week_keyed(out)
+    assert len(out) == 4
+
+
+def test_key_assertion_rejects_duplicates_within_one_jurisdiction():
     dupes = pd.DataFrame([
-        {"condition": "Pertussis", "mmwr_year": 2024, "mmwr_week": 5, "cases": 1},
-        {"condition": "Pertussis", "mmwr_year": 2024, "mmwr_week": 5, "cases": 2},
+        {"jurisdiction": "VIRGINIA", "condition": "Pertussis", "mmwr_year": 2024,
+         "mmwr_week": 5, "cases": 1},
+        {"jurisdiction": "VIRGINIA", "condition": "Pertussis", "mmwr_year": 2024,
+         "mmwr_week": 5, "cases": 2},
     ])
 
     with pytest.raises(ValueError, match="duplicate"):
         _assert_condition_week_keyed(dupes)
-
-
-def test_state_filter_is_case_insensitive():
-    # CDC writes "VIRGINIA" pre-2025 and "Virginia" after; an equality filter
-    # would silently drop the two most recent years.
-    predicate = _STATE_PREDICATE.format(jurisdiction=TARGET_JURISDICTION)
-
-    assert "upper(states)" in predicate
-    assert TARGET_JURISDICTION.isupper()
 
 
 def test_socrata_id_is_the_last_path_segment():

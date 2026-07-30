@@ -112,9 +112,10 @@ def test_item_notes_are_preserved():
 # --- the shipped mapping file ------------------------------------------------
 
 def test_shipped_map_parses_and_declares_a_version():
+    # v2 added blurbs and the clinical_review flag (US-056).
     data = sn.load_supply_map()
 
-    assert data["version"] == 1
+    assert data["version"] == 2
     assert data["conditions"]
 
 
@@ -138,6 +139,54 @@ def test_every_forecast_condition_is_mapped():
     missing = [c for c in FC.FORECAST_CONDITIONS if c not in mapped]
 
     assert missing == [], f"unmapped forecast conditions: {missing}"
+
+
+def test_every_shipped_entry_has_a_cited_blurb():
+    # A blurb without a source is an unsourced clinical claim.
+    for condition, entry in sn.load_supply_map()["conditions"].items():
+        blurb = (entry.get("blurb") or "").strip()
+        assert blurb, f"{condition} is missing a blurb"
+        assert "Source:" in blurb, f"{condition} blurb cites no source"
+
+
+def test_shipped_map_is_flagged_pending_clinical_review():
+    # Un-reviewed clinical guidance must not render as settled. If someone
+    # flips this to approved, it should be a deliberate, reviewed act.
+    status = sn.review_status()
+
+    assert status["clinical_review"] == "pending"
+    assert "not by a clinician" in status["note"]
+
+
+def test_every_rankable_condition_has_a_blurb():
+    # Guards the gap this epic exists to close: the ranking can surface any
+    # reported condition, and one without guidance renders as 'unmapped'.
+    import pandas as pd
+
+    from src.model import threat_ranking as tr
+
+    mapped = set(sn.load_supply_map()["conditions"])
+    try:
+        region = tr.load_region()
+    except FileNotFoundError:
+        pytest.skip("needs `python -m src.ingestion.cdc_nndss`")
+
+    ranked = [t["condition"] for t in tr.rank_threats(region, top_n=10)]
+    missing = [c for c in ranked if c not in mapped]
+
+    assert missing == [], f"ranked but unmapped: {missing}"
+
+
+def test_blurb_for_returns_none_on_an_unknown_condition():
+    assert sn.blurb_for("Not A Real Condition", MAP) is None
+
+
+def test_blurb_travels_with_the_supply_payload():
+    out = sn.supply_needs([_forecast()], {"conditions": {
+        "Pertussis": {"blurb": "Stock ahead. Source: CDC.", "rationale": "r",
+                      "supplies": [{"item": "Swab", "per_case": 1.0}]}}})
+
+    assert out[0]["blurb"] == "Stock ahead. Source: CDC."
 
 
 def test_load_supply_map_reports_a_missing_file():

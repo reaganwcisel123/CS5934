@@ -34,6 +34,25 @@ def load_supply_map(path=None) -> dict:
     return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 
 
+def review_status(supply_map: dict | None = None) -> dict:
+    """Whether the blurbs have been signed off by a clinician.
+
+    Surfaced on every payload so the UI cannot render un-reviewed clinical
+    guidance as settled.
+    """
+    data = supply_map if supply_map is not None else load_supply_map()
+    return {
+        "clinical_review": data.get("clinical_review", "pending"),
+        "note": (data.get("clinical_review_note") or "").strip(),
+    }
+
+
+def blurb_for(condition: str, supply_map: dict | None = None) -> str | None:
+    data = supply_map if supply_map is not None else load_supply_map()
+    entry = (data.get("conditions") or {}).get(condition)
+    return (entry or {}).get("blurb", "").strip() or None
+
+
 def supply_needs(
     forecasts: list[dict],
     supply_map: dict | None = None,
@@ -56,12 +75,14 @@ def supply_needs(
             # Surfaced, not dropped: an unmapped condition is a gap in the
             # mapping file, and hiding it would read as "nothing to stock".
             out.append({"condition": condition, "status": UNMAPPED, "items": [],
-                        "rationale": None, "disclaimer": DISCLAIMER})
+                        "rationale": None, "blurb": None, "disclaimer": DISCLAIMER})
             continue
 
         if row.get("status") != "ok":
             out.append({"condition": condition, "status": row.get("status", INSUFFICIENT_HISTORY),
-                        "items": [], "rationale": entry.get("rationale"), "disclaimer": DISCLAIMER})
+                        "items": [], "rationale": entry.get("rationale"),
+                        "blurb": (entry.get("blurb") or "").strip() or None,
+                        "disclaimer": DISCLAIMER})
             continue
 
         lower, upper = row.get("lower"), row.get("upper")
@@ -84,6 +105,7 @@ def supply_needs(
             "condition": condition,
             "status": "ok",
             "rationale": entry.get("rationale"),
+            "blurb": (entry.get("blurb") or "").strip() or None,
             "forecast_low": lower,
             "forecast_expected": point,
             "forecast_high": upper,

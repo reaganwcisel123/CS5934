@@ -4,86 +4,74 @@ A short guide for clinic staff. No statistics background needed.
 
 ## What this tab is for
 
-It estimates how much of certain reportable illnesses Virginia is likely to see
-over the **next four weeks**, and roughly what supplies that implies — so you can
-order before you need it rather than after.
+It tells you which reportable illnesses are running **unusually high in Virginia
+right now**, and roughly what supplies that implies — so you can order before you
+need it rather than after.
 
-## The most important thing on the page
+## Reading a threat card
 
-The county numbers are **allocated, not measured.**
+Each card is one illness. The big number on the right, for example **2.4x**, is
+the important one:
 
-The state health data behind this tab is reported for Virginia as a whole. There
-is no county-level count to show you. So the tab takes the statewide forecast and
-divides it up by how many people live in each county.
+> This illness is running 2.4 times higher than it normally does *at this time of
+> year*.
 
-That means a county number tells you **roughly how much of the state's expected
-load your area represents.** It is not a count of sick people near you. If ten
-neighbours have the same illness this week, that will not appear here.
+That "time of year" part matters. Plenty of illnesses rise every summer. We
+compare this July against the last four Julys, not against this spring, so a
+normal seasonal rise shows as about 1x and does not reach the board. A card only
+appears when something is genuinely out of the ordinary.
 
-You will see an "allocated, not observed" tag on every county figure. That tag is
-the point, not fine print.
+Underneath you will see, for example, `16.0 cases/week now vs 6.1 normal`. Those
+are statewide numbers.
 
-## Reading the statewide list
+### "Also rising in 4 neighbouring states"
 
-Each row is one illness:
+We check Maryland, West Virginia, Kentucky, Tennessee, North Carolina and DC.
 
-- **The number on the right** is the expected statewide case count over the next
-  four weeks.
-- **The range underneath** (for example `32.9 – 55.0`) is the realistic span. Plan
-  against the range, not the single number.
-- **The bar** shows that range visually. **A wider bar means less certain.** A
-  narrow bar is a confident forecast; a wide one is a rough guess.
+- **Rising in several neighbours** — more likely a real regional trend. Take it
+  more seriously.
+- **"Virginia only"** — could be real, or could be a quirk in how Virginia
+  reported that week. Worth watching rather than acting on immediately.
 
-### Two labels to watch for
+### The little bar chart
 
-**"no forecast"** — there is not enough reporting history for this illness. It
-does **not** mean the illness is rare or absent. It means we do not know. Treat it
-as a blank, never as an all-clear.
+Reported cases per week over the last 16 weeks, most recent on the right.
+Hatched bars are weeks with **no report** — not weeks with zero cases. A gap
+means we do not know, which is different from nothing happening.
 
-**"13w stale"** — the most recent report for this illness is 13 weeks old. Older
-reporting means a less trustworthy forecast. A large stale number should prompt a
-phone call to your health district rather than a purchase order.
+## What to hold
 
-## Reading your county
+Open **"What to hold in this county"** for a supply table with quantity ranges.
 
-Pick your county from the dropdown. For each illness you get the allocated case
-range and a supply table:
+Two things about those numbers:
 
-| Item | Units to hold |
-|---|---|
-| Pertussis PCR swab | 4 – 9 |
+- **They are for your county, not the state.** We take the statewide rate and
+  give your county its share based on population. So they are an estimate of your
+  slice, **not a count of sick people near you**. That is why every one carries an
+  "allocated, not observed" tag.
+- **They come from a written list a person can read and argue with**, not from the
+  model. Each illness explains why it implies each item.
 
-Those are **planning ranges**, matched to the forecast range. The low number is a
-reasonable floor and the high number a reasonable ceiling.
+## The blurbs are not clinician-reviewed yet
 
-Two things about those quantities:
+You will see a note saying stocking guidance is **pending clinical review**. That
+is accurate. The blurbs were written from published CDC guidance by the
+development team, not by a doctor or pharmacist on this project.
 
-- They come from a **written mapping a person can read and argue with**
-  (`data/reference/condition_supply_map.yml`), not from the model. Each entry says
-  why an illness implies an item.
-- They are **not a purchase order and not a clinical protocol.** They do not know
-  your patient mix, your storage, your referral patterns, or your budget.
-
-## If your county is nonmetro
-
-If your county is nonmetro-adjacent (RUCC 4–6), **treat these numbers as a floor.**
-
-Splitting by population assumes illness follows headcount. It does not account for
-how hard care is to reach. Our own analysis found nonmetro counties come out about
-1.5 percentage points below what their access burden implies — the largest gap of
-any group, larger than the most rural counties. So the figures likely understate
-what you will actually see.
+Use them to start a stocking conversation. Do not use them as clinical direction.
 
 ## What this tab will not do
 
-- It will not tell you an outbreak is happening near you.
-- It will not tell you which patients are affected.
-- It will not tell you anything about a specific person.
-- It cannot see illnesses outside the eleven it tracks.
+- It will not tell you an outbreak is happening in your town.
+- It will not tell you which patients are affected, or anything about a specific person.
+- It cannot tell the difference between "more illness" and "more reporting". If a
+  health district catches up on a backlog, that looks like a rise here.
+- It cannot see illnesses running below about 3 cases a week statewide, however
+  serious they are.
 
 ## The short version
 
 This is a planning aid. It informs a decision; it does not make one. Your
 judgement about your own community beats the model, and you are expected to
-override it. If a number looks wrong for your area, it may well be — see the
-model card for where the forecast is weakest.
+override it. If a number looks wrong for your area, it may well be — the model
+card lists where this is weakest.
