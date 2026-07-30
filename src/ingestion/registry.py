@@ -18,7 +18,12 @@ _WIRED = [CdcPlaces, CensusAcs, CensusPep, CdcEji, HrsaHpsa, HrsaUds,
           HudHousing, UsdaFoodAccess, SyntheticClinical]
 # Stubs for a future coder to promote to RealSource.
 _STUBS = [stubs.CmsMedicarePuf, stubs.CmsMipsQpp, stubs.CmsQualityStars,
-          stubs.CdcNwss, stubs.CdcNndss, stubs.GrantsGov, stubs.StateFeeds,
+          stubs.CdcNwss, stubs.GrantsGov, stubs.StateFeeds,
           stubs.AsprHospitalCapacity]
+
+# NOTE: cdc_nndss (US-048) is intentionally not registered. REGISTRY drives the
+# county-wide merge in build_dataset.py, and NNDSS is state-keyed weekly data
+# with no county column. It runs on its own via `python -m src.ingestion.cdc_nndss`
+# and feeds the forecasting pipeline in src/model/ instead.
 
 REGISTRY = {cls.source_id: cls for cls in _WIRED + _STUBS}
