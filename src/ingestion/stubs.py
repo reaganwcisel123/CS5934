@@ -31,7 +31,9 @@ class CmsMedicarePuf(StubSource): source_id = "cms_medicare_puf"
 class CmsMipsQpp(StubSource): source_id = "cms_mips_qpp"
 class CmsQualityStars(StubSource): source_id = "cms_quality_stars"
 class CdcNwss(StubSource): source_id = "cdc_nwss"
-class CdcNndss(StubSource): source_id = "cdc_nndss"
+# cdc_nndss was promoted to a real source in US-048 (src/ingestion/cdc_nndss.py).
+# It is deliberately absent from REGISTRY: it is state-keyed, so the county-wide
+# merge in build_dataset.py has nothing to join it on.
 class GrantsGov(StubSource): source_id = "grants_gov"
 class StateFeeds(StubSource): source_id = "state_health_department_feeds"
 class AsprHospitalCapacity(StubSource): source_id = "aspr_hospital_capacity"
