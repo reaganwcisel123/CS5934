@@ -317,21 +317,109 @@
 
   function normalizeCountyName(value){
     return String(value || "").trim().toLowerCase()
-      .replace(/\b(county|city)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      .replace(/\bhealth district\b/g, "")
+      .replace(/\bhealth\b/g, "")
+      .replace(/\//g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
   }
 
-  function normalizeConditionRows(rawData){
+  function sameBaseName(left, right){
+    const a = normalizeCountyName(left);
+    const b = normalizeCountyName(right);
+    if(!a || !b) return false;
+    return a === b || a.startsWith(b) || b.startsWith(a);
+  }
+
+  function inferLocalityLabel(feature, rows = []){
+    const props = feature?.properties || {};
+    const baseName = String(props.name || "").trim();
+    const fips = String(props.county_fips || props.fips || "").trim();
+    if(!baseName) return baseName;
+
+    if(fips) {
+      const exactMatches = (rows || []).filter(row => String(row?.countyFips || "") === fips && row?.county);
+      if(exactMatches.length) {
+        const preferred = exactMatches.find(row => /county/i.test(String(row.county))) || exactMatches.find(row => !/city/i.test(String(row.county))) || exactMatches[0];
+        return String(preferred.county).trim();
+      }
+    }
+
+    const sameNameMatches = (rows || []).filter(row => row?.county && sameBaseName(row.county, baseName));
+    if(!sameNameMatches.length) return baseName;
+    const preferred = sameNameMatches.find(row => /county/i.test(String(row.county))) || sameNameMatches.find(row => !/city/i.test(String(row.county))) || sameNameMatches[0];
+    return String(preferred.county).trim();
+  }
+
+  function buildCountyFipsLookup(geoFeatures = []){
+    const lookup = {};
+    (geoFeatures || []).forEach(feature => {
+      const name = feature?.properties?.name || feature?.properties?.county_name || "";
+      const fips = String(feature?.properties?.county_fips || feature?.properties?.fips || "");
+      if(!name || !fips) return;
+
+      const hasCityMarker = /city/i.test(String(name)) || (/^51[5-9]\d{2}$/.test(fips) && Number(fips) >= 51500);
+      const cityKey = normalizeCountyName(`${name} city`);
+      const countyKey = normalizeCountyName(`${name} county`);
+      const baseKey = normalizeCountyName(name);
+
+      if(hasCityMarker){
+        lookup[cityKey] = String(fips);
+        lookup[baseKey] = String(fips);
+      } else {
+        lookup[countyKey] = String(fips);
+        lookup[baseKey] = String(fips);
+      }
+    });
+    return lookup;
+  }
+
+  function normalizeConditionRows(rawData, geoFeatures = []){
     const rows = Array.isArray(rawData?.rows) ? rawData.rows : Array.isArray(rawData) ? rawData : [];
+    const fipsByName = buildCountyFipsLookup(geoFeatures);
+    const seen = new Set();
+
     return rows
-      .map(row => ({
-        year: Number(row.year ?? row.Year ?? row.year_num),
-        county: String(row.county ?? row.county_name ?? row.location ?? "").trim(),
-        countyFips: row.county_fips ?? row.fips ?? row.countyFips ?? null,
-        condition: String(row.condition ?? row.disease ?? row.metric ?? row.measure ?? "").trim(),
-        cases: Number(row.cases ?? row.case_count ?? row.count ?? row.value ?? 0),
-        rate: Number(row.rate ?? row.prevalence ?? row.value ?? 0),
-      }))
-      .filter(row => Number.isFinite(row.year) && row.county && row.condition);
+      .map(row => {
+        const countyName = String(row.county ?? row.county_name ?? row.location ?? row.Geography ?? "").trim();
+        const canonicalCountyName = normalizeCountyName(countyName);
+        const hasCityMarker = /city/i.test(countyName) || /city/i.test(String(row.Geography || ""));
+        const countyFips =
+          row.county_fips ??
+          row.fips ??
+          row.countyFips ??
+          fipsByName[canonicalCountyName] ??
+          fipsByName[normalizeCountyName(`${countyName} ${hasCityMarker ? "city" : "county"}`)] ??
+          fipsByName[normalizeCountyName(`${countyName} county`)] ??
+          fipsByName[normalizeCountyName(`${countyName} city`)] ??
+          null;
+
+        // The live Virginia feed includes health-district lines and multi-county service areas,
+        // which are not actual county polygons in the map. Drop those before painting.
+        if(!countyName || !canonicalCountyName || countyName.includes("Health District") || countyName.includes("/") || (!countyFips && countyName.includes("Health"))){
+          return null;
+        }
+
+        const condition = String(row.condition ?? row.disease ?? row.metric ?? row.measure ?? row.Indicator ?? "").trim();
+        const rawCases = row.cases ?? row.case_count ?? row.count ?? row.value ?? row["Hospitalization Count"] ?? 0;
+        const rawRate = row.rate ?? row.prevalence ?? row.value ?? row["Age-Adjusted Rate per 100,000"] ?? 0;
+        const year = Number(row.year ?? row.Year ?? row.year_num);
+        const normalizedRow = {
+          year,
+          county: countyName,
+          countyFips: countyFips ? String(countyFips) : null,
+          condition,
+          cases: Number(rawCases || 0),
+          rate: Number(rawRate || 0),
+        };
+
+        const dedupeKey = `${normalizedRow.countyFips}|${normalizedRow.year}|${normalizedRow.condition}`;
+        if(seen.has(dedupeKey)) return null;
+        seen.add(dedupeKey);
+        return normalizedRow;
+      })
+      .filter(Boolean)
+      .filter(row => Number.isFinite(row.year) && row.county && row.countyFips && row.condition);
   }
 
   function toggleConditionSelection(selectedConditions, condition, allConditions){
@@ -356,11 +444,14 @@
     const grouped = {};
     const values = [];
     rows
-      .filter(row => row.year >= startYear && row.year <= endYear && (!active || active.includes(row.condition)))
+      .filter(row => row.countyFips && row.year >= startYear && row.year <= endYear && (!active || active.includes(row.condition)))
       .forEach(row => {
-        const key = row.countyFips ? `fips:${row.countyFips}` : `name:${normalizeCountyName(row.county)}`;
-        if(!grouped[key]) grouped[key] = { county: row.county, countyFips: row.countyFips, values: [] };
-        grouped[key].values.push(row);
+        const fipsKey = `fips:${row.countyFips}`;
+        const nameKey = `name:${normalizeCountyName(row.county)}`;
+        if(!grouped[fipsKey]) grouped[fipsKey] = { county: row.county, countyFips: row.countyFips, values: [] };
+        if(!grouped[nameKey]) grouped[nameKey] = { county: row.county, countyFips: row.countyFips, values: [] };
+        grouped[fipsKey].values.push(row);
+        grouped[nameKey].values.push(row);
       });
     Object.values(grouped).forEach(entry => {
       const value = d3.mean(entry.values, item => item.rate ?? item.cases ?? 0);
@@ -380,7 +471,7 @@
     if(fipsKey && dataSummary.lookup[fipsKey]) return dataSummary.lookup[fipsKey].value;
     if(nameKey && dataSummary.lookup[nameKey]) return dataSummary.lookup[nameKey].value;
     if(props.name){
-      const fallbackKey = Object.keys(dataSummary.lookup).find(key => key.startsWith("name:") && key.replace("name:", "") === normalizeCountyName(props.name));
+      const fallbackKey = Object.keys(dataSummary.lookup).find(key => key.startsWith("name:") && sameBaseName(key.replace("name:", ""), props.name));
       if(fallbackKey) return dataSummary.lookup[fallbackKey].value;
     }
     return null;
@@ -391,7 +482,7 @@
     const value = getCountyConditionValue(feature, dataSummary);
     if(value == null || !Number.isFinite(value)) return "var(--surface-sunken)";
     const ratio = dataSummary.maxValue > 0 ? Math.max(0.15, Math.min(1, value / dataSummary.maxValue)) : 0.15;
-    return ramp(ratio);
+    return ramp ? ramp(ratio) : "#0a2f63";
   }
 
   function ChronicLegend({ startYear, endYear, onStartYear, onEndYear, conditions, onConditions }){
@@ -438,24 +529,30 @@
     );
     const p = feature.properties;
     const fips = p.county_fips || p.fips;
-    const matches = rows.filter(row => {
-      const sameCounty =
-        (fips && String(row.countyFips) === String(fips)) ||
-        normalizeCountyName(row.county) === normalizeCountyName(p.name);
-      const matchesYear = Number.isFinite(row.year) && row.year >= startYear && row.year <= endYear;
-      const includesAll = conditions.includes("All Chronic Conditions");
-      const matchesCondition = includesAll || conditions.includes(row.condition);
-      return sameCounty && matchesYear && matchesCondition;
-    });
+    const matches = Array.from(new Map(
+      rows
+        .filter(row => {
+          const sameCounty = fips ? String(row.countyFips || "") === String(fips) : sameBaseName(row.county, p.name);
+          const matchesYear = Number.isFinite(row.year) && row.year >= startYear && row.year <= endYear;
+          const includesAll = conditions.includes("All Chronic Conditions");
+          const matchesCondition = includesAll || conditions.includes(row.condition);
+          return sameCounty && matchesYear && matchesCondition;
+        })
+        .map(row => [
+          `${row.countyFips || ""}|${row.year}|${row.condition}`,
+          row,
+        ])
+    ).values());
+    const localityLabel = inferLocalityLabel(feature, rows);
     return (
       <div className="panel-body">
         <div className="kv">
-          <div><div className="k">County</div><div className="v">{p.name}</div></div>
+          <div><div className="k">County</div><div className="v">{localityLabel}</div></div>
           <div><div className="k">FIPS</div><div className="v mono">{fips}</div></div>
           <div><div className="k">Matches</div><div className="v">{matches.length}</div></div>
         </div>
         <p className="hint" style={{ marginTop: 10 }}>
-          Showing mock condition data from <strong>{startYear}</strong> through <strong>{endYear}</strong> for <span className="mono">{fips}</span>.
+          Showing live chronic disease data from <strong>{startYear}</strong> through <strong>{endYear}</strong> for <span className="mono">{fips}</span>.
         </p>
         {matches.length > 0 ? (
           <div className="hint chronic-cards">
@@ -469,7 +566,7 @@
             ))}
           </div>
         ) : (
-          <p className="hint" style={{ marginTop: 10 }}>No mock condition rows matched the selected year range and condition filters for this county.</p>
+          <p className="hint" style={{ marginTop: 10 }}>No live condition rows matched the selected year range and condition filters for this county.</p>
         )}
         <button className="backbtn" style={{ marginTop: 8 }} onClick={onClear}>Clear selection</button>
       </div>
@@ -483,28 +580,32 @@
     const [selected, setSelected] = React.useState(null);
     const [startYear, setStartYear] = React.useState(MIN_YEAR);
     const [endYear, setEndYear] = React.useState(CURRENT_YEAR);
-    const [conditions, setConditions] = React.useState(["All Chronic Conditions"]);
+    const [conditions, setConditions] = React.useState([]);
     const mapRef = React.useRef(null);
     const apiRef = React.useRef(null);
+    const liveChronicRamp = React.useMemo(() => d3.interpolateRgbBasis([
+      "#eaf3ff", "#cfe0ff", "#9bb9e8", "#5a8ec9", "#3269ad", "#1d4d8f", "#0a2f63"
+    ]), []);
 
     React.useEffect(() => {
       fetchGeo().then(setGeo).catch(e => setErr("Could not load county geometry (" + e.message + ")."));
-      fetch("data/mock_chronic_conditions.json")
+      fetch("https://data.virginia.gov/api/3/action/datastore_search?resource_id=d2873933-046c-415a-b858-7fd18060794a&limit=50000")
         .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-        .then(setConditionData)
+        .then(data => setConditionData({ rows: data?.result?.records ?? [] }))
         .catch(() => setConditionData(null));
     }, []);
 
-    const rows = React.useMemo(() => normalizeConditionRows(conditionData), [conditionData]);
+    const rows = React.useMemo(() => normalizeConditionRows(conditionData, geo?.features || []), [conditionData, geo]);
     const summary = React.useMemo(() => buildCountyConditionLookup(rows, { startYear, endYear, conditions }), [rows, startYear, endYear, conditions]);
 
     const optsOf = () => ({
       ariaLabel: "Choropleth of Virginia counties by chronic-condition rate.",
-      fill: f => getCountyFillColor(f, summary, d3.interpolateReds),
+      fill: f => getCountyFillColor(f, summary, liveChronicRamp),
       tip: f => {
         const value = getCountyConditionValue(f, summary);
+        const label = inferLocalityLabel(f, rows);
         const valueText = value == null ? "No matching condition data" : `${value.toFixed(1)} age-adjusted rate`;
-        return `<b>${f.properties.name}</b><br><span class="src">${valueText} · FIPS ${f.properties.county_fips || f.properties.fips}</span>`;
+        return `<b>${label}</b><br><span class="src">${valueText} · FIPS ${f.properties.county_fips || f.properties.fips}</span>`;
       },
       onClick: f => setSelected(f),
     });
@@ -514,14 +615,14 @@
       if(geo && mapRef.current && !apiRef.current)
         apiRef.current = A.charts.buildChoropleth(mapRef.current, geo, { ...optsOf(), zoomable: true });
     }, [geo]);
-    React.useEffect(() => { if(apiRef.current) apiRef.current.update(optsOf()); }, [summary]);
+    React.useEffect(() => { if(apiRef.current) apiRef.current.update(optsOf()); }, [summary, liveChronicRamp]);
 
     if(err) return <div className="empty">{err}</div>;
 
     return (
       <React.Fragment>
         <p className="trends-sub">Explore county-level prevalence of chronic diseases across Virginia. Filter by year
-          and condition to identify geographic trends. <span className="chronic-mock">Mock data — 33 of 133 counties.</span></p>
+          and condition to identify geographic trends. <span className="chronic-mock">Live Virginia data · county heat map</span></p>
         <div className="chronic-grid">
           <section className="panel">
             <div className="panel-h">
