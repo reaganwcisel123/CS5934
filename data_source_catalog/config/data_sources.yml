@@ -2,6 +2,38 @@
 
 sources:
   -
+    source_id: virginia_chronic_disease_hospitalization
+    source_name: "Virginia Chronic Disease Hospitalization by Geography"
+    provider: Virginia Open Data / Virginia Department of Health
+    source_category: public_health_chronic_disease
+    access_method: CKAN datastore API / CSV export
+    access_url: "https://data.virginia.gov/dataset/chronic-disease-hospitalization-by-geography/resource/d2873933-046c-415a-b858-7fd18060794a"
+    documentation_url: "https://data.virginia.gov/dataset/chronic-disease-hospitalization-by-geography"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - county
+    temporal_granularity: annual
+    refresh_cadence: annual / publisher release cadence
+    schema_version: "Virginia chronic disease hospitalization annual release"
+    join_keys:
+      - county_fips
+      - year
+      - condition
+    fields_used:
+      - county
+      - year
+      - condition
+      - cases
+      - rate
+    limitations:
+      - Data is published by county geography and may vary by year.
+      - Condition naming and rate definitions should be validated against the dataset release notes.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/virginia_chronic_disease_hospitalization.py
+    last_verified_date: "2026-08-01"
+  -
     source_id: cdc_places
     source_name: "CDC PLACES: Local Data for Better Health"
     provider: Centers for Disease Control and Prevention

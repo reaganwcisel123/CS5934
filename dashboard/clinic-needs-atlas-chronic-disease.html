@@ -7,6 +7,543 @@
 <title>Chronic Disease — Clinic Needs Atlas</title>
 </head>
 <body>
-<p>The chronic explorer moved. <a href="app.html#/trends?mode=chronic">Continue to Trends → Chronic history →</a></p>
+<div id="root"></div>
+<div class="tt" id="tt"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script type="text/babel" data-presets="react">
+/* =========================================================================
+   Virginia — Base Map
+   Bare county-outline map, same visual system (panel/legend/tooltip pattern)
+   as the Clinic Needs Forest dashboard, but with no data layer yet.
+
+   TO ADD DATA LATER:
+   Each county feature already carries f.properties.fips (5-digit, e.g. "51087")
+   and f.properties.name. Build a lookup keyed by that FIPS code — e.g.
+   `const dataByFips = { "51087": {...}, ... }` — and read it inside the
+   `.on("mouseover", ...)` handler and the fill-color scale marked below.
+   Everything needed to drop a choropleth, dots, or glyphs onto this map is
+   already wired: projection, path generator, zoom, and tooltip.
+   ========================================================================= */
+
+const VA_FIPS = "51";
+const MIN_YEAR = 2016;
+const CURRENT_YEAR = new Date().getFullYear();
+const fmt0 = d3.format(".0f"), fmtC = d3.format(",");
+
+function extractYear(value) {
+  if (!value) return null;
+  const match = String(value).match(/(19|20)\d{2}/);
+  if (!match) return null;
+  return Number(match[0]);
+}
+
+function normalizeCountyName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\b(county|city)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeConditionRows(rawData, geoFeatures = []) {
+  const rows = Array.isArray(rawData?.rows)
+    ? rawData.rows
+    : Array.isArray(rawData)
+      ? rawData
+      : Array.isArray(rawData?.result?.records)
+        ? rawData.result.records
+        : [];
+
+  const countyNameFipsMap = new Map(
+    (geoFeatures || [])
+      .filter((feature) => feature?.properties?.name && feature?.properties?.fips)
+      .map((feature) => [
+        normalizeCountyName(feature.properties.name),
+        String(feature.properties.fips).padStart(5, "0"),
+      ])
+  );
+
+  return rows
+    .map((row) => {
+      const countyName = String(
+        row.county ?? row.county_name ?? row.location ?? row.Geography ?? row.geography ?? ""
+      ).trim();
+      const resolvedCounty = countyName || String(row.Geography ?? row.geography ?? "").trim();
+      const resolvedFips =
+        row.county_fips ?? row.fips ?? row.countyFips ??
+        countyNameFipsMap.get(normalizeCountyName(resolvedCounty)) ??
+        null;
+
+      return {
+        year: Number(row.year ?? row.Year ?? row.year_num ?? 2024),
+        county: resolvedCounty,
+        countyFips: resolvedFips ? String(resolvedFips).padStart(5, "0") : null,
+        condition: String(row.condition ?? row.disease ?? row.metric ?? row.measure ?? row.Indicator ?? "").trim(),
+        cases: Number(row.cases ?? row.case_count ?? row.count ?? row["Hospitalization Count"] ?? row.value ?? 0),
+        rate: Number(row.rate ?? row.prevalence ?? row["Age-Adjusted Rate per 100,000"] ?? row.value ?? 0),
+      };
+    })
+    .filter((row) => Number.isFinite(row.year) && row.county && row.condition);
+}
+
+function toggleConditionSelection(selectedConditions, condition, allConditions) {
+  if (condition === "All Chronic Conditions") {
+    if (selectedConditions.length === allConditions.length) {
+      return [];
+    }
+    return [...allConditions];
+  }
+
+  let newSelected = selectedConditions.filter((item) => item !== condition);
+  if (selectedConditions.includes(condition)) {
+    newSelected = newSelected.filter((item) => item !== "All Chronic Conditions");
+    return newSelected;
+  }
+
+  newSelected = [...selectedConditions, condition];
+  const individualConditions = allConditions.filter((item) => item !== "All Chronic Conditions");
+  const allIndividualsSelected = individualConditions.every((item) => newSelected.includes(item));
+  if (allIndividualsSelected) {
+    newSelected.push("All Chronic Conditions");
+  }
+  return newSelected;
+}
+
+function buildCountyConditionLookup(rows, { startYear, endYear, conditions }) {
+  const includesAllConditions = (conditions || []).includes("All Chronic Conditions");
+  const activeConditions = includesAllConditions
+    ? null
+    : (conditions || []).filter((condition) => condition !== "All Chronic Conditions");
+  const grouped = {};
+  const values = [];
+
+  rows
+    .filter((row) => row.year >= startYear && row.year <= endYear && (!activeConditions || activeConditions.includes(row.condition)))
+    .forEach((row) => {
+      const normalizedCounty = normalizeCountyName(row.county);
+      const key = row.countyFips ? `fips:${row.countyFips}` : `name:${normalizedCounty}`;
+      if (!grouped[key]) {
+        grouped[key] = { county: row.county, countyFips: row.countyFips, values: [] };
+      }
+      grouped[key].values.push(row);
+    });
+
+  Object.values(grouped).forEach((entry) => {
+    const value = d3.mean(entry.values, (item) => item.rate ?? item.cases ?? 0);
+    entry.value = Number.isFinite(value) ? value : null;
+    if (entry.value !== null) values.push(entry.value);
+  });
+
+  return {
+    lookup: grouped,
+    maxValue: values.length ? d3.max(values) : 0,
+  };
+}
+
+function getCountyConditionValue(feature, dataSummary) {
+  if (!dataSummary || !feature?.properties) return null;
+  const props = feature.properties;
+  const fipsKey = props.fips ? `fips:${props.fips}` : null;
+  const nameKey = props.name ? `name:${normalizeCountyName(props.name)}` : null;
+  if (fipsKey && dataSummary.lookup[fipsKey]) return dataSummary.lookup[fipsKey].value;
+  if (nameKey && dataSummary.lookup[nameKey]) return dataSummary.lookup[nameKey].value;
+  if (props.name) {
+    const fallbackKey = Object.keys(dataSummary.lookup).find((key) => key.startsWith("name:") && key.replace("name:", "") === normalizeCountyName(props.name));
+    if (fallbackKey) return dataSummary.lookup[fallbackKey].value;
+  }
+  return null;
+}
+
+function getCountyFillColor(feature, dataSummary) {
+  if (!dataSummary) return "#eef2f7";
+  const value = getCountyConditionValue(feature, dataSummary);
+  if (value == null || !Number.isFinite(value)) return "#eef2f7";
+  if (dataSummary.maxValue <= 0) return "#0b3b6f";
+  const ratio = Math.max(0.08, Math.min(1, value / dataSummary.maxValue));
+  return d3.interpolateRgbBasis([
+    "#eaf3ff",
+    "#cfe0ff",
+    "#9bb9e8",
+    "#5a8ec9",
+    "#3269ad",
+    "#1d4d8f",
+    "#0a2f63"
+  ])(ratio);
+}
+
+/* ---- Icon set --------------------------------------------------------
+   Small inline-SVG icon set (24x24, stroke=currentColor) so the sidebar
+   doesn't depend on an external icon bundle. Covers exactly the icons the
+   Signal sidebar uses. Add more `case`s here if new nav items need one. */
+function Icon({ name, size=18, color="currentColor" }){
+  const common = { width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:color,
+    strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round" };
+  switch(name){
+    case "radar": return (<svg {...common}><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 2v10l7 4"/><circle cx="12" cy="12" r="1.5" fill={color} stroke="none"/></svg>);
+    case "receipt": return (<svg {...common}><path d="M5 3h14v18l-2.5-1.5L14 21l-2.5-1.5L9 21l-2.5-1.5L4 21V3z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>);
+    case "stethoscope": return (<svg {...common}><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M6 3H4.5M14 3h1.5"/><path d="M18 12v2a6 6 0 0 1-12 0v-2"/><circle cx="19" cy="12" r="2"/></svg>);
+    case "network": return (<svg {...common}><circle cx="12" cy="4" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 6v4M12 10 5 17M12 10l7 7"/></svg>);
+    case "map": return (<svg {...common}><path d="M3 6.5 9 4l6 2.5 6-2.5v15L15 21l-6-2.5L3 21z"/><path d="M9 4v14.5M15 6.5V21"/></svg>);
+    case "git-branch": return (<svg {...common}><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 7v10M6 9a6 6 0 0 0 6 6h4"/></svg>);
+    case "heart-pulse": return (<svg {...common}><path d="M12 20s-7-4.35-9.5-9A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 21.5 11c-.6 1.2-1.4 2.3-2.3 3.4"/><path d="M3 12h4l2-4 3 7 2-5 1 2h6"/></svg>);
+    case "target": return (<svg {...common}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill={color} stroke="none"/></svg>);
+    case "activity": return (<svg {...common}><path d="M2 12h4l2 8 4-16 3 8h7"/></svg>);
+    case "bar-chart-3": return (<svg {...common}><path d="M4 20V10M12 20V4M20 20v-7"/></svg>);
+    case "settings": return (<svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3.9a7.5 7.5 0 0 0-1.7-1L14.8 3h-4l-.6 2.9a7.5 7.5 0 0 0-1.7 1l-2.3-.9-2 3.4L6 11a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7.5 7.5 0 0 0 1.7 1l.6 2.9h4l.6-2.9a7.5 7.5 0 0 0 1.7-1l2.3.9 2-3.4z"/></svg>);
+    default: return (<svg {...common}><circle cx="12" cy="12" r="8"/></svg>);
+  }
+}
+
+/* ---- Sidebar — identical structure/labels to the Signal dashboard.
+   `active` is left null on this page since Base Map isn't one of the listed
+   tabs; wire `onNav` up to real routing once this map is folded into a tab. */
+function Sidebar({ active, onNav }){
+  const prods=[["signal","Signal","radar"],["rev","Rev","receipt"],["core","Core","stethoscope"],["command","Command","network"]];
+  const nav=[
+    {label:"Atlas", glyph:"map", view:"atlas"},
+    {label:"Needs forest", glyph:"git-branch", view:"forest"},
+    {label:"Chronic Needs Analysis", glyph:"heart-pulse", view:"chronic"},
+    {label:"Shortage areas", glyph:"target", view:"shortage"},
+    {label:"Surveillance", glyph:"activity", view:"surveillance"},
+    {label:"Reports", glyph:"bar-chart-3", view:"reports"},
+    {label:"Settings", glyph:"settings", view:"settings"},
+  ];
+  return (
+    <aside className="side">
+      <div className="wordmark"><span className="mark">T</span>Triad</div>
+      <div className="prod-switch">{prods.map(([k,label,g])=>(
+        <div key={k} className={"prod-item"+(k==="signal"?" on":"")}><Icon name={g} size={18} color={k==="signal"?"#fff":"var(--slate-400)"} />{label}</div>
+      ))}</div>
+      <div className="side-label">Signal</div>
+      {nav.map(n=>{
+        const on = active===n.view;
+        return (
+          <div key={n.label} className={"nav-item"+(on?" on":"")} onClick={()=>onNav&&onNav(n.view)}>
+            <Icon name={n.glyph} size={18} color={on?"#fff":"var(--slate-400)"} />{n.label}
+          </div>
+        );
+      })}
+      <div className="side-foot"><span className="avatar">CA</span>
+        <div style={{lineHeight:1.3}}><div style={{color:"#fff",fontSize:13,fontWeight:600}}>Clinic Atlas</div><div style={{fontSize:11,color:"var(--slate-500)"}}>Virginia · 133 counties</div></div>
+      </div>
+    </aside>
+  );
+}
+
+const tt = document.getElementById("tt");
+const showTT = (html,e) => { tt.innerHTML=html; tt.style.opacity=1; moveTT(e); };
+const moveTT = e => { tt.style.left=(e.clientX+14)+"px"; tt.style.top=(e.clientY+14)+"px"; };
+const hideTT = () => { tt.style.opacity=0; };
+
+/* ---- Map builder -----------------------------------------------------
+   Renders VA county outlines from us-atlas topojson (counties-10m), with
+   zoom/pan and a hover tooltip. `onSelect` fires on click with the feature's
+   properties, ready to route to a future drill-down panel. */
+function buildMap(host, geo, { onHover, onSelect, conditionDataSummary } = {}){
+  const W=880, H=460;
+  const svg=d3.select(host).html("").append("svg").attr("viewBox",`0 0 ${W} ${H}`)
+    .attr("role","img").attr("aria-label","Map of Virginia counties.");
+  const projection=d3.geoConicConformal().parallels([37.5,39.5]).rotate([79,0]).fitExtent([[16,16],[W-16,H-16]],geo);
+  const path=d3.geoPath(projection);
+
+  const gZoom=svg.append("g");
+  const counties=gZoom.append("g").selectAll("path").data(geo.features).join("path")
+    .attr("d",path)
+    .attr("fill", d => getCountyFillColor(d, conditionDataSummary))
+    .attr("stroke","var(--slate-300)").attr("stroke-width",0.8)
+    .attr("vector-effect","non-scaling-stroke")
+    .style("cursor","pointer")
+    .on("mouseover",function(e,d){
+      const value = getCountyConditionValue(d, conditionDataSummary);
+      const valueText = value == null ? "No matching condition data" : `${value.toFixed(1)} age-adjusted rate`;
+      d3.select(this).attr("fill", getCountyFillColor(d, conditionDataSummary));
+      showTT(`<b>${d.properties.name} County</b><br><span class="src">${valueText} · FIPS ${d.properties.fips}</span>`,e);
+      onHover && onHover(d);
+    })
+    .on("mousemove",moveTT)
+    .on("mouseout",function(e,d){ d3.select(this).attr("fill", getCountyFillColor(d, conditionDataSummary)); hideTT(); })
+    .on("click",function(e,d){
+      counties.attr("stroke", "var(--slate-300)").attr("stroke-width", 0.8);
+      d3.select(this).attr("stroke", "#111827").attr("stroke-width", 1.8);
+      onSelect && onSelect(d);
+    });
+
+  const zoom=d3.zoom().scaleExtent([1,10]).on("zoom",ev=>{
+    gZoom.attr("transform",ev.transform);
+    counties.attr("stroke-width",0.8/ev.transform.k);
+  });
+  svg.call(zoom).on("dblclick.zoom",null);
+
+  function reset(){ svg.transition().duration(500).call(zoom.transform,d3.zoomIdentity); }
+  return { reset, svg, projection, path };
+}
+
+function MapPanel({ geo, onHover, onSelect }){
+  const ref=React.useRef(null), api=React.useRef(null);
+  React.useEffect(()=>{ if(geo) api.current=buildMap(ref.current,geo,{onHover,onSelect}); },[geo]);
+  return { ref, api };
+}
+
+
+function Legend({ selectedStartYear, selectedEndYear, onStartYearChange, onEndYearChange, selectedConditions, onConditionsChange }) {
+  const conditions = [
+    "All Chronic Conditions",
+    "Alzheimer's Disease",
+    "Arthritis",
+    "Asthma",
+    "Cardiovascular Disease",
+    "Chronic Kidney Disease",
+    "Chronic Obstructive Pulmonary Disease",
+    "Dementia (Non-Alzheimer's)",
+    "Diabetes",
+    "High Blood Cholesterol",
+    "Hypertension",
+    "Ischemic Heart Disease",
+    "Stroke"
+  ];
+
+  const toggleCondition = (condition) => {
+    onConditionsChange(toggleConditionSelection(selectedConditions, condition, conditions));
+  };
+
+  const handleStartYearChange = (value) => {
+    const nextStartYear = Number(value);
+    const nextEndYear = nextStartYear > selectedEndYear ? nextStartYear : selectedEndYear;
+    onStartYearChange(nextStartYear);
+    onEndYearChange(nextEndYear);
+  };
+
+  const handleEndYearChange = (value) => {
+    const nextEndYear = Number(value);
+    const nextStartYear = nextEndYear < selectedStartYear ? nextEndYear : selectedStartYear;
+    onStartYearChange(nextStartYear);
+    onEndYearChange(nextEndYear);
+  };
+
+  return (
+    <div>
+      <div className="leg-sect">
+        <h4>Date range filter</h4>
+        <div className="year-filter">
+          <div className="year-head">
+            <span>Start year</span>
+            <strong>{selectedStartYear}</strong>
+          </div>
+          <input
+            type="range"
+            min={MIN_YEAR}
+            max={CURRENT_YEAR}
+            value={selectedStartYear}
+            onChange={(e) => handleStartYearChange(e.target.value)}
+          />
+          <div className="year-head">
+            <span>End year</span>
+            <strong>{selectedEndYear}</strong>
+          </div>
+          <input
+            type="range"
+            min={MIN_YEAR}
+            max={CURRENT_YEAR}
+            value={selectedEndYear}
+            onChange={(e) => handleEndYearChange(e.target.value)}
+          />
+          <div className="year-hint">
+            Filters county-level patient records between the selected start and end years.
+          </div>
+        </div>
+      </div>
+
+      <div className="leg-sect">
+        <h4>Chronic Conditions</h4>
+
+        {conditions.map(condition => (
+          <label
+            key={condition}
+            className="leg-row"
+            style={{cursor:"pointer",display:"flex",alignItems:"center",gap:"8px"}}
+          >
+            <input
+              type="checkbox"
+              checked={selectedConditions.includes(condition)}
+              onChange={() => toggleCondition(condition)}
+            />
+            <span>{condition}</span>
+          </label>
+        ))}
+
+        <div className="leg-note">
+          Select one or more conditions to display on the map.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function SelectedPanel({ feature, geo, onClear, conditionData, selectedStartYear, selectedEndYear, selectedConditions }){
+  if(!feature) return (
+    <div className="panel-body">
+      <p className="hint">Hover a county to preview it, or click one to pin its details here.</p>
+    </div>
+  );
+  const p=feature.properties;
+  const rows = normalizeConditionRows(conditionData, geo?.features || []);
+  const matches = rows.filter((row) => {
+    const sameCounty =
+      (p.fips && String(row.countyFips) === String(p.fips)) ||
+      normalizeCountyName(row.county) === normalizeCountyName(p.name);
+    const matchesYear = Number.isFinite(row.year) && row.year >= selectedStartYear && row.year <= selectedEndYear;
+    const includesAllConditions = selectedConditions.includes("All Chronic Conditions");
+    const matchesCondition = includesAllConditions || selectedConditions.includes(row.condition);
+    return sameCounty && matchesYear && matchesCondition;
+  });
+
+  return (
+    <div className="panel-body">
+      <div className="kv">
+        <div><div className="k">County</div><div className="v">{p.name}</div></div>
+        <div><div className="k">FIPS</div><div className="v mono">{p.fips}</div></div>
+        <div><div className="k">Matches</div><div className="v">{matches.length}</div></div>
+      </div>
+      <p className="hint" style={{marginTop:10}}>
+        Showing live chronic disease data from <strong>{selectedStartYear}</strong> through <strong>{selectedEndYear}</strong> for <span className="mono">{p.fips}</span>.
+      </p>
+      {matches.length > 0 ? (
+        <div className="hint" style={{marginTop:10, display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"8px"}}>
+          {matches.slice(0,8).map((row, index) => (
+            <div key={`${row.condition}-${row.year}-${index}`} style={{border:"1px solid var(--border-subtle)", borderRadius:"8px", padding:"8px 10px", background:"var(--surface-sunken)"}}>
+              <div><strong>{row.condition}</strong></div>
+              <div>Year: {row.year}</div>
+              <div>Hospitalization count: {row.cases}</div>
+              <div>age-adjusted rate per 100,000: {row.rate}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint" style={{marginTop:10}}>No live condition rows matched the selected year range and condition filters for this county.</p>
+      )}
+      <button className="backbtn" style={{marginTop:8}} onClick={onClear}>Clear selection</button>
+    </div>
+  );
+}
+
+function App(){
+  const [geo,setGeo]=React.useState(null);
+  const [conditionData,setConditionData]=React.useState(null);
+  const [err,setErr]=React.useState(null);
+  const [hovered,setHovered]=React.useState(null);
+  const [selected,setSelected]=React.useState(null);
+  const [selectedStartYear,setSelectedStartYear]=React.useState(MIN_YEAR);
+  const [selectedEndYear,setSelectedEndYear]=React.useState(CURRENT_YEAR);
+  const [selectedConditions,setSelectedConditions]=React.useState(["All Chronic Conditions"]);
+  const mapRef=React.useRef(null);
+  const apiRef=React.useRef(null);
+
+  React.useEffect(()=>{
+    fetch("https://unpkg.com/us-atlas@3/counties-10m.json").then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(topo=>{
+        const objName = topo.objects.counties ? "counties" : Object.keys(topo.objects)[0];
+        const all = topojson.feature(topo, topo.objects[objName]);
+        const va = {
+          type:"FeatureCollection",
+          features: all.features
+            .filter(f=>String(f.id).padStart(5,"0").slice(0,2)===VA_FIPS)
+            .map(f=>{
+              const fips=String(f.id).padStart(5,"0");
+              return { ...f, properties:{ ...f.properties, fips, name:(f.properties.name||"") } };
+            }),
+        };
+        setGeo(va);
+      })
+      .catch(e=>setErr("Could not load county topology (" + e.message + ")."));
+
+    fetch("https://data.virginia.gov/api/3/action/datastore_search?resource_id=d2873933-046c-415a-b858-7fd18060794a&limit=50000")
+      .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(data=>setConditionData({ rows: data?.result?.records ?? [] }))
+      .catch(()=>setConditionData(null));
+  },[]);
+
+  const normalizedConditionRows = React.useMemo(()=>normalizeConditionRows(conditionData, geo?.features || []),[conditionData, geo]);
+  const conditionDataSummary = React.useMemo(()=>buildCountyConditionLookup(normalizedConditionRows,{startYear:selectedStartYear, endYear:selectedEndYear, conditions:selectedConditions}),[normalizedConditionRows, selectedStartYear, selectedEndYear, selectedConditions]);
+
+  React.useEffect(()=>{
+    if(geo && mapRef.current){
+      apiRef.current = buildMap(mapRef.current, geo, {
+        onHover: setHovered,
+        onSelect: setSelected,
+        conditionDataSummary,
+      });
+    }
+  },[geo, conditionDataSummary]);
+
+  if(err) return <div className="empty">{err}</div>;
+
+  return (
+    <div className="wrap">
+      <div className="hdr">
+        <div className="title">
+          <h1>Virginia Chronic Disease Explorer</h1>
+          <p>Explore county-level prevalence of chronic diseases across Virginia. 
+            Filter by year and condition to identify geographic trends and support healthcare planning..</p>
+        </div>
+      </div>
+
+      <div className="grid">
+        <section className="panel">
+          <div className="panel-h">
+            <h3>Virginia counties</h3>
+            <span className="county-count desc">{geo ? `${geo.features.length} counties` : "loading…"}</span>
+            <button className="toolbtn" style={{marginLeft:10}} onClick={()=>apiRef.current && apiRef.current.reset()}>Reset view</button>
+          </div>
+          <div className="panel-body" style={{padding:8}}>
+            {!geo && <div className="empty">Loading Virginia counties…</div>}
+            <div ref={mapRef} className="mapholder" style={{display:geo?"block":"none"}} />
+          </div>
+        </section>
+
+        <aside className="side-col">
+          <div className="panel">
+            <div className="panel-h"><h3>Legend</h3><span className="desc">year + conditions</span></div>
+            <div className="panel-body" style={{paddingTop:4}}>
+              <Legend
+                selectedStartYear={selectedStartYear}
+                selectedEndYear={selectedEndYear}
+                onStartYearChange={setSelectedStartYear}
+                onEndYearChange={setSelectedEndYear}
+                selectedConditions={selectedConditions}
+                onConditionsChange={setSelectedConditions}
+              />
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div className="details-row">
+        <div className="panel">
+          <div className="panel-h"><h3>{selected ? "Selected county" : "County preview"}</h3></div>
+          <SelectedPanel
+            feature={selected}
+            geo={geo}
+            onClear={()=>setSelected(null)}
+            conditionData={conditionData}
+            selectedStartYear={selectedStartYear}
+            selectedEndYear={selectedEndYear}
+            selectedConditions={selectedConditions}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
 </body>
 </html>
