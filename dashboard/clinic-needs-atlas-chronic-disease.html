@@ -1,80 +1,10 @@
 <!DOCTYPE html>
+<!-- Moved: the chronic explorer is now the Trends view's Chronic-history mode in app.html. -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="ds/styles.css" />
-<title>Virginia — Base Map</title>
-<style>
-  :root { --accent: var(--signal-600); }
-  body { margin:0; background:var(--bg-app); color:var(--text-body); font-family:var(--font-sans); }
-  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-
-  .app { display:grid; grid-template-columns:244px 1fr; min-height:100vh; }
-
-  /* Sidebar — matches the Signal dashboard's left nav exactly */
-  .side { background:var(--slate-900); color:var(--slate-300); display:flex; flex-direction:column; padding:16px 12px; gap:6px; }
-  .side .wordmark { display:flex; align-items:center; gap:9px; color:#fff; font-weight:700; font-size:15px; padding:6px 8px 14px; }
-  .side .wordmark .mark { width:24px; height:24px; border-radius:6px; background:var(--brand); display:flex; align-items:center; justify-content:center; font-size:14px; }
-  .prod-switch { display:flex; flex-direction:column; gap:4px; padding:6px 4px 12px; }
-  .prod-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-md); font-size:14px; font-weight:600; color:var(--slate-300); transition:var(--transition-control); }
-  .prod-item.on { background:rgba(255,255,255,.10); color:#fff; }
-  .side-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--slate-500); padding:8px 10px 4px; }
-  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-md); font-size:14px; color:var(--slate-300); cursor:pointer; transition:var(--transition-control); }
-  .nav-item:hover { background:rgba(255,255,255,.06); color:#fff; }
-  .nav-item.on { background:var(--signal-600); color:#fff; }
-  .side-foot { margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px; border-top:1px solid rgba(255,255,255,.08); }
-  .avatar { width:30px; height:30px; border-radius:50%; background:var(--signal-500); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
-  .main { display:flex; flex-direction:column; min-width:0; }
-  @media (max-width:860px){ .app{ grid-template-columns:1fr; } .side{ display:none; } }
-
-  .wrap { max-width:1440px; margin:0 auto; padding:18px 22px 40px; }
-  .hdr { display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
-  .title h1 { font-size:24px; letter-spacing:-.02em; color:var(--text-strong); margin:0; }
-  .title p { font-size:13px; color:var(--text-muted); margin:4px 0 0; max-width:640px; }
-
-  .grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start; }
-  .side-col { display:flex; flex-direction:column; gap:16px; }
-  .details-row { margin-top:16px; }
-  @media (max-width:1080px){ .grid{ grid-template-columns:1fr; } .side-col{ gap:12px; } .details-row{ margin-top:12px; } }
-
-  .panel { background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); }
-  .panel-h { padding:12px 16px; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:10px; }
-  .panel-h h3 { font-size:14px; color:var(--text-strong); margin:0; }
-  .panel-h .desc { font-size:12px; color:var(--text-muted); margin-left:auto; }
-  .panel-body { padding:14px 16px; }
-  .mapholder { width:100%; }
-  .mapholder svg { width:100%; height:auto; display:block; }
-
-  .backbtn, .toolbtn { height:28px; padding:0 10px; border:1px solid var(--border-default); border-radius:var(--radius-md);
-             background:var(--surface-card); color:var(--text-body); font-size:12.5px; font-weight:600; cursor:pointer; }
-  .backbtn:hover, .toolbtn:hover { background:var(--surface-sunken); }
-  .toolbtn.active { background:var(--signal-600); border-color:var(--signal-600); color:#fff; }
-
-  .leg-sect { padding:12px 0; border-bottom:1px solid var(--border-subtle); max-height:400px; overflow-y:auto; }
-  .leg-sect:last-child { border-bottom:none; }
-  .leg-sect h4 { font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); margin:0 0 8px; }
-  .leg-row { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-body); margin:5px 0; }
-  .leg-row .sw { width:11px; height:11px; border-radius:3px; flex:none; }
-  .leg-note { font-size:11.5px; color:var(--text-muted); line-height:1.5; margin-top:6px; }
-  .year-filter { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
-  .year-filter .year-head { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-body); }
-  .year-filter .year-head strong { color:var(--text-strong); }
-  .year-filter input[type="range"] { width:100%; accent-color:var(--signal-600); }
-  .year-filter .year-hint { font-size:11.5px; color:var(--text-muted); line-height:1.5; }
-
-  .kv { display:flex; flex-wrap:wrap; gap:14px 22px; margin:2px 0 6px; }
-  .kv .k { font-size:11px; color:var(--text-muted); }
-  .kv .v { font-size:15px; font-weight:600; color:var(--text-strong); }
-
-  .county-count { font-size:12px; color:var(--text-muted); }
-
-  .tt { position:fixed; pointer-events:none; opacity:0; transition:opacity 120ms ease-out; background:var(--slate-900); color:#fff;
-        font-size:12px; padding:8px 10px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg); max-width:280px; z-index:120; line-height:1.45; }
-  .tt b { color:#fff; } .tt .src { color:var(--slate-400); }
-  .empty { padding:60px; text-align:center; color:var(--text-muted); }
-  .hint { font-size:12px; color:var(--text-muted); line-height:1.5; }
-</style>
+<meta http-equiv="refresh" content="0; url=app.html#/trends?mode=chronic" />
+<title>Chronic Disease — Clinic Needs Atlas</title>
 </head>
 <body>
 <div id="root"></div>

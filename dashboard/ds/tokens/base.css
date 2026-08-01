@@ -21,4 +21,4 @@ a:hover { text-decoration: underline; }
 /* Data numerals: tabular figures for aligned metrics/tables */
 .tabular, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
-::selection { background: var(--violet-200); color: var(--violet-900); }
+::selection { background: var(--royal-200); color: var(--navy-950); }

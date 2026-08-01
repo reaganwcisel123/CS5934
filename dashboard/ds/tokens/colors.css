@@ -1,17 +1,36 @@
-/* Triad Health Engine — Color system
-   Base palette + semantic aliases. Cool, clinical, trustworthy.
-   Primary "Triad Violet" (#7c3aed) is the engine/brand color.
-   Each of the four products carries a signature accent. */
+/* Triad Health Engine — Color system. Navy & gold: royal blue brand, navy dark
+   chrome, gold accents. Violet remains ONLY as the "synthetic data" accent. */
 
 :root {
-  /* ---- Brand: Triad Violet (primary) ---- */
+  /* ---- Brand: Royal (primary) ---- */
+  --royal-50:  #eef2fb;
+  --royal-100: #dce4f7;
+  --royal-200: #bdcbef;
+  --royal-300: #93abe4;
+  --royal-400: #6e8ddd;
+  --royal-500: #476fd6;  /* hover — this brand hovers LIGHTER */
+  --royal-600: #3257b8;  /* brand core */
+  --royal-700: #27459a;
+  --royal-800: #1e3577;
+  --royal-900: #16264d;
+  --navy-950:  #0b1226;  /* dark chrome: top bar, hero, CTA band */
+
+  /* ---- Gold (accent: active nav, pulses, journey CTAs) ---- */
+  --gold-50:  #faf4e0;
+  --gold-100: #f3e7c2;
+  --gold-300: #cfac49;
+  --gold-500: #c9a13b;
+  --gold-600: #b08a2e;
+  --gold-700: #8a6a1c;
+
+  /* ---- Violet: retained solely as the "synthetic" provenance accent ---- */
   --violet-50:  #f5f3ff;
   --violet-100: #ede9fe;
   --violet-200: #ddd6fe;
   --violet-300: #c4b5fd;
   --violet-400: #a78bfa;
   --violet-500: #8b5cf6;
-  --violet-600: #7c3aed;  /* brand core — matches site theme-color */
+  --violet-600: #7c3aed;
   --violet-700: #6d28d9;
   --violet-800: #5b21b6;
   --violet-900: #4c1d95;
@@ -32,38 +51,50 @@
   --slate-950: #060b18;
 
   /* ---- Product accents (the four engines) ---- */
-  --signal-500:  #0ea5e9;  /* Signal — federal data map (sky) */
-  --signal-600:  #0284c7;
-  --signal-50:   #e0f2fe;
-  --rev-500:     #059669;  /* Rev — billing + grants (emerald) */
+  --signal-50:   var(--royal-50);   /* Signal — federal data map (royal) */
+  --signal-200:  var(--royal-200);
+  --signal-300:  var(--royal-300);
+  --signal-500:  var(--royal-500);
+  --signal-600:  var(--royal-600);
+  --signal-700:  var(--royal-700);
+  --rev-500:     #059669;           /* Rev — billing + grants (emerald) */
   --rev-600:     #047857;
   --rev-50:      #d1fae5;
-  --core-500:    #7c3aed;  /* Core — clinical OS (violet / brand) */
-  --core-600:    #6d28d9;
-  --core-50:     #ede9fe;
-  --command-500: #f59e0b;  /* Command — network intelligence (amber) */
-  --command-600: #d97706;
-  --command-50:  #fef3c7;
+  --core-500:    var(--royal-500);  /* Core — clinical OS (royal) */
+  --core-600:    var(--royal-600);
+  --core-50:     var(--royal-50);
+  --command-500: var(--gold-300);   /* Command — network intelligence (gold) */
+  --command-600: var(--gold-600);
+  --command-50:  var(--gold-50);
 
   /* ---- Semantic status ---- */
   --success-50:  #ecfdf5;
   --success-500: #10b981;
+  --success-600: #059669;
   --success-700: #047857;
   --warning-50:  #fffbeb;
   --warning-500: #f59e0b;
   --warning-700: #b45309;
   --danger-50:   #fef2f2;
   --danger-500:  #ef4444;
+  --danger-600:  #dc2626;
   --danger-700:  #b91c1c;
   --info-50:     #eff6ff;
   --info-500:    #3b82f6;
   --info-700:    #1d4ed8;
 
+  /* Amber stays semantic (disclosures/warnings) — distinct from brand gold. */
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-300: #fcd34d;
+  --amber-500: #f59e0b;
+  --amber-900: #78350f;
+
   /* ================= Semantic aliases ================= */
-  --brand:            var(--violet-600);
-  --brand-hover:      var(--violet-700);
-  --brand-active:     var(--violet-800);
-  --brand-subtle:     var(--violet-50);
+  --brand:            var(--royal-600);
+  --brand-hover:      var(--royal-500);
+  --brand-active:     var(--royal-700);
+  --brand-subtle:     var(--royal-50);
   --brand-on:         #ffffff;
 
   --bg-app:           var(--slate-50);
@@ -71,7 +102,7 @@
   --surface-card:     var(--slate-0);
   --surface-raised:   var(--slate-0);
   --surface-sunken:   var(--slate-50);
-  --surface-inverse:  var(--slate-900);
+  --surface-inverse:  var(--navy-950);
 
   --text-strong:      var(--slate-900);
   --text-body:        var(--slate-700);
@@ -79,12 +110,12 @@
   --text-subtle:      var(--slate-400);
   --text-on-brand:    #ffffff;
   --text-on-inverse:  var(--slate-100);
-  --text-link:        var(--violet-700);
+  --text-link:        var(--royal-700);
 
   --border-subtle:    var(--slate-200);
   --border-default:   var(--slate-300);
   --border-strong:    var(--slate-400);
-  --border-focus:     var(--violet-600);
+  --border-focus:     var(--royal-600);
 
-  --ring-focus:       0 0 0 3px var(--violet-200);
+  --ring-focus:       0 0 0 3px var(--royal-200);
 }

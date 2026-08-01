@@ -14,8 +14,8 @@ always-on server yet.
 | Build | `src/build_dataset.py` | Runs sources → joins on `county_fips` → normalizes → writes `dashboard/data/clinic_atlas.json`. |
 | Reference | `data/reference/va_county_region.csv` | 133 VA counties → real name + region + district. |
 | Dashboard (frozen) | `dashboard/clinic-needs-atlas.html` | Synthetic template; design reference, do not edit. |
-| Dashboard (live) | `dashboard/clinic-needs-atlas-live.html` | Reads `clinic_atlas.json`; original dark D3 build. |
-| Dashboard (Signal) | `dashboard/clinic-needs-atlas-signal.html` + `dashboard/ds/` | Triad/Signal rebuild using the vendored design-system bundle. |
+| Dashboard (Signal) | `dashboard/app.html` + `dashboard/app/` + `dashboard/ds/` | The app: one shell, hash-routed views (Overview / County / Worklist / Trends / Explore / Methods), shared county state, navy/gold tokens. |
+| Dashboard (frozen reference) | `reference/clinic-needs-atlas.html`, `reference/clinic-needs-atlas-live.html` | Original dark D3 builds, kept for design reference; not deployed. |
 | Email pipeline | `email_pipeline/` | Separate survey tool (US-003); SQLite state; unrelated to the atlas. |
 
 ## Data flow (today)

@@ -29,91 +29,171 @@ def load_records(path: Path | None = None) -> list[dict]:
     return json.loads(p.read_text(encoding="utf-8"))["records"]
 
 
-def county_frame(records: list[dict] | None = None) -> tuple[pd.DataFrame, pd.Series, list[str]]:
+def county_frame(
+    records: list[dict] | None = None,
+) -> tuple[pd.DataFrame, pd.Series, list[str]]:
     """133 counties: real SDoH features -> binary high-preventable-need target."""
     recs = records if records is not None else load_records()
     rows = []
-    for r in recs:
-        dom = r.get("dom", {})
-        rows.append({
-            "food": dom.get("food"),
-            "access": dom.get("access"),
-            # economic/education from real Census ACS (US-013); environment from CDC EJI (US-009).
-            "economic": dom.get("economic"),
-            "education": dom.get("education"),
-            "environment": dom.get("environment"),
-            "hpsaScore": r.get("hpsaScore"),
-            "rural": r.get("rural"),
-            "needIndex": r.get("needIndex"),
-            **{o: (r.get("outcomes", {}) or {}).get(o) for o in C.COUNTY_TARGET_OUTCOMES},
-        })
-    df = pd.DataFrame(rows).dropna(subset=C.COUNTY_FEATURES + C.COUNTY_TARGET_OUTCOMES)
 
-    # Target: top-tercile chronic-disease burden = z-scored mean of the outcomes.
-    z = (df[C.COUNTY_TARGET_OUTCOMES] - df[C.COUNTY_TARGET_OUTCOMES].mean()) / df[C.COUNTY_TARGET_OUTCOMES].std(ddof=0)
-    burden = z.mean(axis=1)
-    y = (burden >= burden.quantile(C.COUNTY_TOP_QUANTILE)).astype(int)
+    for record in recs:
+        domains = record.get("dom", {})
+
+        rows.append(
+            {
+                "food": domains.get("food"),
+                "access": domains.get("access"),
+                # economic/education from real Census ACS (US-013);
+                # environment from CDC EJI (US-009).
+                "economic": domains.get("economic"),
+                "education": domains.get("education"),
+                "environment": domains.get("environment"),
+                "hpsaScore": record.get("hpsaScore"),
+                "rural": record.get("rural"),
+                "needIndex": record.get("needIndex"),
+                **{
+                    outcome: (record.get("outcomes", {}) or {}).get(outcome)
+                    for outcome in C.COUNTY_TARGET_OUTCOMES
+                },
+            }
+        )
+
+    required_columns = C.COUNTY_FEATURES + C.COUNTY_TARGET_OUTCOMES
+    df = pd.DataFrame(rows).dropna(subset=required_columns)
+
+    # Target: top-tercile chronic-disease burden = z-scored mean of outcomes.
+    outcomes = df[C.COUNTY_TARGET_OUTCOMES]
+    standardized_outcomes = (
+        outcomes - outcomes.mean()
+    ) / outcomes.std(ddof=0)
+
+    burden = standardized_outcomes.mean(axis=1)
+    target_threshold = burden.quantile(C.COUNTY_TOP_QUANTILE)
+
+    y = (burden >= target_threshold).astype(int)
     y.name = "high_need"
-    return df[C.COUNTY_FEATURES].reset_index(drop=True), y.reset_index(drop=True), C.COUNTY_FEATURES
+
+    return (
+        df[C.COUNTY_FEATURES].reset_index(drop=True),
+        y.reset_index(drop=True),
+        C.COUNTY_FEATURES,
+    )
 
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-x))
 
 
-def synthesize_patient_label(df: pd.DataFrame, seed: int = C.RANDOM_STATE) -> np.ndarray:
-    """Documented synthetic risk label.
+def synthesize_patient_label(
+    df: pd.DataFrame,
+    seed: int = C.RANDOM_STATE,
+) -> np.ndarray:
+    """Create the documented synthetic patient-risk label.
 
-    p = sigmoid(logit(prevalence) + signal_strength * z(true drivers) + noise);
-    label ~ Bernoulli(p). Only a subset of features drive it (+ noise), so a
-    classifier has a genuine, imperfect learning task. See config.LABEL_DRIVERS.
+    p = sigmoid(logit(prevalence) + signal_strength * z(true drivers) + noise)
+
+    Only a subset of features drives the label, plus noise, so the model has a
+    genuine but imperfect learning task. See config.LABEL_DRIVERS.
     """
     rng = np.random.default_rng(seed)
 
-    def z(col: str) -> np.ndarray:
-        v = df[col].to_numpy(dtype=float)
-        s = v.std() or 1.0
-        return (v - v.mean()) / s
+    def standardize(column: str) -> np.ndarray:
+        values = df[column].to_numpy(dtype=float)
+        standard_deviation = values.std() or 1.0
+        return (values - values.mean()) / standard_deviation
 
-    d = C.LABEL_DRIVERS
-    raw = (
-        d["z_a1c"] * z("a1c")
-        + d["z_sys"] * z("sys")
-        + d["z_age"] * z("age")
-        + d["access"] * (df["ctx_access"].to_numpy(dtype=float) / 100.0)
-        + d["food"] * (df["ctx_food"].to_numpy(dtype=float) / 100.0)
-        + d["rural"] * df["rural"].to_numpy(dtype=float)
+    drivers = C.LABEL_DRIVERS
+
+    raw_signal = (
+        drivers["z_a1c"] * standardize("a1c")
+        + drivers["z_sys"] * standardize("sys")
+        + drivers["z_age"] * standardize("age")
+        + drivers["access"]
+        * (df["ctx_access"].to_numpy(dtype=float) / 100.0)
+        + drivers["food"]
+        * (df["ctx_food"].to_numpy(dtype=float) / 100.0)
+        + drivers["rural"] * df["rural"].to_numpy(dtype=float)
     )
-    # Center + scale the true signal, then place it around the target prevalence.
-    signal = (raw - raw.mean()) / (raw.std() or 1.0)
-    intercept = float(np.log(C.LABEL_PREVALENCE / (1 - C.LABEL_PREVALENCE)))
-    noise = rng.normal(0.0, C.LABEL_NOISE_SD, size=len(df))
-    p = _sigmoid(intercept + C.LABEL_SIGNAL_STRENGTH * signal + noise)
-    return (rng.random(len(df)) < p).astype(int)
+
+    signal_standard_deviation = raw_signal.std() or 1.0
+    signal = (
+        raw_signal - raw_signal.mean()
+    ) / signal_standard_deviation
+
+    intercept = float(
+        np.log(
+            C.LABEL_PREVALENCE
+            / (1 - C.LABEL_PREVALENCE)
+        )
+    )
+
+    noise = rng.normal(
+        0.0,
+        C.LABEL_NOISE_SD,
+        size=len(df),
+    )
+
+    probabilities = _sigmoid(
+        intercept
+        + C.LABEL_SIGNAL_STRENGTH * signal
+        + noise
+    )
+
+    return (
+        rng.random(len(df)) < probabilities
+    ).astype(int)
 
 
 def patient_frame(
-    records: list[dict] | None = None, seed: int = C.RANDOM_STATE
+    records: list[dict] | None = None,
+    seed: int = C.RANDOM_STATE,
 ) -> tuple[pd.DataFrame, pd.Series, list[str], pd.DataFrame]:
-    """~465 synthetic patients: clinical + county context -> synthetic risk label."""
+    """Build the patient feature frame, target, and aligned county metadata."""
     recs = records if records is not None else load_records()
-    rows, meta = [], []
-    for r in recs:
-        dom = r.get("dom", {})
-        ctx = {
-            "ctx_food": dom.get("food"),
-            "ctx_access": dom.get("access"),
-            "rural": r.get("rural"),
-            "needIndex": r.get("needIndex"),
-        }
-        for pt in r.get("patientsList", []):
-            rows.append({
-                "age": pt.get("age"), "sys": pt.get("sys"),
-                "dia": pt.get("dia"), "a1c": pt.get("a1c"), **ctx,
-            })
-            meta.append({"county_fips": r.get("id"), "rural": r.get("rural")})
+    rows = []
 
-    df = pd.DataFrame(rows).dropna(subset=C.PATIENT_FEATURES).reset_index(drop=True)
-    meta_df = pd.DataFrame(meta).loc[df.index].reset_index(drop=True)
-    y = pd.Series(synthesize_patient_label(df, seed), name="at_risk")
-    return df[C.PATIENT_FEATURES], y, C.PATIENT_FEATURES, meta_df
+    for record in recs:
+        domains = record.get("dom", {})
+
+        county_context = {
+            "ctx_food": domains.get("food"),
+            "ctx_access": domains.get("access"),
+            "rural": record.get("rural"),
+            "needIndex": record.get("needIndex"),
+        }
+
+        for patient in record.get("patientsList", []):
+            rows.append(
+                {
+                    "age": patient.get("age"),
+                    "sys": patient.get("sys"),
+                    "dia": patient.get("dia"),
+                    "a1c": patient.get("a1c"),
+                    **county_context,
+                    "county_fips": record.get("id"),
+                    "meta_rural": record.get("rural"),
+                }
+            )
+
+    # Features and metadata remain in the same DataFrame until incomplete rows
+    # are removed. This prevents county metadata from shifting to another patient.
+    df = (
+        pd.DataFrame(rows)
+        .dropna(subset=C.PATIENT_FEATURES)
+        .reset_index(drop=True)
+    )
+
+    X = df[C.PATIENT_FEATURES].copy()
+
+    metadata = (
+        df[["county_fips", "meta_rural"]]
+        .rename(columns={"meta_rural": "rural"})
+        .reset_index(drop=True)
+    )
+
+    y = pd.Series(
+        synthesize_patient_label(X, seed),
+        name="at_risk",
+    )
+
+    return X, y, C.PATIENT_FEATURES, metadata
