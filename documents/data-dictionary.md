@@ -39,6 +39,29 @@ Provenance: **real** (live source) · **synthetic** (generated non-PHI) · **stu
 | `outcomes.mhlth` (frequent mental distress) | `cdc_places` | age-adjusted county prevalence | real |
 | `outcomes.bphigh` (high blood pressure) | `cdc_places` | age-adjusted county prevalence | real |
 
+## Live chronic disease feed (Virginia Open Data)
+This feed is sourced from the Virginia Open Data CKAN resource for county-level chronic disease hospitalizations and age-adjusted rates, loaded directly into the chronic history dashboard.
+
+| Field | Source | Transform | Units / range | Provenance |
+|---|---|---|---|---|
+| `Year` | Virginia Open Data chronic disease resource | parsed as integer year | 2016–present | real |
+| `Geography` | Virginia Open Data chronic disease resource | normalized for county/city matching and detail labels | free-text locality name (e.g. `Fairfax County`) | real |
+| `Indicator` | Virginia Open Data chronic disease resource | preserved as dashboard condition value | free-text disease / condition name | real |
+| `Hospitalization Count` | Virginia Open Data chronic disease resource | read as integer count | non-negative integer | real |
+| `Age-Adjusted Rate per 100,000` | Virginia Open Data chronic disease resource | converted to numeric rate | 0–∞ per 100,000 | real |
+| `county_fips` | derived from GeoJSON county lookup | mapped using locality name + FIPS resolution | 5-digit FIPS string | derived real |
+| `county` | derived from live record + county lookup | normalized display name preserving county/city distinction | string | derived real |
+| `countyFips` | derived from live feed / county lookup | used to align with the map geometry and county selection | 5-digit FIPS string | derived real |
+| `condition` | derived from `Indicator` | normalized for filter and grouping logic | string | derived real |
+| `rate` | derived from `Age-Adjusted Rate per 100,000` | numeric value for choropleth and detail cards | rate per 100,000 | derived real |
+| `cases` | derived from `Hospitalization Count` | numeric value for cards and summaries | non-negative integer | derived real |
+| `year` | derived from `Year` | normalized integer used in date filters | integer year | derived real |
+
+### Source and vintage metadata
+The chronic map and county detail panel are explicitly labeled as:
+- Source: Virginia Open Data
+- Vintage: the selected year range from the dashboard (for example, 2016–2024)
+
 ## Clinical quality measures (`measures.*`, % of eligible)
 | Field | Source | Provenance |
 |---|---|---|

@@ -308,12 +308,10 @@
 
   const MIN_YEAR = 2016;
   const CURRENT_YEAR = new Date().getFullYear();
-  const CONDITIONS = [
-    "All Chronic Conditions", "Alzheimer's Disease", "Arthritis", "Asthma",
-    "Cardiovascular Disease", "Chronic Kidney Disease", "Chronic Obstructive Pulmonary Disease",
-    "Dementia (Non-Alzheimer's)", "Diabetes", "High Blood Cholesterol", "Hypertension",
-    "Ischemic Heart Disease", "Stroke",
-  ];
+  function getConditionOptions(rows = []){
+    const unique = Array.from(new Set((rows || []).map(row => String(row?.condition || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    return ["All Chronic Conditions", ...unique];
+  }
 
   function normalizeCountyName(value){
     return String(value || "").trim().toLowerCase()
@@ -485,8 +483,8 @@
     return ramp ? ramp(ratio) : "#0a2f63";
   }
 
-  function ChronicLegend({ startYear, endYear, onStartYear, onEndYear, conditions, onConditions }){
-    const toggle = condition => onConditions(toggleConditionSelection(conditions, condition, CONDITIONS));
+  function ChronicLegend({ startYear, endYear, onStartYear, onEndYear, conditions, onConditions, minYear, maxYear, allConditions }){
+    const toggle = condition => onConditions(toggleConditionSelection(conditions, condition, allConditions));
     const handleStart = value => {
       const s = Number(value);
       onStartYear(s); if(s > endYear) onEndYear(s);
@@ -501,15 +499,15 @@
           <h4>Date range filter</h4>
           <div className="year-filter">
             <div className="year-head"><span>Start year</span><strong>{startYear}</strong></div>
-            <input type="range" min={MIN_YEAR} max={CURRENT_YEAR} value={startYear} onChange={e => handleStart(e.target.value)} />
+            <input type="range" min={minYear} max={maxYear} value={startYear} onChange={e => handleStart(e.target.value)} />
             <div className="year-head"><span>End year</span><strong>{endYear}</strong></div>
-            <input type="range" min={MIN_YEAR} max={CURRENT_YEAR} value={endYear} onChange={e => handleEnd(e.target.value)} />
+            <input type="range" min={minYear} max={maxYear} value={endYear} onChange={e => handleEnd(e.target.value)} />
             <div className="year-hint">Filters county-level records between the selected start and end years.</div>
           </div>
         </div>
         <div className="leg-sect">
           <h4>Chronic conditions</h4>
-          {CONDITIONS.map(condition => (
+          {(allConditions || []).map(condition => (
             <label key={condition} className="leg-row" style={{ cursor: "pointer" }}>
               <input type="checkbox" checked={conditions.includes(condition)} onChange={() => toggle(condition)} />
               <span>{condition}</span>
@@ -544,6 +542,8 @@
         ])
     ).values());
     const localityLabel = inferLocalityLabel(feature, rows);
+    const sourceLabel = "Virginia Open Data";
+    const vintageLabel = `${startYear}–${endYear}`;
     return (
       <div className="panel-body">
         <div className="kv">
@@ -552,7 +552,8 @@
           <div><div className="k">Matches</div><div className="v">{matches.length}</div></div>
         </div>
         <p className="hint" style={{ marginTop: 10 }}>
-          Showing live chronic disease data from <strong>{startYear}</strong> through <strong>{endYear}</strong> for <span className="mono">{fips}</span>.
+          Showing live chronic disease data from <strong>{startYear}</strong> through <strong>{endYear}</strong> for <span className="mono">{fips}</span>.<br />
+          Source: <strong>{sourceLabel}</strong> · Vintage: <strong>{vintageLabel}</strong>
         </p>
         {matches.length > 0 ? (
           <div className="hint chronic-cards">
@@ -596,6 +597,23 @@
     }, []);
 
     const rows = React.useMemo(() => normalizeConditionRows(conditionData, geo?.features || []), [conditionData, geo]);
+    const allConditions = React.useMemo(() => getConditionOptions(rows), [rows]);
+    const availableYears = React.useMemo(() => Array.from(new Set(rows.map(row => Number(row.year)).filter(Number.isFinite))).sort((a, b) => a - b), [rows]);
+    const minYearFromData = availableYears.length ? availableYears[0] : MIN_YEAR;
+    const maxYearFromData = availableYears.length ? availableYears[availableYears.length - 1] : CURRENT_YEAR;
+
+    React.useEffect(() => {
+      if(!availableYears.length) return;
+      setStartYear(prev => {
+        const clamped = Math.min(Math.max(prev ?? minYearFromData, minYearFromData), maxYearFromData);
+        return clamped;
+      });
+      setEndYear(prev => {
+        const clamped = Math.min(Math.max(prev ?? maxYearFromData, minYearFromData), maxYearFromData);
+        return clamped;
+      });
+    }, [availableYears.length, minYearFromData, maxYearFromData]);
+
     const summary = React.useMemo(() => buildCountyConditionLookup(rows, { startYear, endYear, conditions }), [rows, startYear, endYear, conditions]);
 
     const optsOf = () => ({
@@ -640,14 +658,17 @@
               <div className="panel-h"><h3>Legend</h3><span className="desc">year + conditions</span></div>
               <div className="panel-body" style={{ paddingTop: 4 }}>
                 <ChronicLegend startYear={startYear} endYear={endYear} onStartYear={setStartYear} onEndYear={setEndYear}
-                  conditions={conditions} onConditions={setConditions} />
+                  conditions={conditions} onConditions={setConditions}
+                  minYear={minYearFromData} maxYear={maxYearFromData} allConditions={allConditions} />
               </div>
             </div>
           </aside>
         </div>
         <div className="details-row">
           <div className="panel">
-            <div className="panel-h"><h3>{selected ? "Selected county" : "County preview"}</h3></div>
+            <div className="panel-h">
+              <h3>{selected ? `Selected county · Virginia Open Data · ${startYear}–${endYear}` : `County preview · Virginia Open Data · ${startYear}–${endYear}`}</h3>
+            </div>
             <ChronicSelected feature={selected} onClear={() => setSelected(null)} rows={rows}
               startYear={startYear} endYear={endYear} conditions={conditions} />
           </div>
