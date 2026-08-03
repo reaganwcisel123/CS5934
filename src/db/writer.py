@@ -38,6 +38,8 @@ def _metrics(rec: dict) -> Iterator[tuple[str, object]]:
         yield f"outcomes.{k}", v
     for k, v in rec.get("measures", {}).items():
         yield f"measures.{k}", v
+    for k, v in rec.get("sdoh", {}).items():
+        yield f"sdoh.{k}", v
     yield "needIndex", rec.get("needIndex")
     yield "hpsaScore", rec.get("hpsaScore")
     yield "population", rec.get("patients")
@@ -49,6 +51,7 @@ def _prov_for(metric_key: str, provenance: dict) -> tuple[str, str | None]:
     # Map a metric to its catalog source + provenance status.
     group = ("outcomes" if metric_key.startswith("outcomes.")
              else "measures" if metric_key.startswith("measures.")
+             else "sdoh" if metric_key.startswith("sdoh.")
              else "patients" if metric_key == "population"
              else metric_key)
     p = provenance.get(group)

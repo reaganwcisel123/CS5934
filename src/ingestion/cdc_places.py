@@ -9,7 +9,8 @@ from src.ingestion.base import RealSource, TARGET_STATE_FIPS
 
 # PLACES MeasureId -> dashboard outcome key.
 MEASURE_MAP = {"DIABETES": "diabetes", "OBESITY": "obesity",
-               "MHLTH": "mhlth", "BPHIGH": "bphigh"}
+               "MHLTH": "mhlth", "BPHIGH": "bphigh",
+               "DEPRESSION": "depression", "CSMOKING": "smoking"}
 STATE_ABBR = "VA"
 
 

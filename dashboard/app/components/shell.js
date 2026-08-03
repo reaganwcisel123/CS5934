@@ -135,6 +135,7 @@
     { view: "county",   n: "02", label: "County" },
     { view: "worklist", n: "03", label: "Worklist" },
     { divider: true },
+    { view: "forest",  label: "Needs Forest" },
     { view: "trends",  label: "Trends" },
     { view: "explore", label: "Explore" },
     { view: "methods", label: "Methods" },

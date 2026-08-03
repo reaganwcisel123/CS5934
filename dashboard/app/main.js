@@ -7,7 +7,7 @@
   const { ErrorBoundary } = A.ui;
   const { fmt0 } = A.format;
 
-  const VIEWS = new Set(["overview", "county", "worklist", "trends", "explore", "methods"]);
+  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "explore", "methods"]);
 
   function crumbsFor(route, c){
     const va = { label: "Virginia (133)", href: "#/overview" };
@@ -18,6 +18,7 @@
         const n = c ? (c.patientsList || []).filter(p => p.risk != null).length : 0;
         return c ? [va, { label: c.name, href: "#/county/" + c.id }, { label: `Worklist (${n} to review)` }] : [va];
       }
+      case "forest":  return [va, { label: "Needs Forest" }];
       case "trends":  return [va, { label: route.query.mode === "chronic" ? "Trends · Chronic history" : "Trends · Early warning" }];
       case "explore": return [va, { label: "Explore" }];
       case "methods": return [va, { label: "Methods & data" }];
@@ -29,6 +30,7 @@
     const top = records.length ? records.reduce((a, b) => ((b.needIndex ?? 0) > (a.needIndex ?? 0) ? b : a), records[0]) : null;
     switch(route.view){
       case "overview": return { sub: "Virginia", starters: [top ? `Why is ${top.name} ranked first?` : "Which county has the most need?", "What goes into the unmet-need index?"] };
+      case "forest":   return { sub: "the needs forest", starters: ["What does petal length mean?", "Which county has the biggest bloom?"] };
       case "trends":   return { sub: "the forecast", starters: ["What does 'allocated, not observed' mean?", "Which condition is most above normal right now?"] };
       case "worklist": return { sub: c ? c.name : "the worklist", starters: ["Why are these patients ranked first?", "What does a provider do with an override?"] };
       case "methods":  return { sub: "the methods", starters: ["What does 'pending' mean on a badge?", "How are the forecast intervals built?"] };
@@ -93,6 +95,7 @@
 
     let view = null;
     if(route.view === "overview") view = <A.views.OverviewView records={records} provenance={provenance} />;
+    else if(route.view === "forest") view = <A.views.ForestView records={records} provenance={provenance} />;
     else if(route.view === "county") view = <A.views.CountyView c={c} baseline={baseline} />;
     else if(route.view === "worklist") view = <A.views.WorklistView c={c} records={records} />;
     else if(route.view === "trends") view = <A.views.TrendsView c={byId(urlFips) || chipC || null} mode={route.query.mode === "chronic" ? "chronic" : "forecast"} />;

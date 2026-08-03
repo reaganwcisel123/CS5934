@@ -24,7 +24,7 @@ def get_atlas() -> dict:
     records = {fips: {"id": fips, "name": name, "region": region, "district": district,
                       "rural": float(rural) if rural is not None else None,
                       "patients": int(population) if population is not None else 0,
-                      "dom": {}, "outcomes": {}, "measures": {}, "needIndex": None, "hpsaScore": 0,
+                      "dom": {}, "outcomes": {}, "measures": {}, "sdoh": {}, "needIndex": None, "hpsaScore": 0,
                       "modelRisk": None, "modelRiskDrivers": drivers or [], "patientsList": []}
                for fips, name, region, district, rural, population, drivers in counties}
 
@@ -43,6 +43,9 @@ def get_atlas() -> dict:
         elif key.startswith("measures."):
             rec["measures"][key[9:]] = v
             prov["measures"] = {"source_id": source, "status": status}
+        elif key.startswith("sdoh."):
+            rec["sdoh"][key[5:]] = v
+            prov["sdoh"] = {"source_id": source, "status": status}
         elif key == "needIndex":
             rec["needIndex"] = v
         elif key == "hpsaScore":

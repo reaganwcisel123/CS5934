@@ -498,3 +498,78 @@ details.more[open] > summary { margin-bottom: 6px; }
 @media (max-width: 540px) {
   .stat-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------------------------------------------------------------------------
+   Needs Forest — "A Commonwealth in Bloom" dogwood cartogram
+   Petal color = CDC PLACES (real). Petal length + bud circles = Census ACS
+   (pending until CENSUS_API_KEY is set) — rendered dashed/hatched until then.
+--------------------------------------------------------------------------- */
+.bloom-view { --bloom-green: #3c7a3f; --bloom-green-dark: #2c5730; --bloom-green-pale: #e9f0e4; --bloom-pink: #d95f88; --bloom-rule: var(--border-subtle); }
+.bloom-provrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.bloom-main { display: flex; gap: 26px; align-items: flex-start; margin-top: 18px; }
+.bloom-vizcol { flex: 1 1 auto; min-width: 0; background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px; }
+.bloom-side { flex: 0 0 262px; display: flex; flex-direction: column; gap: 18px; border-left: 1px solid var(--bloom-rule); padding: 2px 0 2px 24px; position: sticky; top: 16px; }
+.bloom-side h3 { font: 600 11px/1 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; margin: 0 0 10px; color: var(--text-muted); }
+.bloom-footnote { margin-top: 22px; font-size: 12px; color: var(--text-muted); }
+.bloom-footnote em { font-style: italic; }
+@media (max-width: 1000px) { .bloom-main { flex-direction: column; align-items: stretch; } .bloom-side { position: static; border-left: none; border-top: 1px solid var(--bloom-rule); padding: 16px 0 0; flex-basis: auto; } }
+
+.bloom-controls { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 6px; min-height: 30px; }
+.bloom-viewname { font-style: italic; font-size: 14.5px; color: var(--text-muted); }
+.bloom-back { font: 13px var(--font-sans); background: none; border: none; color: var(--bloom-green-dark); cursor: pointer; padding: 4px 0; border-bottom: 1px solid transparent; opacity: 0; pointer-events: none; transition: opacity .3s; }
+.bloom-back.on { opacity: 1; pointer-events: auto; }
+.bloom-back:hover { border-bottom-color: var(--bloom-green-dark); }
+.bloom-stage { position: relative; }
+.bloom-svg { display: block; width: 100%; height: auto; }
+.bloom-glyph { cursor: pointer; }
+.bloom-cty { stroke: var(--border-default); stroke-width: .7; transition: stroke .15s, fill .5s; }
+.bloom-hoverlbl { font-size: 12px; font-style: italic; fill: var(--text-strong); opacity: 0; pointer-events: none; text-anchor: middle; }
+.bloom-budring { fill: var(--bloom-green-pale); stroke: #9db07f; stroke-width: .6; }
+.bloom-budring.sel { stroke: var(--bloom-green-dark); stroke-width: 2.2; }
+.bloom-budc { fill: #f2f6e8; stroke: var(--bloom-green-dark); stroke-width: .75; }
+.bloom-budc.on { fill: var(--bloom-green); }
+.bloom-budc.pending { fill: var(--surface-sunken); stroke-dasharray: 1 1.4; opacity: .7; }
+
+.bloom-panel { position: absolute; top: 0; right: 0; width: 320px; max-height: 100%; overflow-y: auto; scrollbar-gutter: stable;
+  background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-md, 0 12px 40px rgba(15,23,42,.16));
+  padding: 20px 16px 22px 22px; opacity: 0; transform: translateX(12px); pointer-events: none; transition: opacity .3s, transform .3s; }
+.bloom-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+.bloom-panel-body h2 { font-size: 21px; margin: 0 0 2px; color: var(--text-strong); }
+.bloom-panel-body .bloom-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+.bloom-panel-body h4 { font: 600 10.5px/1 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin: 16px 0 8px; border-top: 1px solid var(--bloom-rule); padding-top: 12px; }
+.bloom-panel-body table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bloom-panel-body td { padding: 3.5px 0; vertical-align: top; color: var(--text-body); }
+.bloom-panel-body td.v { text-align: right; font-variant-numeric: tabular-nums; }
+.bloom-panel-body td.thr { color: var(--text-muted); font-size: 11px; text-align: right; white-space: nowrap; padding-left: 8px; }
+.bloom-summary { font-size: 13px; background: var(--bloom-green-pale); color: var(--bloom-green-dark); padding: 8px 11px; border-radius: var(--radius-md); }
+.bloom-pending-note { font-size: 11.5px; color: var(--command-600); background: var(--surface-sunken); padding: 6px 9px; border-radius: var(--radius-md); margin: 8px 0 0; }
+.bloom-panel-close { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; line-height: 1; }
+.bloom-num { display: inline-block; width: 15px; height: 15px; border-radius: 50%; background: var(--surface-sunken); color: var(--text-muted);
+  box-shadow: inset 0 0 0 1.2px var(--border-default); font-size: 9.5px; font-weight: 600; text-align: center; line-height: 15px; margin-right: 7px; vertical-align: 1px; }
+.bloom-num.on { background: var(--bloom-green-dark); color: #fff; box-shadow: none; }
+.bloom-num.pending { background: none; box-shadow: inset 0 0 0 1.2px var(--border-default); opacity: .55; }
+
+#tt .bloom-hint { color: var(--slate-400); }
+.bloom-hovernote { min-height: 18px; font-size: 12px; color: var(--bloom-green-dark); font-weight: 600; margin-top: 6px; text-align: center; }
+.bloom-ramp-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-muted); margin-top: 8px; justify-content: center; }
+.bloom-ramp { width: 96px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #fdfaf7, var(--bloom-pink)); border: 1px solid var(--bloom-rule); }
+.bloom-sidenote { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5; }
+.bloom-bud-key, .bloom-axes-key { width: 100%; font-size: 12px; color: var(--text-body); margin: 0; padding: 0; list-style: none; line-height: 1.8; }
+.bloom-bud-key li, .bloom-axes-key li { padding: 0 6px; border-radius: 3px; white-space: nowrap; }
+.bloom-bud-key .inv { color: var(--text-muted); font-size: 11px; }
+.bloom-axes-key .dir { display: inline-block; width: 44px; color: var(--text-muted); font-size: 11px; }
+.bloom-axes-key .sub { display: block; margin: -3px 0 5px 44px; font-size: 11px; color: var(--text-muted); white-space: normal; line-height: 1.4; }
+.bloom-fillnote { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-muted); border-radius: 3px; padding: 4px 6px; cursor: pointer; transition: background .2s; }
+.bloom-fillnote:hover, .bloom-fillnote.hl-on { background: var(--surface-sunken); }
+.bloom-fillnote span { display: inline-flex; gap: 6px; align-items: center; }
+.bloom-dotF, .bloom-dotU { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.bloom-dotF { background: var(--bloom-green); }
+.bloom-dotU { background: var(--bloom-green-pale); border: 1.4px solid var(--bloom-green-dark); }
+
+.bloom-selector-mount svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.bloom-selector-mount .bloom-hitzone { cursor: pointer; }
+.bloom-selector-mount text { font: 11.5px var(--font-sans); fill: var(--text-muted); transition: fill .2s, font-weight .2s; cursor: pointer; }
+.bloom-selector-mount text.sel, .bloom-selector-mount text.hov { fill: var(--bloom-green-dark); font-weight: 700; }
+.bloom-selector-mount .p.selPink .body { stroke: var(--bloom-green-dark); stroke-width: 1.8; stroke-opacity: 1; }
+.bloom-selector-mount .p.selLen .body { stroke: var(--bloom-green-dark); stroke-width: 1.6; stroke-opacity: 1; stroke-dasharray: 4 3; }
+.bloom-selector-mount .p.hovHl .body { stroke: var(--bloom-green); stroke-width: 1.4; stroke-opacity: .8; }

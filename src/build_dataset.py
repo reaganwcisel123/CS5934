@@ -55,9 +55,15 @@ DOMAIN_SPEC = {
     "access": [("primary_care_hpsa_score", "up")],
     # "environment" comes from cdc_eji (real Environmental Burden Module percentile).
 }
-OUTCOME_FIELDS = ["diabetes", "obesity", "mhlth", "bphigh"]      # cdc_places (real)
+OUTCOME_FIELDS = ["diabetes", "obesity", "mhlth", "bphigh",
+                  "depression", "smoking"]                       # cdc_places (real)
 MEASURE_FIELDS = ["htn_control", "dm_poor", "depr_screen",
                   "cervical_screen", "child_immun"]              # hrsa_uds (stub)
+# Raw ACS SDoH indicators (census_acs_sdoh), used directly by the "A Commonwealth
+# in Bloom" cartogram in addition to the normalized dom.economic/education
+# composites above. Kept in their original % units, not renormalized.
+SDOH_FIELDS = ["poverty_rate", "uninsured_rate", "age65_pct",
+               "disability_pct", "no_vehicle_pct", "broadband_pct"]
 NEED_WEIGHTS = {"economic": 0.25, "education": 0.15, "food": 0.20,
                 "environment": 0.15, "access": 0.25}
 
@@ -68,6 +74,7 @@ FIELD_SOURCE = {
     "dom.access": "hrsa_hpsa", "hpsaScore": "hrsa_hpsa",
     "patients": "county_population_estimates",
     "outcomes": "cdc_places", "measures": "hrsa_uds",
+    "sdoh": "census_acs_sdoh",
     "patientsList": "synthetic_clinical_dataset",
 }
 
@@ -223,6 +230,7 @@ def build(refresh: bool = False) -> dict:
             "hpsaScore": _int(merged.at[fips, "primary_care_hpsa_score"]) if "primary_care_hpsa_score" in merged.columns else 0,
             "outcomes": {o: _num(merged.at[fips, o]) if o in merged.columns else None for o in OUTCOME_FIELDS},
             "measures": {m: _num(uds_by_county.get(fips, {}).get(m)) for m in MEASURE_FIELDS},
+            "sdoh": {s: _num(merged.at[fips, s]) if s in merged.columns else None for s in SDOH_FIELDS},
             "patientsList": roster,
         })
 

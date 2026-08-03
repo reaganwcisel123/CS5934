@@ -21,6 +21,10 @@ VARIABLES = {
     "DP03_0009PE": "unemployment_rate",
     "DP03_0062E": "median_household_income",
     "DP02_0067PE": "pct_hs_or_higher",
+    "DP05_0024PE": "age65_pct",          # 65 years and over
+    "DP02_0072PE": "disability_pct",     # civilian noninstitutionalized, with a disability
+    "DP04_0058PE": "no_vehicle_pct",     # occupied housing units, no vehicle available
+    "DP02_0154PE": "broadband_pct",      # households with a broadband internet subscription
 }
 
 
@@ -46,4 +50,5 @@ class CensusAcs(RealSource):
         # Share of adults without a high-school diploma.
         df["pct_no_hs_diploma"] = 100 - df["pct_hs_or_higher"]
         return df[["county_fips", "poverty_rate", "uninsured_rate", "unemployment_rate",
-                   "median_household_income", "pct_no_hs_diploma"]]
+                   "median_household_income", "pct_no_hs_diploma",
+                   "age65_pct", "disability_pct", "no_vehicle_pct", "broadband_pct"]]
