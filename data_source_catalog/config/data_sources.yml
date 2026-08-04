@@ -69,6 +69,45 @@ sources:
     ingestion_status: access_verified
     ingestion_script: src/ingestion/cdc_places.py
     last_verified_date: "2026-06-29"
+
+  -
+    source_id: grants_gov_opportunities
+    source_name: "Grants.gov rural-health opportunity corpus"
+    provider: Grants.gov
+    source_category: funding_opportunities
+    access_method: "Public REST API: search2 plus fetchOpportunity detail"
+    access_url: "https://api.grants.gov/v1/api/search2"
+    documentation_url: "https://www.grants.gov/api/api-guide"
+    auth_required: "no for search2 and fetchOpportunity"
+    api_key_env_var: null
+    geographic_granularity:
+      - opportunity
+      - federal_agency
+      - applicant_eligibility
+    temporal_granularity: current_posted_and_forecasted_opportunities
+    refresh_cadence: "daily cache freshness; publisher updates can occur at any time"
+    schema_version: "Grants.gov v1 REST API, verified 2026-08-04"
+    join_keys:
+      - opportunity_id
+      - opportunity_number
+    fields_used:
+      - opportunity_id
+      - opportunity_number
+      - opportunity_title
+      - synopsis
+      - eligibility
+      - dates
+      - award_information
+      - funding_categories
+      - assistance_listing_numbers
+    limitations:
+      - "Opportunity eligibility is screened conservatively and requires applicant verification."
+      - "The intentionally small corpus is filtered to health and rural-health planning relevance."
+      - "Grant postings can be amended or closed after retrieval."
+    privacy_classification: public
+    ingestion_status: validated
+    ingestion_script: src/grants/pipeline.py
+    last_verified_date: "2026-08-04"
   -
     source_id: cdc_nwss
     source_name: CDC National Wastewater Surveillance System Public Wastewater Data
