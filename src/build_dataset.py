@@ -76,6 +76,7 @@ FIELD_SOURCE = {
     "outcomes": "cdc_places", "measures": "hrsa_uds",
     "sdoh": "census_acs_sdoh",
     "patientsList": "synthetic_clinical_dataset",
+    "chronicDiseaseRisk": "virginia_chronic_disease_hospitalization",
 }
 
 
