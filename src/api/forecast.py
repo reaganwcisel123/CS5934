@@ -6,6 +6,8 @@ model so local dev works without a database, mirroring src/api/atlas.py.
 
 from __future__ import annotations
 
+import functools
+
 from fastapi import APIRouter, HTTPException
 
 from src.api.atlas import load_atlas
@@ -106,6 +108,10 @@ def forecasts() -> dict:
     if db_configured():
         from src.db import forecast_queries
         payload = forecast_queries.get_forecasts()
+        # The forecast tables are only filled by an explicit loader, so an empty
+        # result means "never loaded", not "no data" -- compute live instead.
+        if not payload["forecasts"]:
+            payload = {"forecasts": _live_forecasts()}
     else:
         payload = {"forecasts": _live_forecasts()}
 
@@ -121,7 +127,7 @@ def county_warnings(fips: str) -> dict:
         from src.db import forecast_queries
         payload = forecast_queries.get_county_warnings(fips)
         if not payload["warnings"]:
-            raise HTTPException(404, f"no warnings for county {fips}")
+            payload = _live_county_warnings(fips)
     else:
         payload = _live_county_warnings(fips)
 
@@ -132,6 +138,9 @@ def county_warnings(fips: str) -> dict:
     return payload
 
 
+# Cached: the history CSV only changes at deploy, and computing live refits a
+# model per condition. Callers copy rows before mutating them.
+@functools.lru_cache(maxsize=1)
 def _live_forecasts() -> list[dict]:
     from src.model import forecast as fc
     try:

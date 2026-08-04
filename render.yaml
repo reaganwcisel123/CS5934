@@ -43,12 +43,15 @@ services:
     plan: free
     # Install deps, migrate, build + seed, TRAIN the risk models, then score
     # (patients + counties) and load into Postgres. Training runs at build (models
-    # are gitignored); the uvicorn runtime never imports sklearn -- build-only dep.
+    # are gitignored). The NNDSS ingestion writes the region history CSV that
+    # /api/threats and the live forecast path read at request time -- data/processed
+    # is gitignored, so without this step the deployed API 503s on those routes.
     buildCommand: >-
       pip install uv &&
       uv sync --extra api --extra model &&
       uv run python -m src.db.migrate &&
       uv run python src/build_dataset.py --refresh --seed &&
+      uv run python -m src.ingestion.cdc_nndss &&
       uv run python -m src.model.train --target both &&
       uv run python src/build_dataset.py --score --to-db
     startCommand: uv run uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
