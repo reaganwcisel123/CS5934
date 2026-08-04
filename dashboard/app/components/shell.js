@@ -139,6 +139,7 @@
     { view: "trends",  label: "Trends" },
     { view: "explore", label: "Explore" },
     { view: "methods", label: "Methods" },
+    { view: "funding", label: "Funding Matches" },
   ];
 
   function TopBar({ records, fips, authOn, onSignOut }){
