@@ -2,7 +2,7 @@
 // summary of documents/forecast-model-card.md.
 (function(A){
   const Icon = A.Icon;
-  const { Panel, ProvPill } = A.ui;
+  const { Panel, ProvPill, normalizeProvenance } = A.ui;
 
   /* US-32 diagram, ported from signal.html. The deployed model is a logistic
      regression, so the copy says "weighted combination", never "neural network". */
@@ -68,6 +68,7 @@
   }
 
   function MethodsView({ provenance }){
+    const provRows = normalizeProvenance(provenance);
     return (
       <div className="content methods">
         <div className="page-head">
@@ -80,11 +81,11 @@
         </Panel>
 
         <Panel icon="layers" title="The data sources" desc="status straight from the dataset's own provenance metadata">
-          {provenance ? (
+          {Object.keys(provRows).length ? (
             <table className="fc-table methods-table">
               <thead><tr><th>Field group</th><th>Source</th><th>Status</th></tr></thead>
               <tbody>
-                {Object.entries(provenance).sort((a,b) => d3.ascending(a[1].status, b[1].status)).map(([field, p]) => (
+                {Object.entries(provRows).sort((a,b) => d3.ascending(a[1].status, b[1].status)).map(([field, p]) => (
                   <tr key={field}>
                     <td className="mono">{field}</td>
                     <td>{p.source_id}</td>

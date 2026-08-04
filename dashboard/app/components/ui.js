@@ -3,6 +3,20 @@
 (function(A){
   const Icon = A.Icon;
 
+  const REQUIRED_PROVENANCE = {
+    patientsList: { source_id: "synthetic_clinical_dataset", status: "synthetic" },
+    chronicDiseaseRisk: { source_id: "virginia_chronic_disease_hospitalization", status: "real" },
+  };
+
+  function normalizeProvenance(provenance){
+    const base = provenance && typeof provenance === "object" ? provenance : {};
+    const out = { ...base };
+    for(const [field, meta] of Object.entries(REQUIRED_PROVENANCE)){
+      if(!out[field]) out[field] = meta;
+    }
+    return out;
+  }
+
   function StatCard({ label, value, unit, icon, accent }){
     return (
       <div className={"statcard" + (accent ? " accent-" + accent : "")}>
@@ -46,10 +60,11 @@
 
   // Full provenance strip (Overview only) driven by the dataset's own metadata.
   function Provenance({ provenance }){
-    if(!provenance) return null;
+    const normalized = normalizeProvenance(provenance);
+    if(!Object.keys(normalized).length) return null;
     return (
       <div className="prov"><span className="lbl">Data provenance:</span>
-        {Object.entries(provenance).sort((a,b) => d3.ascending(a[1].status, b[1].status)).map(([field, p]) => {
+        {Object.entries(normalized).sort((a,b) => d3.ascending(a[1].status, b[1].status)).map(([field, p]) => {
           const s = PROV[p.status] || PROV.stub;
           return <span className="pill" key={field} title={field + " is " + s.t + " (source: " + p.source_id + ")"} style={{ borderColor:s.c, color:s.c }}><span className="dot" style={{ background:s.c }} />{field} · {p.source_id} · {s.t}</span>;
         })}
@@ -75,5 +90,5 @@
     }
   }
 
-  A.ui = { StatCard, Tabs, Panel, ProvPill, Provenance, D3Panel, ErrorBoundary };
+  A.ui = { StatCard, Tabs, Panel, ProvPill, Provenance, D3Panel, ErrorBoundary, normalizeProvenance };
 })(window.Atlas);
