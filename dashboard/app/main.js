@@ -7,7 +7,7 @@
   const { ErrorBoundary } = A.ui;
   const { fmt0 } = A.format;
 
-  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "explore", "methods"]);
+  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "explore", "methods", "funding"]);
 
   function crumbsFor(route, c){
     const va = { label: "Virginia (133)", href: "#/overview" };
@@ -22,6 +22,7 @@
       case "trends":  return [va, { label: route.query.mode === "chronic" ? "Trends · Chronic history" : "Trends · Early warning" }];
       case "explore": return [va, { label: "Explore" }];
       case "methods": return [va, { label: "Methods & data" }];
+      case "funding": return [va, { label: "Funding Matches" }];
       default:        return [va];
     }
   }
@@ -34,6 +35,7 @@
       case "trends":   return { sub: "the forecast", starters: ["What does 'allocated, not observed' mean?", "Which condition is most above normal right now?"] };
       case "worklist": return { sub: c ? c.name : "the worklist", starters: ["Why are these patients ranked first?", "What does a provider do with an override?"] };
       case "methods":  return { sub: "the methods", starters: ["What does 'pending' mean on a badge?", "How are the forecast intervals built?"] };
+      case "funding":  return { sub: "funding matches", starters: ["How are funding matches ranked?", "What should a clinic verify before applying?"] };
       default:         return { sub: c ? c.name : "Virginia", starters: ["Why is this county high-need?", "What is driving the top need domain?"] };
     }
   }
@@ -102,6 +104,7 @@
     else if(route.view === "explore") view = <A.views.ExploreView records={records} fips={chipFips || defaultFips()} baselineMode={baselineMode}
       baseline={chipC ? baselineFor(chipC, baselineMode) : null} query={route.query} />;
     else if(route.view === "methods") view = <A.views.MethodsView provenance={provenance} />;
+    else if(route.view === "funding") view = <A.views.FundingMatchesView records={records} initialFips={chipFips || defaultFips()} />;
 
     const signOut = () => { setToken(""); A.store.set({ token: "" }); };
     const chatCtx = chatContextFor(route, chipC, records);

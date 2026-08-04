@@ -25,6 +25,10 @@
   });
 };
 
+  // Funding Matches is an optional static artifact. Its absence must never
+  // affect the Atlas data load or any pre-existing view.
+  const fetchGrantFundingMatches = () => getJson("data/grant_funding_matches.json");
+
   // County geometry, fetched once and cached for every map in the app.
   let geoPromise = null;
   const fetchGeo = () => (geoPromise ||= getJson("data/va-counties.geojson"));
@@ -51,5 +55,5 @@
     });
   }
 
-  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGeo, fetchForecast, fetchCountyForecast, postEvent, chat };
+  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGrantFundingMatches, fetchGeo, fetchForecast, fetchCountyForecast, postEvent, chat };
 })(window.Atlas);
