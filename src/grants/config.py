@@ -24,8 +24,9 @@ PAGE_SIZE = 10
 MAX_RESULTS = 60
 MIN_DAYS_REMAINING = 1
 
-# Grants.gov top-level agency codes and health subagencies are matched by prefix.
-ALLOWED_AGENCY_PREFIXES = ("HHS", "USDA")
+# HHS includes HRSA and CDC. USDA is intentionally limited to Rural Development
+# subagencies so the planning corpus does not become a broad agriculture search.
+ALLOWED_AGENCY_PREFIXES = ("HHS", "USDA-RBCS", "USDA-RUS", "USDA-RD")
 ALLOWED_STATUSES = ("posted", "forecasted")
 SEARCH_TERMS = (
     "rural health",

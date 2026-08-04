@@ -61,6 +61,17 @@ def test_workforce_profile_ranks_workforce_grant_and_excludes_hard_mismatches() 
     assert matches[0]["opportunityId"] == "workforce"
 
 
+def test_named_non_virginia_program_area_is_hard_excluded() -> None:
+    opportunities = _opportunities()
+    global_opportunity = next(item for item in opportunities if item["opportunity_id"] == "rural-behavioral").copy()
+    global_opportunity["opportunity_id"] = "senegal-only"
+    global_opportunity["title"] = "Health partnerships in Senegal"
+    global_opportunity["description"] = "Funds health services in Senegal through local partnerships."
+    global_opportunity["eligibility_description"] = "Applicants must serve Senegal."
+    candidates = candidate_opportunities(opportunities + [global_opportunity], today=TODAY)
+    assert "senegal-only" not in {item["opportunity_id"] for item in candidates}
+
+
 def test_scores_explanations_and_evaluation_are_bounded_and_deterministic() -> None:
     candidates = candidate_opportunities(_opportunities(), today=TODAY)
     profile = build_profile(_county())
@@ -84,6 +95,7 @@ def test_pipeline_artifact_is_compact_json_with_all_county_profiles(tmp_path: Pa
         source_retrieved_at="2026-08-04T00:00:00Z",
         cache_status="fixture",
         model_directory=tmp_path / "model",
+        normalized_cache_path=tmp_path / "normalized.json",
         today=TODAY,
     )
     encoded = json.dumps(artifact, allow_nan=False)
@@ -91,4 +103,5 @@ def test_pipeline_artifact_is_compact_json_with_all_county_profiles(tmp_path: Pa
     assert set(artifact["matchesByCounty"]) == {"51001", "51003"}
     assert "description" in artifact["opportunities"]["workforce"]
     assert "description" not in artifact["matchesByCounty"]["51001"][0]
+    assert (tmp_path / "normalized.json").exists()
     assert encoded

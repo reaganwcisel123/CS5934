@@ -11,7 +11,7 @@ from typing import Any
 from src.catalog import REPO_ROOT
 from src.grants import config as C
 from src.grants.client import GrantsGovClient
-from src.grants.normalize import normalize_many
+from src.grants.normalize import normalize_many, write_normalized_cache
 from src.grants.profiles import build_profiles
 from src.grants.recommender import GrantRecommender, candidate_opportunities, evaluation_metrics
 
@@ -37,10 +37,12 @@ def _opportunity_for_dashboard(opportunity: dict[str, Any]) -> dict[str, Any]:
 
 def build_artifact(
     atlas: dict[str, Any], raw_records: list[dict[str, Any]], *, source_retrieved_at: str, cache_status: str,
-    model_directory: Path = C.MODEL_ARTIFACT_DIR, today: date | None = None,
+    model_directory: Path = C.MODEL_ARTIFACT_DIR, normalized_cache_path: Path | None = None, today: date | None = None,
 ) -> dict[str, Any]:
     today = today or date.today()
     opportunities, quality = normalize_many(raw_records, retrieved_at=source_retrieved_at)
+    if normalized_cache_path:
+        write_normalized_cache(opportunities, quality, retrieved_at=source_retrieved_at, path=normalized_cache_path)
     candidates = candidate_opportunities(opportunities, today=today)
     if not candidates:
         raise ValueError("No active, healthcare-relevant Grants.gov opportunities remain after filtering.")
@@ -74,7 +76,14 @@ def main(argv: list[str] | None = None) -> int:
     atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
     raw_records, retrieval = GrantsGovClient().retrieve(refresh=args.refresh, max_results=args.max_results, fixture_path=args.fixture)
     source_retrieved_at = retrieval["retrieved_at"] if retrieval["retrieved_at"] != "fixture" else "fixture"
-    artifact = build_artifact(atlas, raw_records, source_retrieved_at=source_retrieved_at, cache_status=retrieval["cache"], model_directory=args.model_dir)
+    artifact = build_artifact(
+        atlas,
+        raw_records,
+        source_retrieved_at=source_retrieved_at,
+        cache_status=retrieval["cache"],
+        model_directory=args.model_dir,
+        normalized_cache_path=C.NORMALIZED_CACHE_PATH,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(artifact, indent=2, allow_nan=False), encoding="utf-8")
     print(f"Built {args.output} with {artifact['metadata']['opportunityCount']} opportunities and {artifact['metadata']['countyCount']} county profiles.")
