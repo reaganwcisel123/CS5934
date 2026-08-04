@@ -308,6 +308,13 @@
 
   const MIN_YEAR = 2016;
   const CURRENT_YEAR = new Date().getFullYear();
+  // Startup mode for chronic condition filters: "all" or "none".
+  const CHRONIC_DEFAULT_SELECTION = "none";
+
+  function defaultConditionSelection(){
+    return CHRONIC_DEFAULT_SELECTION === "none" ? [] : ["All Chronic Conditions"];
+  }
+
   function getConditionOptions(rows = []){
     const unique = Array.from(new Set((rows || []).map(row => String(row?.condition || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     return ["All Chronic Conditions", ...unique];
@@ -322,11 +329,22 @@
       .trim();
   }
 
-  function sameBaseName(left, right){
-    const a = normalizeCountyName(left);
-    const b = normalizeCountyName(right);
-    if(!a || !b) return false;
-    return a === b || a.startsWith(b) || b.startsWith(a);
+  function countyBaseKey(value){
+    return normalizeCountyName(value).replace(/\b(county|city)\b/g, "").replace(/\s+/g, " ").trim();
+  }
+
+  function countyTypeHint(value){
+    const key = normalizeCountyName(value);
+    if(/\bcity\b/.test(key)) return "city";
+    if(/\bcounty\b/.test(key)) return "county";
+    return null;
+  }
+
+  function isIndependentCityFips(fips){
+    const s = String(fips || "").trim();
+    if(!/^51\d{3}$/.test(s)) return false;
+    const n = Number(s);
+    return Number.isFinite(n) && n >= 51500;
   }
 
   function inferLocalityLabel(feature, rows = []){
@@ -343,54 +361,67 @@
       }
     }
 
-    const sameNameMatches = (rows || []).filter(row => row?.county && sameBaseName(row.county, baseName));
-    if(!sameNameMatches.length) return baseName;
-    const preferred = sameNameMatches.find(row => /county/i.test(String(row.county))) || sameNameMatches.find(row => !/city/i.test(String(row.county))) || sameNameMatches[0];
-    return String(preferred.county).trim();
+    return baseName;
   }
 
   function buildCountyFipsLookup(geoFeatures = []){
-    const lookup = {};
+    const exact = {};
+    const byBase = {};
     (geoFeatures || []).forEach(feature => {
       const name = feature?.properties?.name || feature?.properties?.county_name || "";
       const fips = String(feature?.properties?.county_fips || feature?.properties?.fips || "");
       if(!name || !fips) return;
 
-      const hasCityMarker = /city/i.test(String(name)) || (/^51[5-9]\d{2}$/.test(fips) && Number(fips) >= 51500);
-      const cityKey = normalizeCountyName(`${name} city`);
-      const countyKey = normalizeCountyName(`${name} county`);
-      const baseKey = normalizeCountyName(name);
+      const normalizedName = normalizeCountyName(name);
+      const baseKey = countyBaseKey(name);
+      const type = countyTypeHint(name) || (isIndependentCityFips(fips) ? "city" : "county");
+      exact[normalizedName] = String(fips);
 
-      if(hasCityMarker){
-        lookup[cityKey] = String(fips);
-        lookup[baseKey] = String(fips);
-      } else {
-        lookup[countyKey] = String(fips);
-        lookup[baseKey] = String(fips);
+      if(baseKey){
+        if(!byBase[baseKey]) byBase[baseKey] = [];
+        byBase[baseKey].push({ fips: String(fips), type, name: String(name).trim() });
       }
     });
-    return lookup;
+    return { exact, byBase };
+  }
+
+  function resolveCountyFips(row, fipsLookup){
+    const rowFips = String(row?.county_fips ?? row?.fips ?? row?.countyFips ?? "").trim();
+    if(/^51\d{3}$/.test(rowFips)) return rowFips;
+
+    const countyName = String(row?.county ?? row?.county_name ?? row?.location ?? row?.Geography ?? "").trim();
+    if(!countyName) return null;
+
+    const exactKey = normalizeCountyName(countyName);
+    if(exactKey && fipsLookup.exact[exactKey]) return fipsLookup.exact[exactKey];
+
+    const baseKey = countyBaseKey(countyName);
+    const candidates = baseKey ? (fipsLookup.byBase[baseKey] || []) : [];
+    if(!candidates.length) return null;
+
+    const hintedType = countyTypeHint(String(row?.Geography || countyName));
+    if(hintedType){
+      const typed = candidates.filter(c => c.type === hintedType);
+      if(typed.length === 1) return typed[0].fips;
+      if(!typed.length && candidates.length === 1) return candidates[0].fips;
+      return null;
+    }
+
+    // If the source omits "county"/"city", only map unambiguous names.
+    if(candidates.length === 1) return candidates[0].fips;
+    return null;
   }
 
   function normalizeConditionRows(rawData, geoFeatures = []){
     const rows = Array.isArray(rawData?.rows) ? rawData.rows : Array.isArray(rawData) ? rawData : [];
-    const fipsByName = buildCountyFipsLookup(geoFeatures);
+    const fipsLookup = buildCountyFipsLookup(geoFeatures);
     const seen = new Set();
 
     return rows
       .map(row => {
         const countyName = String(row.county ?? row.county_name ?? row.location ?? row.Geography ?? "").trim();
         const canonicalCountyName = normalizeCountyName(countyName);
-        const hasCityMarker = /city/i.test(countyName) || /city/i.test(String(row.Geography || ""));
-        const countyFips =
-          row.county_fips ??
-          row.fips ??
-          row.countyFips ??
-          fipsByName[canonicalCountyName] ??
-          fipsByName[normalizeCountyName(`${countyName} ${hasCityMarker ? "city" : "county"}`)] ??
-          fipsByName[normalizeCountyName(`${countyName} county`)] ??
-          fipsByName[normalizeCountyName(`${countyName} city`)] ??
-          null;
+        const countyFips = resolveCountyFips(row, fipsLookup);
 
         // The live Virginia feed includes health-district lines and multi-county service areas,
         // which are not actual county polygons in the map. Drop those before painting.
@@ -445,11 +476,8 @@
       .filter(row => row.countyFips && row.year >= startYear && row.year <= endYear && (!active || active.includes(row.condition)))
       .forEach(row => {
         const fipsKey = `fips:${row.countyFips}`;
-        const nameKey = `name:${normalizeCountyName(row.county)}`;
         if(!grouped[fipsKey]) grouped[fipsKey] = { county: row.county, countyFips: row.countyFips, values: [] };
-        if(!grouped[nameKey]) grouped[nameKey] = { county: row.county, countyFips: row.countyFips, values: [] };
         grouped[fipsKey].values.push(row);
-        grouped[nameKey].values.push(row);
       });
     Object.values(grouped).forEach(entry => {
       const value = d3.mean(entry.values, item => item.rate ?? item.cases ?? 0);
@@ -465,13 +493,7 @@
     const props = feature.properties;
     const fips = props.county_fips || props.fips;
     const fipsKey = fips ? `fips:${fips}` : null;
-    const nameKey = props.name ? `name:${normalizeCountyName(props.name)}` : null;
     if(fipsKey && dataSummary.lookup[fipsKey]) return dataSummary.lookup[fipsKey].value;
-    if(nameKey && dataSummary.lookup[nameKey]) return dataSummary.lookup[nameKey].value;
-    if(props.name){
-      const fallbackKey = Object.keys(dataSummary.lookup).find(key => key.startsWith("name:") && sameBaseName(key.replace("name:", ""), props.name));
-      if(fallbackKey) return dataSummary.lookup[fallbackKey].value;
-    }
     return null;
   }
 
@@ -530,7 +552,7 @@
     const matches = Array.from(new Map(
       rows
         .filter(row => {
-          const sameCounty = fips ? String(row.countyFips || "") === String(fips) : sameBaseName(row.county, p.name);
+          const sameCounty = fips ? String(row.countyFips || "") === String(fips) : false;
           const matchesYear = Number.isFinite(row.year) && row.year >= startYear && row.year <= endYear;
           const includesAll = conditions.includes("All Chronic Conditions");
           const matchesCondition = includesAll || conditions.includes(row.condition);
@@ -581,7 +603,7 @@
     const [selected, setSelected] = React.useState(null);
     const [startYear, setStartYear] = React.useState(MIN_YEAR);
     const [endYear, setEndYear] = React.useState(CURRENT_YEAR);
-    const [conditions, setConditions] = React.useState([]);
+    const [conditions, setConditions] = React.useState(() => defaultConditionSelection());
     const mapRef = React.useRef(null);
     const apiRef = React.useRef(null);
     const liveChronicRamp = React.useMemo(() => d3.interpolateRgbBasis([
@@ -589,7 +611,18 @@
     ]), []);
 
     React.useEffect(() => {
-      fetchGeo().then(setGeo).catch(e => setErr("Could not load county geometry (" + e.message + ")."));
+      fetchGeo().then(g => {
+        const atlasFips = new Set((A.store.get().records || []).map(r => String(r.id)));
+        if(!atlasFips.size){
+          setGeo(g);
+          return;
+        }
+        const filtered = (g?.features || []).filter(f => {
+          const fips = String(f?.properties?.county_fips || f?.properties?.fips || "");
+          return atlasFips.has(fips);
+        });
+        setGeo({ ...g, features: filtered });
+      }).catch(e => setErr("Could not load county geometry (" + e.message + ")."));
       fetch("https://data.virginia.gov/api/3/action/datastore_search?resource_id=d2873933-046c-415a-b858-7fd18060794a&limit=50000")
         .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(data => setConditionData({ rows: data?.result?.records ?? [] }))
@@ -601,6 +634,16 @@
     const availableYears = React.useMemo(() => Array.from(new Set(rows.map(row => Number(row.year)).filter(Number.isFinite))).sort((a, b) => a - b), [rows]);
     const minYearFromData = availableYears.length ? availableYears[0] : MIN_YEAR;
     const maxYearFromData = availableYears.length ? availableYears[availableYears.length - 1] : CURRENT_YEAR;
+
+    React.useEffect(() => {
+      if(!allConditions.length) return;
+      setConditions(prev => {
+        const allowed = new Set(allConditions);
+        const filtered = (prev || []).filter(c => allowed.has(c));
+        if(!filtered.length) return defaultConditionSelection();
+        return filtered.includes("All Chronic Conditions") ? ["All Chronic Conditions"] : filtered;
+      });
+    }, [allConditions]);
 
     React.useEffect(() => {
       if(!availableYears.length) return;
@@ -651,6 +694,14 @@
             <div className="panel-body" style={{ padding: 8 }}>
               {!geo && <div className="empty">Loading Virginia counties…</div>}
               <div ref={mapRef} className="mapholder" style={{ display: geo ? "block" : "none" }} />
+              {geo && (
+                <div className="maplegend chronic-maplegend" style={{ marginTop: 12, padding: "0 6px 4px" }}>
+                  <span className="mono">low</span>
+                  <span className="ramp" style={{ background: "linear-gradient(90deg, #eaf3ff 0%, #cfe0ff 16%, #9bb9e8 33%, #5a8ec9 50%, #3269ad 66%, #1d4d8f 83%, #0a2f63 100%)" }} />
+                  <span className="mono">high</span>
+                  <span className="maplegend-note">Age-adjusted rate · lighter means better</span>
+                </div>
+              )}
             </div>
           </section>
           <aside className="side-col">

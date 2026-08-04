@@ -356,6 +356,17 @@ details.more[open] > summary { margin-bottom: 6px; }
 /* Chronic explorer */
 .chronic-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .chronic-mock { color: var(--violet-600, #7c3aed); font-weight: 600; }
+.chronic-maplegend .ramp {
+  background: linear-gradient(90deg,
+    #eaf3ff 0%,
+    #cfe0ff 16%,
+    #9bb9e8 33%,
+    #5a8ec9 50%,
+    #3269ad 66%,
+    #1d4d8f 83%,
+    #0a2f63 100%
+  );
+}
 .side-col { display: flex; flex-direction: column; gap: 16px; }
 .details-row { margin-top: 0; }
 .backbtn, .toolbtn { height: 28px; padding: 0 10px; border: 1px solid var(--border-default); border-radius: var(--radius-md);
