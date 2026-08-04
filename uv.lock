@@ -388,6 +388,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -433,6 +434,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'api'", specifier = ">=3.2" },
     { name = "pyjwt", marker = "extra == 'api'", specifier = ">=2.9" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "requests", specifier = ">=2.31" },
     { name = "scikit-learn", marker = "extra == 'model'", specifier = ">=1.9.0" },

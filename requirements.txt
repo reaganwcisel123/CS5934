@@ -5,3 +5,4 @@ requests>=2.31      # HTTP calls to CDC Socrata, Census, HRSA, USDA APIs
 pandas>=2.0         # tabular transforms and county-level joins
 PyYAML>=6.0         # read the data_sources.yml catalog
 openpyxl>=3.1       # read the USDA Food Access Atlas .xlsx workbook
+python-dotenv>=1.0  # load .env locally (Render injects env vars directly)
