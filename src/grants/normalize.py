@@ -6,6 +6,8 @@ from collections import Counter
 from datetime import date, datetime
 from html import unescape
 from html.parser import HTMLParser
+import json
+from pathlib import Path
 import re
 from typing import Any, Iterable
 
@@ -85,6 +87,12 @@ def parse_number(value: Any) -> int | float | None:
     return int(value) if value.is_integer() else value
 
 
+def parse_award_number(value: Any) -> int | float | None:
+    """Treat publisher placeholder zero award values as unavailable, not $0 awards."""
+    parsed = parse_number(value)
+    return None if parsed == 0 else parsed
+
+
 def _items(value: Any) -> list[str]:
     if value in (None, ""):
         return []
@@ -137,7 +145,7 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
         "opportunity_number": clean_text(_first(detail, "opportunityNumber", "number") or _first(search, "number")),
         "title": title,
         "agency_code": agency_code,
-        "agency_name": clean_text(_first(body, "agencyName") or _first(search, "agency", "agencyName")),
+        "agency_name": clean_text(_first(search, "agency", "agencyName") or _first(body, "agencyName")),
         "synopsis": clean_text(_first(body, "synopsisDesc", "forecastDesc")),
         "description": clean_text(_first(body, "synopsisDesc", "forecastDesc", "description")),
         "applicant_types": _items(body.get("applicantTypes") or detail.get("applicantTypes")),
@@ -149,9 +157,9 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
         "opening_date": parse_date(_first(search, "openDate") or _first(body, "postingDate")),
         "closing_date": closing,
         "archive_date": parse_date(_first(body, "archiveDate")),
-        "award_floor": parse_number(_first(body, "awardFloor")),
-        "award_ceiling": parse_number(_first(body, "awardCeiling")),
-        "estimated_total_funding": parse_number(_first(body, "estimatedFunding")),
+        "award_floor": parse_award_number(_first(body, "awardFloor")),
+        "award_ceiling": parse_award_number(_first(body, "awardCeiling")),
+        "estimated_total_funding": parse_award_number(_first(body, "estimatedFunding")),
         "expected_award_count": parse_number(_first(body, "numberOfAwards")),
         "cost_sharing_required": _first(body, "costSharing"),
         "status": status,
@@ -224,3 +232,20 @@ def normalize_many(raw_records: Iterable[dict[str, Any]], *, retrieved_at: str) 
         "category_distribution": dict(sorted(category_counts.items())),
     }
     return opportunities, metrics
+
+
+def write_normalized_cache(
+    opportunities: list[dict[str, Any]],
+    metrics: dict[str, Any],
+    *,
+    retrieved_at: str,
+    path: Path = C.NORMALIZED_CACHE_PATH,
+) -> None:
+    """Persist processed records separately from the raw API-response cache."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "retrieved_at": retrieved_at,
+        "source": "Grants.gov",
+        "records": opportunities,
+        "quality": metrics,
+    }, indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")

@@ -30,7 +30,13 @@ TAG_TERMS = {
     "clinic_infrastructure": ("infrastructure", "facility", "equipment"),
     "quality_improvement": ("quality improvement", "quality of care"),
 }
-GEOGRAPHIC_EXCLUSION_TERMS = ("guam", "american samoa", "northern mariana", "u.s. virgin islands", "puerto rico")
+# These terms describe publisher-stated program areas that are clearly outside
+# Virginia. They are intentionally used only as hard exclusions when the
+# opportunity text does not also name Virginia.
+GEOGRAPHIC_EXCLUSION_TERMS = (
+    "guam", "american samoa", "northern mariana", "u.s. virgin islands", "puerto rico",
+    "senegal", "ethiopia", "central america", "mississippi delta region",
+)
 
 
 def _clamp(value: float) -> float:
@@ -48,7 +54,9 @@ def screen_eligibility(opportunity: dict[str, Any], *, today: date) -> tuple[str
     """Return a restrained compatibility screen, never a legal eligibility claim."""
     if not is_open_or_forecasted(opportunity, today=today):
         return "Likely incompatible", "The opportunity is closed, archived, or past its stated deadline."
-    text = " ".join((opportunity.get("eligibility_description") or "", opportunity.get("description") or "")).lower()
+    text = " ".join((
+        opportunity.get("title") or "", opportunity.get("eligibility_description") or "", opportunity.get("description") or "",
+    )).lower()
     if any(term in text for term in GEOGRAPHIC_EXCLUSION_TERMS) and "virginia" not in text:
         return "Likely incompatible", "The published eligibility language names a geography that does not include Virginia."
     applicant_types = " ".join(opportunity.get("applicant_types") or []).lower()
