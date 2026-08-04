@@ -48,3 +48,35 @@ MODEL_VERSION = "grant-recommender-v1"
 MODEL_ARTIFACT_DIR = REPO_ROOT / "models" / "grant_recommender"
 DASHBOARD_ARTIFACT_PATH = REPO_ROOT / "dashboard" / "data" / "grant_funding_matches.json"
 
+TFIDF_PARAMETERS = {
+    "lowercase": True,
+    "stop_words": "english",
+    "ngram_range": (1, 2),
+    "min_df": 1,
+    "max_df": 1.0,
+    "max_features": 2000,
+    "sublinear_tf": True,
+}
+SCORE_WEIGHTS = {
+    "semantic": 0.75,
+    "category": 0.10,
+    "eligibility": 0.10,
+    "deadline": 0.05,
+}
+TOP_RECOMMENDATIONS = 10
+
+# Values use the Atlas's existing 0--100 domain scale and published outcome
+# percentages. They are deliberately centralized, deterministic, and reviewable.
+PROFILE_THRESHOLDS = {
+    "rural": 0.5,
+    "hpsa_score": 14,
+    "access_burden": 60,
+    "economic_burden": 65,
+    "food_burden": 60,
+    "environment_burden": 70,
+    "need_index": 65,
+    "diabetes": 11,
+    "obesity": 35,
+    "mental_distress": 20,
+    "hypertension": 34,
+}
