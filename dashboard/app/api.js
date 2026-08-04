@@ -14,8 +14,16 @@
     return res.json();
   }
 
-  // Atlas records + provenance: live API when configured, static JSON otherwise.
-  const fetchAtlas = () => getJson(API_BASE ? API_BASE + "/counties" : "data/clinic_atlas.json", { headers: authHeaders() });
+  const fetchAtlas = () => {
+  const url = API_BASE
+    ? API_BASE + "/counties"
+    : "data/clinic_atlas.json?v=" + Date.now();
+
+  return getJson(url, {
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+};
 
   // County geometry, fetched once and cached for every map in the app.
   let geoPromise = null;

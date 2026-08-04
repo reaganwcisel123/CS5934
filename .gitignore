@@ -22,7 +22,7 @@ __pycache__/
 .venv/
 venv/
 
-# Local secrets (e.g. CENSUS_API_KEY) -- never commit
+# Local secrets CENSUS_API_KEY) -- never commit
 .env
 
 # Design-system source kit (local reference only). The dashboard uses the
