@@ -167,6 +167,55 @@
       "original_field": "m1",
       "transformation": "Current-week case count. Rows carrying an m1_flag other than '-' are reporting artifacts (N/U/NC) and become NULL, never 0. Duplicated condition-weeks keep the last row, since provisional weeks are reissued.",
       "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_opportunity_id",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "id / opportunityId",
+      "transformation": "Normalize publisher opportunity identifier to a non-empty string and deduplicate on it.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_opportunity_metadata",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "opportunityNumber, opportunityTitle, owningAgencyCode, agencyName, alns",
+      "transformation": "Clean text and normalize stable opportunity, agency, and assistance-listing metadata for the recommendation artifact.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_opportunity_description",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "synopsis.synopsisDesc or forecast.forecastDesc",
+      "transformation": "Strip HTML, decode entities, normalize whitespace, and preserve paragraph breaks for content-based matching.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_eligibility_and_applicant_types",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "applicantEligibilityDesc and applicantTypes",
+      "transformation": "Normalize publisher applicant descriptions into stable lists; missing data remains unknown rather than zero or compatible.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_funding_details",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "awardFloor, awardCeiling, estimatedFunding, numberOfAwards, costSharing",
+      "transformation": "Parse currency and numeric values while preserving unavailable amounts as null.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_dates_and_status",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "openDate, responseDate, archiveDate, oppStatus",
+      "transformation": "Parse publisher dates to ISO dates and retain source status for transparent deadline filtering.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "grant_official_url",
+      "source_id": "grants_gov_opportunities",
+      "original_field": "opportunity id",
+      "transformation": "Build the stable official Grants.gov search-results-detail URL from the normalized opportunity identifier.",
+      "required_for_mvp": false
     }
   ]
 }
