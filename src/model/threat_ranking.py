@@ -1,16 +1,8 @@
-"""Rank which notifiable diseases most threaten Virginia clinics right now (US-056).
+"""Rank all reported conditions by how far above their own seasonal norm they run,
+with neighbour-state corroboration (US-056). The baseline is same-MMWR-weeks-in-
+prior-years, not a trailing window, so ordinary summer surges don't rank as anomalies.
 
-Answers a different question from src/model/forecast.py. The forecast says how
-many cases to expect for a fixed set of conditions; this ranks *all* reported
-conditions by how far above their own seasonal norm they are running, and checks
-whether neighbouring states corroborate the rise.
-
-The baseline is seasonal on purpose. Against a trailing window Cyclosporiasis
-looks like a 16x explosion every July, which is just summer. Against the same
-MMWR weeks in prior years it is 2.4x, which is an actual anomaly.
-
-Run:
-    uv run python -m src.model.threat_ranking
+Run: uv run python -m src.model.threat_ranking
 """
 
 from __future__ import annotations

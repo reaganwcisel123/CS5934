@@ -28,7 +28,7 @@ class HrsaHpsa(RealSource):
         if COL_DISCIPLINE in df.columns:
             df = df[df[COL_DISCIPLINE].astype(str).str.contains("Primary Care", case=False, na=False)]
         df["county_fips"] = df[COL_FIPS].str.zfill(5)
-        df = df[df["county_fips"].str.startswith(TARGET_STATE_FIPS)]
+        df = df[df["county_fips"].str.startswith(TARGET_STATE_FIPS)].copy()
         df[COL_SCORE] = pd.to_numeric(df[COL_SCORE], errors="coerce")
         return (df.groupby("county_fips")[COL_SCORE].mean().round().reset_index()
                   .rename(columns={COL_SCORE: "primary_care_hpsa_score"}))

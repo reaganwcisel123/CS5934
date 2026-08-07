@@ -18,6 +18,9 @@ def get_engine() -> Engine:
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is not set (the Render Postgres connection string).")
+    # Managed providers often hand out postgres://, which SQLAlchemy 2.x rejects.
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
     # Force the psycopg (v3) driver.
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)

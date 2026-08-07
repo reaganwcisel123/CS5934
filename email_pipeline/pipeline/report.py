@@ -8,7 +8,6 @@ from datetime import date, datetime, timezone
 from . import config, db
 
 
-# Count total contacts and how many have a usable email.
 def _coverage(conn) -> dict:
     row = conn.execute(
         "SELECT "
@@ -19,7 +18,6 @@ def _coverage(conn) -> dict:
     return {"total": row["total"], "emailable": row["emailable"] or 0}
 
 
-# Gather the campaign metrics and decide whether escalation is required.
 def build_report(cfg: dict) -> dict:
     # Read status counts and email coverage from the database.
     today = date.today()
@@ -28,8 +26,6 @@ def build_report(cfg: dict) -> dict:
         counts = db.status_counts(conn)
         cov = _coverage(conn)
 
-    # Derive sent / responded totals and the response rate.
-    total = cov["total"] or 1
     sent = counts.get("sent", 0) + counts.get("responded", 0)
     responded = counts.get("responded", 0)
     rate = responded / sent if sent else 0.0
@@ -50,7 +46,6 @@ def build_report(cfg: dict) -> dict:
     }
 
 
-# Render the status report as Markdown.
 def render_markdown(cfg: dict, r: dict) -> str:
     # Headline metrics.
     lines = [
@@ -90,7 +85,6 @@ def render_markdown(cfg: dict, r: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-# Render the stakeholder escalation memo.
 def render_escalation_memo(cfg: dict, r: dict) -> str:
     return (
         "# Escalation: low survey response volume (US-003)\n\n"
@@ -106,7 +100,6 @@ def render_escalation_memo(cfg: dict, r: dict) -> str:
     )
 
 
-# Build the report, write it to disk, and emit the memo if escalating.
 def run(cfg: dict | None = None) -> dict:
     cfg = cfg or config.load()
     r = build_report(cfg)

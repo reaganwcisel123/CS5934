@@ -30,11 +30,14 @@
   const fetchGrantFundingMatches = () => getJson("data/grant_funding_matches.json");
 
   // County geometry, fetched once and cached for every map in the app.
+  // A failed fetch clears the cache so the next mount can retry.
   let geoPromise = null;
-  const fetchGeo = () => (geoPromise ||= getJson("data/va-counties.geojson"));
+  const fetchGeo = () => {
+    geoPromise ||= getJson("data/va-counties.geojson").catch(err => { geoPromise = null; throw err; });
+    return geoPromise;
+  };
 
-  // NNDSS forecast endpoints (API-only; callers handle the no-API case).
-  const fetchForecast = () => getJson(API_BASE + "/forecast", { headers: authHeaders() });
+  // NNDSS forecast endpoint (API-only; callers handle the no-API case).
   const fetchCountyForecast = fips => getJson(API_BASE + "/forecast/counties/" + fips, { headers: authHeaders() });
 
   // Usage-event audit trail (US-022). Fire-and-forget; only in authenticated mode.
@@ -55,5 +58,5 @@
     });
   }
 
-  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGrantFundingMatches, fetchGeo, fetchForecast, fetchCountyForecast, postEvent, chat };
+  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGrantFundingMatches, fetchGeo, fetchCountyForecast, postEvent, chat };
 })(window.Atlas);

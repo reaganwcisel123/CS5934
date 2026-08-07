@@ -23,15 +23,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Allow `python src/build_dataset.py` (not just `python -m src.build_dataset`)
-# by putting the repo root on the path before importing the src package.
+# Repo root on sys.path so `python src/build_dataset.py` works without -m.
 REPO_ROOT_PATH = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT_PATH))
 
-# Load environment variables from the repository-root .env file.
-#
-# Expected .env entry:
-# CENSUS_API_KEY=your_actual_census_api_key
 load_dotenv(REPO_ROOT_PATH / ".env")
 
 import pandas as pd
@@ -95,11 +90,8 @@ MEASURE_FIELDS = [
     "child_immun",
 ]  # hrsa_uds (stub)
 
-# Raw ACS SDoH indicators (census_acs_sdoh), used directly by the
-# "A Commonwealth in Bloom" cartogram in addition to the normalized
-# dom.economic/education composites above.
-#
-# These values are kept in their original percentage units.
+# Raw ACS SDoH indicators consumed directly by the bloom cartogram,
+# kept in their original percentage units (not normalized).
 SDOH_FIELDS = [
     "poverty_rate",
     "uninsured_rate",
@@ -154,11 +146,6 @@ def _run_source(cls, catalog, counties, refresh):
         return src.run(use_cache=not refresh), Provenance.REAL
 
     except Exception as exc:
-        # Examples:
-        # - network unavailable
-        # - missing/invalid API key
-        # - upstream schema drift
-        # - invalid API variable
         print(
             f"  [warn] {src.source_id} unavailable: "
             f"{type(exc).__name__}: {exc}",
@@ -294,7 +281,12 @@ def build(refresh: bool = False) -> dict:
     # -------------------------------------------------------------------------
     merged = pd.DataFrame({"county_fips": counties})
 
-    for df in frames.values():
+    for sid, df in frames.items():
+        # Skip frames keyed on more than county_fips (one county -> many rows);
+        # merging them would multiply the spine. They feed provenance only.
+        if sid == "virginia_chronic_disease_hospitalization":
+            continue
+
         if df is not None and set(df.columns) != {"county_fips"}:
             merged = merged.merge(
                 df,
@@ -375,29 +367,30 @@ def build(refresh: bool = False) -> dict:
         else {}
     )
 
-    pop_max = (
-        merged.get(
-            "county_population_total",
-            pd.Series(dtype=float),
-        ).max()
-        or 1
-    )
+    pop_max = merged.get(
+        "county_population_total",
+        pd.Series(dtype=float),
+    ).max()
+
+    # max() of an empty/all-NaN column is NaN (which is truthy) -> guard explicitly.
+    if pd.isna(pop_max) or pop_max <= 0:
+        pop_max = 1
 
     records = []
     join_coverages = []
 
     for fips in counties:
-        # Unknown domain -> neutral 50.
-        # Never None, so need-index calculations remain safe.
-        dom = {
-            key: (
+        # Unknown domain -> neutral 50; a legitimate 0.0 score must survive.
+        dom = {}
+
+        for key in NEED_WEIGHTS:
+            val = (
                 _num(dom_df.at[fips, key])
                 if fips in dom_df.index
                 else None
             )
-            or 50.0
-            for key in NEED_WEIGHTS
-        }
+
+            dom[key] = 50.0 if val is None else val
 
         need = metrics.need_index(
             dom,

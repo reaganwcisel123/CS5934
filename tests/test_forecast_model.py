@@ -210,3 +210,18 @@ def test_a_series_that_stopped_reporting_is_flagged_stale():
     out = {r["condition"]: r for r in fc.forecast_conditions(panel) if r["status"] == "ok"}
     assert out["Pertussis"]["weeks_stale"] == 0
     assert out["Shigellosis"]["weeks_stale"] == 15
+
+
+# --- empty-result shapes ------------------------------------------------------
+
+def test_backtest_empty_result_shapes_are_uniform():
+    """Both early-return paths must expose the same keys main() reads."""
+    no_frame = fc.backtest(_panel(weeks=FC.HORIZON_WEEKS), folds=3)   # empty supervised frame
+    no_folds = fc.backtest(_panel(weeks=30), folds=3)                 # history below MIN_TRAIN_WEEKS
+
+    for result in (no_frame, no_folds):
+        assert result["summary"] == {}
+        assert result["n_conditions"] == 0
+        assert result["folds"] == []
+        assert result["per_condition"] == []
+        assert result["horizon_weeks"] == FC.HORIZON_WEEKS

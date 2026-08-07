@@ -1,16 +1,8 @@
-"""Fairness of the state-to-county allocation across rurality (US-054).
+"""Fairness of the state-to-county allocation across rurality (US-054): compares
+each county's population-share allocation against its access-burden-weighted share
+and reports the shortfall by RUCC 2023 stratum.
 
-The forecast is state-level, so there is no county-level forecast error to
-measure. The equity question sits in the allocation: population share assumes
-disease burden tracks headcount, and rural counties carry more of the access
-burden that turns a case into an untreated case.
-
-This module quantifies that gap rather than assuming it away. It compares each
-county's allocated share against its share of the population weighted by access
-burden, and reports the shortfall by RUCC 2023 stratum.
-
-Run:
-    uv run python -m src.model.forecast_fairness
+Run: uv run python -m src.model.forecast_fairness
 """
 
 from __future__ import annotations

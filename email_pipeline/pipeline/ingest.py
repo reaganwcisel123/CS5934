@@ -22,7 +22,6 @@ COLUMN_MAP = {
 }
 
 
-# Read the CSV into a list of lowercase-keyed, stripped dict rows.
 def _read_csv(path: str) -> list[dict]:
     with open(path, newline="", encoding="utf-8-sig") as fh:
         reader = csv.DictReader(fh)
@@ -40,7 +39,6 @@ def _read_csv(path: str) -> list[dict]:
         return rows
 
 
-# Upsert every valid row into the contacts table and report the counts.
 def run(cfg: dict | None = None) -> dict:
     cfg = cfg or config.load()
     rows = _read_csv(cfg["source_csv"])

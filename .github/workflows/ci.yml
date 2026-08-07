@@ -1,0 +1,39 @@
+name: CI
+
+# Gate every PR (and pushes to the shared branches) on the architecture
+# boundary contract and the catalog validator. These are fast, deterministic
+# checks -- the heavy data build runs at deploy time on Render, not here.
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # The api/model extras are required: lint-imports and most tests import
+      # src.api / src.model / src.grants, which need fastapi and sklearn.
+      - name: Sync dependencies (core + dev + extras)
+        run: uv sync --extra api --extra model
+
+      - name: Architecture boundaries (import-linter)
+        run: uv run lint-imports
+
+      - name: Validate data source catalog
+        run: uv run python data_source_catalog/scripts/validate_data_catalog.py
+
+      - name: Tests
+        run: uv run pytest -q

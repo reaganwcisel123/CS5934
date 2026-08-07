@@ -1,43 +1,11 @@
 """Real Virginia Rural Health Clinic (RHC) point data -> rural-clinic glyphs.
 
-RHCs are a separate CMS reimbursement designation from HRSA Health Center
-Program grantees (see hscd_sites.py) and are NOT required to report HRSA's
-UDS clinical quality measures, so there is no RHC equivalent of htn_control /
-dm_poor / etc. What IS real and freely available, combined here:
-
-  1. CMS HCRIS RHC Cost Report (Form CMS-222-17) -- both identity (name,
-     street address, city, county -- from its own RHC17_PRVDR_ID_INFO.CSV,
-     which made a separate PECOS Enrollments fetch unnecessary) and four real
-     per-clinic numbers from the clinic's most recent settled cost report:
-     physician visits, total adjusted visits (all provider types), adjusted
-     cost per visit, and total allowable cost. Worksheet/line/column codes
-     for RHC17 aren't in the data files themselves -- they're defined in the
-     Provider Reimbursement Manual Part II Chapter 46 "Table 3 - List of Data
-     Elements with Worksheet, Line, and Column Designations"
-     (https://www.cms.gov/files/document/r4p246i.pdf, pages 55-68), which is
-     where every *_CODE constant below comes from. Nothing here is guessed --
-     each code was verified against that table, then spot-checked against the
-     actual VA cost report data before being wired in.
-     https://www.cms.gov/data-research/statistics-trends-and-reports/cost-reports/rural-health-center-222-2017-form
-  2. HRSA Primary Care HPSA facility designations, Designation Type == "Rural
-     Health Clinic" -- real per-facility shortage severity (HPSA Score) with
-     real lat/lon already attached. Reuses the raw cache hrsa_hpsa.py already
-     fetches (data/raw/hrsa_hpsa.csv), no extra fetch needed. Matched two
-     ways: (a) by name (after stripping corporate suffixes and city
-     qualifiers -- see _strip_corp_suffix) plus county/status disambiguation
-     when a name maps to more than one HPSA row -- see _match_hpsa's
-     docstring; (b) for clinics that don't resolve by name (HPSA often labels
-     multi-site systems generically, e.g. "CARILION CLINIC" for five
-     different VA facilities), by proximity -- if the clinic's independently
-     street-geocoded position lands within PROXIMITY_MATCH_METERS of an
-     unclaimed HPSA point, that's treated as strong enough evidence of the
-     same building. See _nearest_hpsa_within.
-  3. Census Geocoder (geocoding.geo.census.gov, free/keyless) fills in
-     lat/lon + county_fips for clinics the HPSA file doesn't cover, with a
-     Census ZCTA gazetteer centroid as a last-resort fallback for addresses
-     it can't resolve at all.
-
-Point-level output (not county-keyed), consumed by src/build_sites.py.
+Combines three free sources: CMS HCRIS RHC cost reports (identity + four real
+per-clinic measures; worksheet codes verified against PRM-II Ch.46 Table 3,
+r4p246i.pdf pp.55-68), HRSA Primary Care HPSA facility designations (shortage
+score + lat/lon, reusing hrsa_hpsa.py's raw cache), and the Census Geocoder
+with a ZCTA-centroid fallback. Point-level output (not county-keyed), consumed
+by src/build_sites.py.
 """
 
 from __future__ import annotations
@@ -60,33 +28,17 @@ HCRIS_REPORTS_ZIP = "https://downloads.cms.gov/Files/hcris/RHC17-REPORTS.zip"
 HCRIS_DATA_ZIP = "https://downloads.cms.gov/Files/hcris/RHC17-ALL-YEARS.zip"
 HPSA_RAW = RAW_DIR / "hrsa_hpsa.csv"  # cached by hrsa_hpsa.py; reused here as-is
 GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress"
-# Census ZCTA gazetteer: last-resort centroid for addresses the point geocoder
-# can't resolve at all (common for rural highway addresses with no TIGER
-# address range). Real Census geography, just ZIP-centroid precision rather
-# than a street point.
+# ZCTA gazetteer: last-resort ZIP-centroid for addresses the geocoder can't resolve.
 ZCTA_GAZETTEER_URL = "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_zcta_national.zip"
 ZCTA_RAW = RAW_SUBDIR / "zcta_gaz.txt"
 
-# Verified against PRM-II Ch.46 "Table 3 - List of Data Elements with
-# Worksheet, Line, and Column Designations" (r4p246i.pdf pp.55-68), then
-# spot-checked against the actual VA data. Each tuple is (WKSHT_CD, LINE_NUM,
-# CLMN_NUM) in the electronic-cost-report encoding (line/column N -> "NNN00").
+# (WKSHT_CD, LINE_NUM, CLMN_NUM) per PRM-II Ch.46 Table 3 (r4p246i.pdf
+# pp.55-68); worksheet/line/column codes are not in the data files themselves.
 COST_REPORT_CODES = {
-    # Worksheet B, Part I, Line 1 ("Physicians"), Col 2 ("Total Visits") --
-    # also CMS's own worked example in RHC17_README.txt.
-    "physicianVisits": ("B000001", "00100", "00200"),
-    # Worksheet C, Part I, Line 6, Col 1: "Total adjusted visits" (all
-    # provider types, the rate-setting visit count -- a fuller utilization
-    # figure than physician visits alone).
-    "totalAdjustedVisits": ("C000001", "00600", "00100"),
-    # Worksheet C, Part I, Line 7, Col 1: "Adjusted cost per visit" -- a
-    # scale-normalized efficiency figure, comparable across clinics of very
-    # different sizes (unlike raw visit counts or raw total cost).
-    "costPerVisit": ("C000001", "00700", "00100"),
-    # Worksheet C, Part I, Line 1, Col 1: "Total allowable costs" -- the
-    # facility's real bottom-line annual operating cost for the cost report
-    # period.
-    "totalAllowableCost": ("C000001", "00100", "00100"),
+    "physicianVisits": ("B000001", "00100", "00200"),      # Wksht B I, "Physicians" total visits
+    "totalAdjustedVisits": ("C000001", "00600", "00100"),  # Wksht C I, all-provider visits
+    "costPerVisit": ("C000001", "00700", "00100"),         # Wksht C I, adjusted cost per visit
+    "totalAllowableCost": ("C000001", "00100", "00100"),   # Wksht C I, total allowable costs
 }
 
 RPT_COLS = ["RPT_REC_NUM", "PRVDR_CTRL_TYPE_CD", "PRVDR_NUM", "NPI", "RPT_STUS_CD",
@@ -99,8 +51,6 @@ _UA = {"User-Agent": "Mozilla/5.0"}
 
 
 def _download(url: str, dest: Path) -> None:
-    if dest.exists():
-        return
     dest.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(url, timeout=120, headers=_UA)
     resp.raise_for_status()
@@ -183,15 +133,11 @@ def _normalize_name(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-# Corporate suffixes that differ between the two source systems for the same
-# real facility (e.g. HCRIS "CLINCH VALLEY PHYSICIANS ASSOCIATES" vs HPSA
-# "CLINCH VALLEY PHYSICIANS"). Stripped iteratively so multi-token suffixes
-# ("INC ASSOCIATES") still fully resolve.
+# Corporate suffixes that differ between HCRIS and HPSA for the same facility;
+# stripped iteratively so multi-token suffixes ("INC ASSOCIATES") fully resolve.
 _CORP_SUFFIX_RE = re.compile(r"\s+(INC|CORP|CORPORATION|LLC|PLLC|P ?C|ASSOCIATES|ASSOC|GROUP)\.?$")
-# HPSA names sometimes append a location qualifier HCRIS doesn't use, e.g.
-# "MERIT MEDICAL RURAL HEALTH CLINIC - RICHLANDS" / "PATRICK COUNTY FAMILY
-# PRACTICE - STUART". Only strips a short trailing "- WORD" or "- WORD WORD"
-# tail, not arbitrary text, to keep this from over-matching.
+# HPSA sometimes appends "- CITY"; only a short trailing "- WORD [WORD]" tail
+# is stripped so this can't over-match.
 _TRAILING_QUALIFIER_RE = re.compile(r"\s*-\s*[A-Z]+(\s+[A-Z]+)?$")
 
 
@@ -218,8 +164,7 @@ def _hpsa_rhc_rows() -> pd.DataFrame:
 
 
 def _haversine_m(lat1, lon1, lat2, lon2):
-    """Great-circle distance in meters -- used to cross-check name matches
-    against real independently-collected coordinates."""
+    """Great-circle distance in meters."""
     r = 6371000
     p1, p2 = np.radians(lat1), np.radians(lat2)
     dphi, dl = np.radians(lat2 - lat1), np.radians(lon2 - lon1)
@@ -227,35 +172,16 @@ def _haversine_m(lat1, lon1, lat2, lon2):
     return 2 * r * np.arcsin(np.sqrt(a))
 
 
-# Two independently-sourced points (HCRIS street-geocoded address vs. HRSA's
-# HPSA facility record) landing this close together is strong evidence of the
-# same real building, regardless of whether the names matched -- rescues
-# facilities HPSA labels generically (e.g. "CARILION CLINIC") that a
-# name-based match can't safely disambiguate on its own. Kept tight (a
-# building + parking lot footprint) specifically so it doesn't paper over
-# "two different clinics on the same block" as a match.
+# Two independently-sourced points this close is treated as the same building.
+# Kept tight so "two clinics on the same block" never counts as a match.
 PROXIMITY_MATCH_METERS = 75
 
 
 def _match_hpsa(name_key: str, county_raw: str | None, hpsa: pd.DataFrame) -> tuple[dict | None, object]:
-    """Multiple VA facilities can share a name (e.g. several "CARILION CLINIC"
-    HPSA rows in different counties) -- and the same facility is sometimes
-    named slightly differently between HCRIS and HPSA (a corporate suffix
-    like "ASSOCIATES", or HPSA appending "- CITY"). Strategy, most to least
-    strict:
-      1. Exact name match.
-      2. Match after stripping corporate suffixes / trailing "- CITY" from
-         both sides (rescues real near-duplicates like "CLINCH VALLEY
-         PHYSICIANS" vs "...PHYSICIANS ASSOCIATES").
-      3. If either step finds >1 candidate: narrow by county if HCRIS's
-         COUNTY field is populated; if that still leaves >1 but they're all
-         the *same* county (e.g. a Designated row and a stale Withdrawn row
-         for one facility, re-designated over time), prefer HPSA Status ==
-         "Designated", else the most recently updated row.
-    Genuinely different facilities sharing a generic name across different
-    counties (several "CARILION CLINIC" HPSA rows, no HCRIS county to
-    disambiguate) are left unmatched rather than guessed -- the caller falls
-    back to geocoding instead of risking a wrong coordinate."""
+    """Match one HCRIS clinic to an HPSA row: exact name, then suffix-stripped
+    name, then narrowed by county; same-county leftovers prefer the Designated
+    or most recently updated row. Ambiguous cross-county names stay unmatched
+    (the caller geocodes) rather than risking a wrong coordinate."""
     candidates = hpsa[hpsa["_name_key"] == name_key]
     if candidates.empty:
         candidates = hpsa[hpsa["_stripped_key"] == _strip_corp_suffix(name_key)]
@@ -285,12 +211,10 @@ def _match_hpsa(name_key: str, county_raw: str | None, hpsa: pd.DataFrame) -> tu
 
 def _nearest_hpsa_within(lat: float, lon: float, hpsa: pd.DataFrame, exclude_idx: set,
                           max_m: float = PROXIMITY_MATCH_METERS) -> tuple[dict | None, object]:
-    """Fallback for clinics a name match couldn't resolve: if the clinic's
-    independently street-geocoded position lands within max_m of an
-    un-claimed HPSA facility point, treat that as a match. Two unrelated
-    government sources agreeing on a location this precisely is stronger
-    evidence than the facility names agreeing."""
+    """Match by proximity: an unclaimed HPSA point within max_m of the clinic's
+    independently street-geocoded position counts as the same facility."""
     pool = hpsa.drop(index=[i for i in exclude_idx if i in hpsa.index])
+    pool = pool.dropna(subset=["Latitude", "Longitude"])
     if pool.empty:
         return None, None
     d = _haversine_m(lat, lon, pool["Latitude"].values, pool["Longitude"].values)
@@ -302,12 +226,8 @@ def _nearest_hpsa_within(lat: float, lon: float, hpsa: pd.DataFrame, exclude_idx
 
 
 def _geocode(address: str, city: str, zip_code: str) -> dict | None:
-    """Census Geocoder (free, keyless); returns {lat, lon, county_fips, precision}
-    or None. Tries progressively coarser forms of the address: Census's TIGER
-    address ranges frequently don't resolve rural highway addresses, especially
-    with a suite/unit attached, so this falls back street -> street w/o suite
-    -> city+zip centroid (still real geography, just less precise -- flagged
-    via `precision` so the caller/UI can be honest about it)."""
+    """Census Geocoder -> {lat, lon, county_fips, precision} or None. Falls back
+    street -> street w/o suite -> city+zip centroid; `precision` records which."""
     stripped = re.sub(r"\s+(STE|SUITE|UNIT|#)\s*\S*$", "", address, flags=re.I).strip()
     candidates = [(f"{address}, {city}, VA {zip_code}", "address")]
     if stripped != address:
@@ -338,17 +258,14 @@ def _geocode(address: str, city: str, zip_code: str) -> dict | None:
 
 
 def _strip_county_suffix(s: str) -> str:
-    # HPSA's "Common County Name" carries a trailing state abbreviation
-    # ("James City County, VA") that va_county_region.csv's names don't.
+    # HPSA county names carry a trailing ", VA" that va_county_region.csv's don't.
     s = re.sub(r"\s+VA$", "", _normalize_name(s))
     return re.sub(r"\s+(COUNTY|CITY)$", "", s).strip()
 
 
 def _county_fips_by_name() -> dict[str, str]:
-    """HCRIS's COUNTY field ('TAZEWELL', 'GALAX CITY') doesn't consistently
-    carry the County/city suffix va_county_region.csv uses ('Tazewell County',
-    'Galax city'), so key on the bare name with the suffix stripped from both
-    sides."""
+    """Key on the bare county name: HCRIS and va_county_region.csv disagree on
+    the County/city suffix, so it is stripped from both sides."""
     ref = pd.read_csv(REPO_ROOT / "data" / "reference" / "va_county_region.csv", dtype=str)
     return {_strip_county_suffix(n): fips for n, fips in zip(ref["county_name"], ref["county_fips"])}
 
@@ -370,7 +287,7 @@ def extract(geocode_missing: bool = True) -> pd.DataFrame:
         if match and pd.notna(match.get("Latitude")) and pd.notna(match.get("Longitude")):
             lat, lon = round(float(match["Latitude"]), 5), round(float(match["Longitude"]), 5)
             geo_source = "hpsa"
-            hpsa_score = int(match["HPSA Score"]) if pd.notna(match.get("HPSA Score")) else None
+            hpsa_score = int(float(match["HPSA Score"])) if pd.notna(match.get("HPSA Score")) else None
             hpsa_status = match.get("HPSA Status")
             claimed_hpsa_idx.add(match_idx)
         elif geocode_missing:
@@ -387,9 +304,7 @@ def extract(geocode_missing: bool = True) -> pd.DataFrame:
         if not county_fips and county_raw:
             county_fips = fips_by_name.get(_strip_county_suffix(county_raw))
         if not county_fips and match is not None and pd.notna(match.get("Common County Name")):
-            # HCRIS's own COUNTY field is blank for some independent-city
-            # clinics (e.g. Williamsburg); fall back to the matched HPSA
-            # row's county, which is real and already known-correct here.
+            # HCRIS's COUNTY is blank for some independent cities; use the matched HPSA row's.
             county_fips = fips_by_name.get(_strip_county_suffix(match["Common County Name"]))
 
         cost_report_asof = r.get("FY_END_DT") if pd.notna(r.get("FY_END_DT")) else None
@@ -412,18 +327,14 @@ def extract(geocode_missing: bool = True) -> pd.DataFrame:
             "costReportAsOf": cost_report_asof,
         })
 
-    # Second pass: rescue clinics a name match couldn't resolve (e.g. HPSA's
-    # generic "CARILION CLINIC" rows) by checking whether the clinic's real
-    # street-geocoded position lands within PROXIMITY_MATCH_METERS of an
-    # unclaimed HPSA point. Only applied to geoSource == "geocoded" (a real
-    # address match, not a city/ZIP-centroid approximation) so the distance
-    # comparison itself is trustworthy.
+    # Second pass: proximity-match clinics the name match couldn't resolve.
+    # Only for geoSource == "geocoded" so the distance comparison is trustworthy.
     for row in rows:
         if row["hpsaScore"] is not None or row["geoSource"] != "geocoded":
             continue
         match, match_idx = _nearest_hpsa_within(row["lat"], row["lon"], hpsa, claimed_hpsa_idx)
         if match:
-            row["hpsaScore"] = int(match["HPSA Score"]) if pd.notna(match.get("HPSA Score")) else None
+            row["hpsaScore"] = int(float(match["HPSA Score"])) if pd.notna(match.get("HPSA Score")) else None
             row["hpsaStatus"] = match.get("HPSA Status")
             row["geoSource"] = "hpsa_proximity"
             claimed_hpsa_idx.add(match_idx)

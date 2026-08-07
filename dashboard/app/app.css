@@ -560,7 +560,6 @@ details.more[open] > summary { margin-bottom: 6px; }
 .bloom-num.on { background: var(--bloom-green-dark); color: #fff; box-shadow: none; }
 .bloom-num.pending { background: none; box-shadow: inset 0 0 0 1.2px var(--border-default); opacity: .55; }
 
-#tt .bloom-hint { color: var(--slate-400); }
 .bloom-hovernote { min-height: 18px; font-size: 12px; color: var(--bloom-green-dark); font-weight: 600; margin-top: 6px; text-align: center; }
 .bloom-ramp-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-muted); margin-top: 8px; justify-content: center; }
 .bloom-ramp { width: 96px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #fdfaf7, var(--bloom-pink)); border: 1px solid var(--bloom-rule); }
@@ -580,7 +579,7 @@ details.more[open] > summary { margin-bottom: 6px; }
 .bloom-selector-mount svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
 .bloom-selector-mount .bloom-hitzone { cursor: pointer; }
 .bloom-selector-mount text { font: 11.5px var(--font-sans); fill: var(--text-muted); transition: fill .2s, font-weight .2s; cursor: pointer; }
-.bloom-selector-mount text.sel, .bloom-selector-mount text.hov { fill: var(--bloom-green-dark); font-weight: 700; }
+.bloom-selector-mount text.sel { fill: var(--bloom-green-dark); font-weight: 700; }
 .bloom-selector-mount .p.selPink .body { stroke: var(--bloom-green-dark); stroke-width: 1.8; stroke-opacity: 1; }
 .bloom-selector-mount .p.selLen .body { stroke: var(--bloom-green-dark); stroke-width: 1.6; stroke-opacity: 1; stroke-dasharray: 4 3; }
 .bloom-selector-mount .p.hovHl .body { stroke: var(--bloom-green); stroke-width: 1.4; stroke-opacity: .8; }

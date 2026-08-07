@@ -1,18 +1,7 @@
-// "A Commonwealth in Bloom" — every VA county drawn as a dogwood (Cornus
-// florida, the state flower). Ported from dashboard-prototyping/A Commonwealth
-// in Bloom.html, wired to real county records instead of synthetic data.
-//
-// Four bracts (petals), 90 deg apart:
-//   length  = petal-length axis (poverty / uninsured / demographic demand / access)
-//   color   = a CDC PLACES outcome for that axis (hypertension / diabetes / depression / smoking)
-// Eight bud circles = worst-quartile flags across the ACS + PLACES indicators.
-//
-// Petal color (PLACES) is real today. Petal length + most bud indicators are
-// Census ACS SDoH data (data.sdoh.*), null until CENSUS_API_KEY is set and the
-// dataset is rebuilt — see provenance.sdoh. Pending-ness is surfaced via the
-// provenance pill, the detail panel's "N of 8 pending" note, and muted/dashed
-// bud circles; petal length falls back to a neutral midpoint and the petal
-// outline itself always renders bold and solid (never faded/dashed).
+// "A Commonwealth in Bloom" — every VA county drawn as a dogwood. Four bracts:
+// length = an ACS SDoH axis, color = a CDC PLACES outcome; eight bud circles =
+// worst-quartile flags. ACS values are null without CENSUS_API_KEY: pending-ness
+// shows via the provenance pill and muted/dashed buds, never on the petal outline.
 (function(A){
   const { showTT, moveTT, hideTT } = A.tooltip;
   const fmt1 = d3.format(".1f");
@@ -140,9 +129,8 @@
       M 0 ${CORE + 3} Q ${-W * 0.20} ${CORE + L * 0.5}, ${-W * 0.30} ${CORE + L * 0.88}
       M 0 ${CORE + 3} Q ${W * 0.20} ${CORE + L * 0.5}, ${W * 0.30} ${CORE + L * 0.88}`;
   }
-  // Radial gradient centered on the flower's own origin (userSpaceOnUse, so it
-  // rides in the petal's local rotated frame) — glows outward from the bud to
-  // a saturated tip, rather than the old flat top-to-bottom linear fade.
+  // Radial gradient in the petal's local rotated frame (userSpaceOnUse):
+  // glows outward from the bud to a saturated tip.
   function pinkStops(sel, id, n, L){
     const m = clamp(1 - (0.08 + 0.72 * n), 0, 1);
     const pink = d3.interpolateLab("#f5e4ea", "#d63074")(n);
@@ -248,10 +236,7 @@
         const L = LEN(c.ax[axKey]);
         const rot = bloomG.append("g").attr("transform", `rotate(${ANGLE[axKey]})`);
         const br = rot.append("g").attr("class", "bloom-bract").attr("transform", "scale(0)");
-        // Bold, always-solid per-axis outline (matches the reference design) —
-        // pending-ACS is already surfaced via the provenance pill, the panel's
-        // "N of 8 pending" note, and the muted/dashed bud circles below, so the
-        // petal border itself doesn't need to double as a pending indicator.
+        // Outline stays bold and solid even when ACS is pending (see header note).
         br.append("path").attr("d", bractPath(L)).attr("fill", `url(#bloom-g${c.id}${axKey})`)
           .attr("stroke", AX_STROKE[axKey]).attr("stroke-width", 1.6).attr("stroke-opacity", 1)
           .attr("stroke-linejoin", "round");
@@ -373,6 +358,7 @@
        separate DOM subtree (the JSX sidebar) from host (the viz column). */
     const selHost = d3.select(sideRoot.querySelector(".bloom-selector-mount"));
     let updateSelectorSel = () => {};
+    const sideCleanup = [];  // sideRoot listeners/DOM to undo on destroy()
     if(selHost.node()){
       const SK = 2.15, SL = 30, SCX = 131, SCY = 122;
       const sel = selHost.append("svg").attr("width", 262).attr("height", 238).attr("viewBox", "0 0 262 238");
@@ -427,7 +413,11 @@
         })
         .on("pointerleave", function(e, d){ if(hoverNote) hoverNote.innerHTML = "&nbsp;"; if(d && d.petal) d.petal.classed("hovHl", false); })
         .on("click", (e, d) => { if(d && d.lens) setLens(d.lens); });
-      sideRoot.querySelectorAll("[data-lens]").forEach(el => el.addEventListener("click", () => setLens(el.getAttribute("data-lens"))));
+      sideRoot.querySelectorAll("[data-lens]").forEach(el => {
+        const onLensClick = () => setLens(el.getAttribute("data-lens"));
+        el.addEventListener("click", onLensClick);
+        sideCleanup.push(() => el.removeEventListener("click", onLensClick));
+      });
     }
 
     /* entry animation */
@@ -449,9 +439,16 @@
 
     return {
       pending, thr,
-      destroy(){ destroyed = true; root.html(""); },
+      // Clears the sideRoot mounts too: a re-mount would otherwise stack a
+      // second legend flower and duplicate [data-lens] click listeners.
+      destroy(){
+        destroyed = true;
+        root.html("");
+        selHost.html("");
+        sideCleanup.forEach(fn => fn());
+      },
     };
   }
 
-  A.bloom = { deriveBloomData, mountBloom, AXES, BUD_VARS };
+  A.bloom = { mountBloom };
 })(window.Atlas);

@@ -112,8 +112,8 @@
         </div>
 
         <div className="stat-grid">
-          <div className="stat-cell" title="All 133 Virginia counties and independent cities carry a score.">
-            <StatCard label="Counties covered" value="133" unit="/133" accent="signal" icon={<Icon name="map" size={18} />} />
+          <div className="stat-cell" title="Every Virginia county and independent city in the current build carries a score.">
+            <StatCard label="Counties covered" value={String(records.length)} unit="/133" accent="signal" icon={<Icon name="map" size={18} />} />
           </div>
           <div className="stat-cell" title="The county with the highest unmet-need index right now.">
             <StatCard label={"Highest need · " + (top ? top.name : "—")} value={top ? fmt0(top.needIndex) : "—"} unit="/100" accent="command" icon={<Icon name="alert-triangle" size={18} />} />

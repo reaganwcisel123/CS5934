@@ -42,6 +42,7 @@
 
     function paint(){
       counties
+        .style("cursor", current.onClick ? "pointer" : "default")
         .attr("fill", d => current.fill ? current.fill(d) : "var(--surface-sunken)")
         .attr("stroke-width", d => current.selectedFips && (d.properties.county_fips === current.selectedFips) ? 1.8 : 0.8)
         .attr("stroke", d => current.selectedFips && (d.properties.county_fips === current.selectedFips) ? "var(--slate-900)" : "var(--slate-300)");

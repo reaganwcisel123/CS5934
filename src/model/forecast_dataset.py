@@ -12,16 +12,11 @@ arithmetic on a disclosed rule, not a model.
 
 from __future__ import annotations
 
-import json
-
 import numpy as np
 import pandas as pd
 
-from src.catalog import REPO_ROOT
 from src.ingestion.cdc_nndss import OUT_PATH as HISTORY_PATH, TARGET_JURISDICTION
 from src.model import forecast_config as FC
-
-ATLAS_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 
 
 def load_history(path=None) -> pd.DataFrame:
@@ -136,17 +131,6 @@ def usable_conditions(panel: pd.DataFrame) -> tuple[list[str], list[str]]:
     usable = sorted(counts[counts >= FC.MIN_HISTORY_WEEKS].index)
     thin = sorted(counts[counts < FC.MIN_HISTORY_WEEKS].index)
     return usable, thin
-
-
-def county_populations(atlas_path=None) -> dict[str, float]:
-    """County populations from the built atlas, keyed by FIPS."""
-    p = atlas_path or ATLAS_PATH
-    if not p.exists():
-        raise FileNotFoundError(
-            f"{p} not found. Run `uv run python src/build_dataset.py` first."
-        )
-    records = json.loads(p.read_text(encoding="utf-8"))["records"]
-    return {r["id"]: float(r.get("patients") or 0) for r in records}
 
 
 def allocate_to_counties(state_value: float, populations: dict[str, float]) -> pd.DataFrame:

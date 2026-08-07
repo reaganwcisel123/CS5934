@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import numpy as np
 import pandas as pd
 
 from src.catalog import Catalog, REPO_ROOT
@@ -52,6 +53,8 @@ def build(refresh: bool = False) -> dict:
         if not fips or fips not in places.index:
             return None
         row = places.loc[fips]
+        if isinstance(row, pd.DataFrame):  # duplicated county_fips in source
+            row = row.iloc[0]
         return {f: (None if pd.isna(row[f]) else round(float(row[f]), 1)) for f in BURDEN_FIELDS}
 
     sites = []
@@ -87,7 +90,16 @@ def build(refresh: bool = False) -> dict:
 
 
 def _clean(d: dict) -> dict:
-    return {k: (None if isinstance(v, float) and pd.isna(v) else v) for k, v in d.items()}
+    """NaN -> None and numpy scalars -> native, so json.dumps never chokes."""
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, float) and pd.isna(v):
+            out[k] = None
+        elif isinstance(v, np.generic):
+            out[k] = v.item()
+        else:
+            out[k] = v
+    return out
 
 
 def main() -> int:

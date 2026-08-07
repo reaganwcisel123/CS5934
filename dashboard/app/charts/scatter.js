@@ -7,7 +7,9 @@
   function drawScatter(el, ctx){
     const { records, selectedId, baselineFor, onSelect, byId, baselineMode } = ctx;
     const host = d3.select(el).html("");
-    const c = byId(selectedId), b = baselineFor(c);
+    const c = byId(selectedId), b = c && baselineFor(c);
+    // A stale/unknown selection (e.g. old localStorage fips) must not crash the tab.
+    if(!c || !b){ host.append("div").attr("class", "empty").text("Select a county to compare."); return; }
     const set = baselineMode === "region" ? records.filter(x => x.region === c.region) : records;
     const W = 440, H = 300, m = { top:14, right:16, bottom:42, left:48 };
     const svg = host.append("svg").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%").attr("role", "img").attr("aria-label", `Scatter of ${set.length} counties: population vs unmet-need index.`);

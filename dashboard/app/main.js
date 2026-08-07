@@ -9,8 +9,8 @@
 
   const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "explore", "methods", "funding"]);
 
-  function crumbsFor(route, c){
-    const va = { label: "Virginia (133)", href: "#/overview" };
+  function crumbsFor(route, c, countyCount){
+    const va = { label: `Virginia (${countyCount})`, href: "#/overview" };
     switch(route.view){
       case "county":
         return c ? [va, { label: `${c.name} · ${fmt0(c.needIndex)}/100` }] : [va];
@@ -98,11 +98,11 @@
     let view = null;
     if(route.view === "overview") view = <A.views.OverviewView records={records} provenance={provenance} />;
     else if(route.view === "forest") view = <A.views.ForestView records={records} provenance={provenance} />;
-    else if(route.view === "county") view = <A.views.CountyView c={c} baseline={baseline} />;
+    else if(route.view === "county") view = <A.views.CountyView c={c} baseline={baseline} provenance={provenance} />;
     else if(route.view === "worklist") view = <A.views.WorklistView c={c} records={records} />;
     else if(route.view === "trends") view = <A.views.TrendsView c={byId(urlFips) || chipC || null} mode={route.query.mode === "chronic" ? "chronic" : "forecast"} />;
     else if(route.view === "explore") view = <A.views.ExploreView records={records} fips={chipFips || defaultFips()} baselineMode={baselineMode}
-      baseline={chipC ? baselineFor(chipC, baselineMode) : null} query={route.query} />;
+      provenance={provenance} query={route.query} />;
     else if(route.view === "methods") view = <A.views.MethodsView provenance={provenance} />;
     else if(route.view === "funding") view = <A.views.FundingMatchesView records={records} initialFips={chipFips || defaultFips()} />;
 
@@ -112,7 +112,7 @@
     return (
       <React.Fragment>
         <TopBar records={records} fips={chipFips} authOn={AUTH_ON} onSignOut={signOut} />
-        <CrumbBar crumbs={crumbsFor(route, c || chipC)}
+        <CrumbBar crumbs={crumbsFor(route, c || chipC, records.length)}
           baseline={showBaseline ? baselineMode : null}
           onBaseline={showBaseline ? setBaseline : null} />
         <main className="main">

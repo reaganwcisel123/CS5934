@@ -10,20 +10,15 @@ from src.ingestion.base import StubSource
 
 
 # Feed dashboard panels: emit placeholder rows, badged "pending ingestion".
-# class EpaEjscreen(StubSource):
-#     source_id = "epa_ejscreen"  # dom.environment
-#     stub_columns = ["environmental_burden_percentile"]
+class HrsaUds(StubSource):
+    source_id = "hrsa_uds"  # quality measures + real patient counts
+    stub_columns = ["health_center_patient_count", "htn_control", "dm_poor",
+                    "depr_screen", "cervical_screen", "child_immun"]
 
 
-# class HrsaUds(StubSource):
-#     source_id = "hrsa_uds"  # quality measures + real patient counts
-#     stub_columns = ["health_center_patient_count", "htn_control", "dm_poor",
-#                     "depr_screen", "cervical_screen", "child_immun"]
-
-
-# class HudHousing(StubSource):
-#     source_id = "hud_housing"  # housing-cost portion of the food/housing domain
-#     stub_columns = ["housing_cost_burden_share", "fair_market_rent_2br"]
+class HudHousing(StubSource):
+    source_id = "hud_housing"  # housing-cost portion of the food/housing domain
+    stub_columns = ["housing_cost_burden_share", "fair_market_rent_2br"]
 
 
 # Catalog-only: not on the current dashboard, kept for future use.

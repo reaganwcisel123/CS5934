@@ -28,6 +28,9 @@ _hits: dict[str, deque] = {}
 
 def _enforce_rate(key: str) -> None:
     now = time.monotonic()
+    # Evict other clients' fully-expired entries so the map can't grow forever.
+    for k in [k for k, q in _hits.items() if k != key and q and now - q[-1] > RATE_WINDOW]:
+        del _hits[k]
     dq = _hits.setdefault(key, deque())
     while dq and now - dq[0] > RATE_WINDOW:  # drop timestamps outside the window
         dq.popleft()

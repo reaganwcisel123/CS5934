@@ -67,6 +67,7 @@ name = "Layered architecture: dependencies point downward"
 type = "layers"
 layers = [
     "src.api",
+    "src.grants",
     "src.build_dataset",
     "src.model",
     "src.ingestion",
@@ -99,10 +100,14 @@ type = "independence"
 modules = [
     "src.ingestion.cdc_places",
     "src.ingestion.cdc_nndss",
+    "src.ingestion.cdc_eji",
     "src.ingestion.census_acs",
     "src.ingestion.census_pep",
     "src.ingestion.hrsa_hpsa",
+    "src.ingestion.hscd_sites",
+    "src.ingestion.rural_health_clinics",
     "src.ingestion.usda_food_access",
     "src.ingestion.synthetic_clinical",
+    "src.ingestion.virginia_chronic_disease_hospitalization",
     "src.ingestion.stubs",
 ]

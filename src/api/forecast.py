@@ -53,13 +53,9 @@ def threats(top_n: int = 5) -> dict:
 
 @router.get("/threats/counties/{fips}")
 def county_threats(fips: str, top_n: int = 5) -> dict:
-    """Top threats with their county-allocated case load and supply estimates.
-
-    Threats are ranked on observed data across all reported conditions, most of
-    which are outside the 11-condition forecast set. So the county figure is the
-    current observed rate carried over the horizon, not a model forecast, and is
-    labelled `projection_basis: observed_rate` to keep the two apart.
-    """
+    """Top threats with county-allocated case load and supply estimates. Figures
+    are observed rates carried forward (`projection_basis: observed_rate`), not
+    model forecasts -- see FC.ALLOCATION_DISCLOSURE in the payload."""
     from src.model import supply_needs as sn
 
     payload = threats(top_n=top_n)

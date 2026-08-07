@@ -8,12 +8,10 @@ from urllib.parse import quote_plus
 from . import config, db
 
 
-# Current UTC timestamp as an ISO string.
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-# Build a Google Form prefill URL that carries the clinic id in a hidden field.
 def prefilled_link(cfg: dict, contact_id: int) -> str:
     base = cfg["survey_base_url"]
     entry = cfg["survey_clinic_id_entry"]
@@ -21,7 +19,6 @@ def prefilled_link(cfg: dict, contact_id: int) -> str:
     return f"{base}{sep}usp=pp_url&{entry}={quote_plus(str(contact_id))}"
 
 
-# Render the (subject, body) invitation for one contact.
 def render_email(cfg: dict, contact: db.sqlite3.Row) -> tuple[str, str]:
     # Build the per-contact survey link and subject.
     org = contact["organization"].title()
@@ -77,7 +74,6 @@ def _gmail_service(cfg: dict):  # pragma: no cover - needs credentials
     return build("gmail", "v1", credentials=creds)
 
 
-# Send one message through the Gmail API.
 def _send_via_gmail(service, sender: str, to: str, subject: str, body: str):  # pragma: no cover
     import base64
     from email.mime.text import MIMEText

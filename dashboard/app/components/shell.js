@@ -95,10 +95,9 @@
       setOpen(false);
       A.store.rememberFips(id);
       const v = route.view;
-      if(v === "county") navigate("/county/" + id);
-      else if(v === "worklist") navigate("/worklist/" + id);
-      else if(v === "trends") navigate("/trends/" + id);
-      else navigate("/county/" + id);
+      // County-scoped routes carry the fips in the URL; every other view
+      // (Funding Matches, Explore, ...) re-scopes in place via the store.
+      if(v === "county" || v === "worklist" || v === "trends") navigate("/" + v + "/" + id);
     };
 
     return (
@@ -206,5 +205,5 @@
     );
   }
 
-  A.shell = { TopBar, CrumbBar, CountyCombobox, CountyChip };
+  A.shell = { TopBar, CrumbBar, CountyCombobox };
 })(window.Atlas);

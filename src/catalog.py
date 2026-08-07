@@ -1,13 +1,6 @@
-"""Shared loader for the data source catalog.
-
-The one place the pipeline reads data_sources.yml and field_lineage.json.
-Ingestion, the build, and the validator all import from here so access URLs,
-join keys, schema versions, and field provenance live in exactly one place.
-
-Usage:
-    from src.catalog import Catalog
-    cat = Catalog.load()
-    url = cat.source("cdc_places")["access_url"]
+"""Shared loader for the data source catalog — the one place the pipeline reads
+data_sources.yml and field_lineage.json, so URLs and provenance live in one spot.
+Usage: Catalog.load().source("cdc_places")["access_url"].
 """
 
 from __future__ import annotations
@@ -41,7 +34,7 @@ class Catalog:
             raise FileNotFoundError(f"Missing catalog file: {sources_path}")
         if not lineage_path.exists():
             raise FileNotFoundError(f"Missing field lineage file: {lineage_path}")
-        sources = yaml.safe_load(sources_path.read_text(encoding="utf-8")).get("sources", [])
+        sources = (yaml.safe_load(sources_path.read_text(encoding="utf-8")) or {}).get("sources", [])
         lineage = json.loads(lineage_path.read_text(encoding="utf-8")).get("fields", [])
         return cls(sources=sources, lineage=lineage)
 
@@ -67,16 +60,3 @@ class Catalog:
     @property
     def lineage(self) -> list[dict]:
         return self._lineage
-
-    @cached_property
-    def _lineage_by_field(self) -> dict[str, dict]:
-        return {r["final_field"]: r for r in self._lineage if "final_field" in r}
-
-    def lineage_for(self, final_field: str) -> dict | None:
-        return self._lineage_by_field.get(final_field)
-
-    def has_lineage(self, final_field: str) -> bool:
-        return final_field in self._lineage_by_field
-
-    def mvp_fields(self) -> list[str]:
-        return [r["final_field"] for r in self._lineage if r.get("required_for_mvp")]
