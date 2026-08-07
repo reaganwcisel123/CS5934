@@ -23,7 +23,7 @@ def test_funding_matches_is_an_isolated_additive_view() -> None:
 
 
 def test_existing_views_do_not_receive_funding_content() -> None:
-    existing = ["overview.js", "forest.js", "county.js", "worklist.js", "trends.js", "explore.js", "methods.js"]
+    existing = ["overview.js", "forest.js", "county.js", "worklist.js", "trends.js", "methods.js"]
     prohibited = ("Funding Matches", "Grants.gov", "grant recommender", "opportunity match", "eligibility status")
     for name in existing:
         content = (ROOT / "dashboard" / "app" / "views" / name).read_text(encoding="utf-8")

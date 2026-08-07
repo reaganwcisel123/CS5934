@@ -82,7 +82,7 @@
     );
   }
 
-  // The two widest quality gaps only; the full dumbbell lives in Explore.
+  // The two widest quality gaps only.
   function QualitySummary({ c, baseline, provenance }){
     const gaps = MEASURES.map(mz => {
       const cv = c.measures[mz.key], bv = baseline.measures[mz.key];
@@ -104,7 +104,6 @@
             </span>
           </div>
         ))}
-        <a className="methods-link" href="#/explore?tab=quality">Full quality analysis →</a>
       </Panel>
     );
   }

@@ -96,7 +96,7 @@
       A.store.rememberFips(id);
       const v = route.view;
       // County-scoped routes carry the fips in the URL; every other view
-      // (Funding Matches, Explore, ...) re-scopes in place via the store.
+      // (Funding Matches, ...) re-scopes in place via the store.
       if(v === "county" || v === "worklist" || v === "trends") navigate("/" + v + "/" + id);
     };
 
@@ -136,7 +136,6 @@
     { divider: true },
     { view: "forest",  label: "Needs Forest" },
     { view: "trends",  label: "Trends" },
-    { view: "explore", label: "Explore" },
     { view: "methods", label: "Methods" },
     { view: "funding", label: "Funding Matches" },
   ];
@@ -177,8 +176,8 @@
     );
   }
 
-  // Breadcrumb doubles as funnel progress; hosts the baseline toggle where
-  // baselines are meaningful (county, worklist, explore).
+  // Breadcrumb doubles as funnel progress; hosts the baseline toggle on the
+  // county profile, where baselines are meaningful.
   function CrumbBar({ crumbs, baseline, onBaseline, right }){
     return (
       <div className="crumbbar">
