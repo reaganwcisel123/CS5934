@@ -10,7 +10,7 @@ feature the two models use, give the reasoning for the borderline features, and 
 method rests on.
 
 This is input-side screening. It is different from the rurality fairness analysis in US-018
-(`src/model/train.py:80-114`, `documents/modeling.md:86-103`), which measures a trained model's output
+(`fairness_by_rurality` in `src/model/train.py`, and the fairness section of `documents/modeling.md`), which measures a trained model's output
 across rural and less-rural strata. US-018 asks whether the model performs unequally after the fact. US-014
 asks, before that, whether any single feature is an inequity proxy we should not be feeding the model in the
 first place. The two are complementary and neither replaces the other.
@@ -19,8 +19,9 @@ first place. The two are complementary and neither replaces the other.
 
 The feature lists are the versioned source of truth in `src/model/config.py`.
 
-- County model, `COUNTY_FEATURES` (`config.py:15`): `food`, `access`, `hpsaScore`, `rural`, `needIndex`.
-- Patient model, `PATIENT_FEATURES` (`config.py:23`): `age`, `sys`, `dia`, `a1c`, `ctx_food`, `ctx_access`,
+- County model, `COUNTY_FEATURES`: `food`, `access`, `economic`, `education`, `environment`,
+  `hpsaScore`, `rural`, `needIndex`.
+- Patient model, `PATIENT_FEATURES`: `age`, `sys`, `dia`, `a1c`, `ctx_food`, `ctx_access`,
   `rural`, `needIndex`.
 
 First finding, from a direct search of the feature builders and the served data: no race, ethnicity, or ZIP
@@ -29,10 +30,10 @@ field is used as a predictor anywhere. Geography enters the pipeline only as the
 its own. That removes the most direct form of the problem but not the indirect one, which is what the rest
 of this screen is about.
 
-We also screen the three SDoH domains that are being brought into the model on adjacent tickets, because
-they will become features: `economic` and `education` are promoted to real signal under US-013 once the
-Census key is wired, and `environment` follows under US-009 once the EPA feed is live. Screening them now
-means the decision is on record before they influence a result.
+Three SDoH domains were screened here before they went live, so the decision was on record before they
+could influence a result. All three have since shipped: `economic` and `education` carry real Census ACS
+signal (US-013), and `environment` is the CDC/ATSDR EJI Environmental Burden Module percentile (US-009).
+They now sit in `COUNTY_FEATURES` and their monitoring obligation is active.
 
 ## Screening method
 
@@ -73,9 +74,9 @@ of those gets its own paragraph below.
 | `ctx_access` | patient | SDoH context | no | moderate | Keep with monitoring |
 | `rural` | both | geographic | no | high | Keep with monitoring |
 | `needIndex` | both | SDoH composite | no | moderate to high | Keep with monitoring |
-| `economic` (pending US-013) | county | SDoH | no | moderate to high | Keep with monitoring when live |
-| `education` (pending US-013) | county | SDoH | no | moderate to high | Keep with monitoring when live |
-| `environment` (pending US-009) | county | SDoH, environmental justice | no | high | Keep with monitoring when live; excluded while stubbed |
+| `economic` (live, US-013) | county | SDoH | no | moderate to high | Keep with monitoring |
+| `education` (live, US-013) | county | SDoH | no | moderate to high | Keep with monitoring |
+| `environment` (live, US-009) | county | SDoH, environmental justice | no | high | Keep with monitoring |
 
 The clinical features (`age`, `sys`, `dia`, `a1c`) are direct physiological risk factors for the chronic
 conditions this project is about, and they are not stand-ins for a protected attribute in a clinical-risk
@@ -85,8 +86,10 @@ setting, so they are kept without a monitoring caveat. Everything with a monitor
 
 ### `rural`
 
-`rural` is the population-based rurality proxy, computed as one minus the county population percentile, on a
-0 to 1 scale. It is the highest proxy-risk feature we keep, and we keep it deliberately.
+`rural` is the county's USDA ERS Rural-Urban Continuum Code for 2023, normalized to a 0 to 1 scale
+(US-007). It replaced the population-percentile proxy this screen originally covered; the verdict carries
+over because the proxy risk is a property of rurality itself, not of how it is measured. It is the highest
+proxy-risk feature we keep, and we keep it deliberately.
 
 The risk is real. Geography is one of the best-documented proxies for race in the United States, because
 residential segregation means where a person lives is correlated with race even when race is never recorded
@@ -98,8 +101,11 @@ so removing it would blind the model to the exact population it exists to serve.
 manage a feature that is both important and risky is to keep it and watch it, not to drop it and lose the
 ability to measure the disparity. Our resolution is a rule: `rural` is used as a model predictor and as the
 US-018 fairness stratifier, and it is never turned into a standalone targeting rule on its own. The US-018
-slice already shows the county model is weaker on more-rural counties (0.54 versus 0.78 PR-AUC), which is
-precisely the kind of disparity this monitoring is meant to catch, and it is documented rather than buried.
+slice caught exactly the kind of disparity this monitoring exists for: under the old proxy the county model
+was weaker on more-rural counties (0.54 versus 0.78 PR-AUC). After the real economic, education, and
+environment signal landed and rurality was locked to RUCC, the direction reversed (about 0.95 more-rural
+versus 0.78 less-rural); `documents/modeling.md` has the full account. The gap is documented rather than
+buried, in both directions.
 
 ### `needIndex`
 
@@ -108,7 +114,7 @@ inherits the proxy risk of every domain it aggregates, and because it is a compo
 is actually driving a result, which makes a biased contribution harder to see.
 
 We keep it with monitoring, and we already act on the second concern: `needIndex` is deliberately left out of
-the county driver labels (`config.py:58-60`) so that explanations point at the underlying actionable factors
+the county driver labels (`COUNTY_DRIVER_LABELS` in `config.py`) so that explanations point at the underlying actionable factors
 (care access, food burden, provider shortage) rather than restating a black-box composite. It stays a
 predictor for ranking, but it is not allowed to be the explanation. If the domain weights change, this
 feature should be re-screened, because reweighting a composite can quietly change whose need it emphasizes.
@@ -129,17 +135,16 @@ non-PHI design, but the patient model's context features should be read as commu
 person, not as a measured personal circumstance, and the UI already frames patient results as synthetic and
 context-driven.
 
-### `economic`, `education`, `environment` (pending)
+### `economic`, `education`, `environment` (screened before launch, now live)
 
-These three domains are screened now so the decision is on record before they enter the model. `economic`
-(poverty, uninsured, unemployment, and median income) and `education` (share without a high school diploma)
-are strong structural-inequity measures, correlated with race through the same segregation channel as the
-other SDoH features, and both are being promoted to real signal under US-013. `environment` is the EPA
-EJSCREEN environmental-burden percentile, an environmental-justice index that is intentionally built to track
-disparity by race and income, and it is wired under US-009. All three get the same verdict as the SDoH
-features already in the model: Keep with monitoring once live. While `environment` remains a constant-50
-placeholder it contributes no signal and is correctly excluded from `COUNTY_FEATURES`; the monitoring
-obligation begins the moment it carries real variance.
+These three domains were screened before they entered the model, so the decision was on record first.
+`economic` (poverty, uninsured, unemployment, and median income) and `education` (share without a high
+school diploma) are strong structural-inequity measures, correlated with race through the same segregation
+channel as the other SDoH features; both went live under US-013 from the Census ACS feed. `environment` is
+the CDC/ATSDR EJI Environmental Burden Module percentile, an environmental-justice index that is
+intentionally built to track disparity by race and income, wired under US-009. All three get the same
+verdict as the SDoH features already in the model: Keep with monitoring. They now carry real variance and
+sit in `COUNTY_FEATURES`, so that monitoring obligation is active, not prospective.
 
 ## What monitoring means in practice
 
@@ -171,12 +176,13 @@ catch.
 - Diez Roux AV, Mair C. Neighborhoods and health. Annals of the New York Academy of Sciences, 2010. The
   ecological-inference caveat for assigning neighborhood context to individuals.
 - USDA Economic Research Service, Rural-Urban Continuum Codes documentation. Reference for how rurality is
-  defined and why a population-based proxy needs to be treated as an approximation of a locked measure.
+  defined; since US-007 the `rural` feature uses the RUCC 2023 codes directly rather than a population-based
+  approximation.
 
 ## Status against the US-014 acceptance criteria
 
 - Each feature screened for encoded inequity: done, in the per-feature table and the borderline section.
 - Screening method documented: done, the three-question method above.
 - Borderline-feature decisions recorded with reasoning: done, `rural`, `needIndex`, the `ctx_*` and SDoH
-  features, and the three pending domains each have a recorded verdict and reasoning.
+  features, and the three domains screened before launch each have a recorded verdict and reasoning.
 - Research basis cited: done, the reference list above.

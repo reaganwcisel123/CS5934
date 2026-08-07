@@ -1,4 +1,4 @@
-# CS5934 — Clinic Needs Atlas
+# CS5934: Clinic Needs Atlas
 
 A catalog-driven data pipeline that turns public health data sources into the
 **Clinic Needs Atlas** dashboard, plus a survey **email pipeline**.
@@ -7,17 +7,17 @@ A catalog-driven data pipeline that turns public health data sources into the
 
 | Path | What it is |
 |---|---|
-| `data_source_catalog/` | Data source catalog: the single source of truth (`config/data_sources.yml`, `config/field_lineage.json`) and its validator. |
+| `data_source_catalog/` | The data source catalog, our single source of truth (`config/data_sources.yml`, `config/field_lineage.json`), plus its validator. |
 | `src/` | Catalog-driven ETL: per-source ingestion (`src/ingestion/`), transforms (`src/transform/`), and the build orchestrator (`src/build_dataset.py`). |
 | `dashboard/` | `index.html` (public landing) and `app.html` (the Signal app: one shell, hash-routed views in `dashboard/app/`, loads real data from `dashboard/data/clinic_atlas.json`). |
 | `reference/` | Frozen early dashboard prototypes (`clinic-needs-atlas.html`, `-live.html`) kept for design reference; not deployed. |
 | `email_pipeline/` | Survey outreach pipeline (ingest → send → track → follow-up → report). |
-| `data/` | `reference/` lookups (committed) and `raw/` cached source extracts (git-ignored). |
+| `data/` | `reference/` lookups and the `synthetic/` clinical CSV (committed); `raw/` cached source extracts and `processed/` surveillance history (git-ignored). |
 
 ## Environment setup (uv)
 
-Dependencies are managed with [uv](https://docs.astral.sh/uv/). `pyproject.toml`
-+ `uv.lock` are the canonical, reproducible source of truth.
+Dependencies are managed with [uv](https://docs.astral.sh/uv/); `pyproject.toml`
+and `uv.lock` pin the environment.
 
 ```bash
 uv sync                 # create .venv and install the data-pipeline dependencies
@@ -41,25 +41,29 @@ uv run --env-file .env python src/build_dataset.py --refresh  # re-fetch from up
 uv run python src/build_dataset.py                            # uses cached raw extracts in data/raw/
 ```
 
-Without a key the Census sources stay stubbed; everything else (CDC PLACES,
-HRSA, USDA) works keyless.
+Without a key the Census sources stay stubbed. CDC PLACES, HRSA, USDA, and the
+Virginia chronic-disease source are keyless, and the EJI environment domain
+reads from a committed reference file, so all of those work without any setup.
 
 This writes `dashboard/data/clinic_atlas.json` (Virginia counties) and prints,
 per field group, whether the data is **real / synthetic / stub**.
 
 ## Reproduce everything (one command)
 
-`scripts/run-pipeline.sh` regenerates all results from the catalog in one step,
-matching what Render runs on deploy:
+`scripts/run-pipeline.sh` regenerates all results from the catalog in one step.
+It's essentially what Render runs on deploy (Render also runs the NNDSS
+ingestion for the forecast routes):
 
 ```bash
 ./scripts/run-pipeline.sh                        # build the dashboard dataset (JSON only)
-DATABASE_URL=postgresql://… ./scripts/run-pipeline.sh   # also migrate + seed + load Postgres
+DATABASE_URL=postgresql://… ./scripts/run-pipeline.sh   # also migrate + seed + train + load Postgres
 ```
 
 With no `DATABASE_URL` it installs deps and rebuilds `clinic_atlas.json`. With
-one set, it also applies migrations and loads counties + the catalog into
-Postgres. Set `CENSUS_API_KEY` first to unlock the ACS economic/education panels.
+one set, it also applies migrations, seeds the catalog, trains and scores both
+risk models, and loads counties + patients into Postgres. The script reads
+`.env`, so set `CENSUS_API_KEY` there to unlock the ACS economic/education
+panels.
 
 ## View the dashboard
 
@@ -78,6 +82,7 @@ uv run python data_source_catalog/scripts/validate_data_catalog.py
 
 ## Data source status
 
-Six sources are wired to real/synthetic data; the rest are catalogued **stubs**
-(`StubSource` subclasses in `src/ingestion/`) for another contributor to promote
-to `RealSource`. See `src/ingestion/registry.py` for the full list.
+Eight sources are wired to real or synthetic data. The other nine registered
+sources are catalogued **stubs** (`StubSource` subclasses in
+`src/ingestion/stubs.py`) waiting for a contributor to promote them to
+`RealSource`. See `src/ingestion/registry.py` for the full list.

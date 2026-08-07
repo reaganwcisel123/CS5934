@@ -1,4 +1,4 @@
-# Rural Clinic Grant Funding Recommender — implementation
+# Rural Clinic Grant Funding Recommender: implementation
 
 ## Executive summary
 
@@ -12,7 +12,7 @@ Rural clinic administrators need a defensible starting point for grant research:
 
 The source is the public [Grants.gov REST API guide](https://www.grants.gov/api/api-guide), verified on 2026-08-04. It documents unauthenticated `POST https://api.grants.gov/v1/api/search2` for opportunity search and `POST https://api.grants.gov/v1/api/fetchOpportunity` for one detailed record. The client pages `search2` with `rows` and `startRecordNum`, then requests detail with `{ "opportunityId": "…" }`.
 
-The client searches a configurable rural-health planning vocabulary, retains HHS (including HRSA and CDC) plus USDA Rural Development subagencies, and limits the small corpus with `--max-results`. It sets a 25-second timeout, two bounded retries for transient errors, an identifying user agent, and records retrieval timestamps and official API URLs. Raw response data and separately normalized records are cached under ignored `data/raw/grants_gov_opportunities/`; the raw cache deliberately excludes the API's transient response token.
+The client searches a configurable rural-health planning vocabulary, retains HHS (including HRSA and CDC) plus USDA Rural Development subagencies, and limits the small corpus with `--max-results`. It sets a 25-second timeout, two bounded retries for transient errors, an identifying user agent, and records retrieval timestamps and official API URLs in the raw cache. One provenance caveat: when the raw cache is younger than 24 hours and `--refresh` is not passed, `retrieve()` returns the sentinel string `cache` as its retrieved-at value, and that literal string is what lands in the artifact's `sourceRetrievedAt` (fixture runs record `fixture`). Pass `--refresh` when you need a real source timestamp in the artifact. Raw response data and separately normalized records are cached under ignored `data/raw/grants_gov_opportunities/`; the raw cache deliberately excludes the API's transient response token.
 
 ## Extracted fields and normalization
 
@@ -42,13 +42,15 @@ Thresholds live in `src/grants/config.py`.
 | rural healthcare delivery | `rural` | >= 0.5 | rurality context |
 | primary care workforce shortage | `hpsaScore` | >= 14 | shortage-area planning context |
 | behavioral-health access | `outcomes.mhlth` | >= 20 | elevated mental-distress context |
+| mental health services | `outcomes.mhlth` | >= 23 | elevated-services mental-distress context |
 | diabetes prevention and management | `outcomes.diabetes` | >= 11 | diabetes planning context |
 | hypertension management | `outcomes.bphigh` | >= 34 | blood-pressure planning context |
 | obesity prevention | `outcomes.obesity` | >= 35 | obesity planning context |
 | food access | `dom.food` | >= 60 | food-access burden context |
 | care coordination | `dom.access` | >= 60 | care-access burden context |
 | community outreach | `dom.economic` | >= 65 | economic-barrier context |
-| health equity / quality improvement | `needIndex` | >= 65 | elevated composite community need |
+| clinic infrastructure | `dom.environment` | >= 70 | environmental-burden infrastructure context |
+| health equity / quality improvement | `needIndex` | >= 65 | elevated composite community need (two tags share this trigger) |
 
 Each activated tag stores its field, observed value, exact threshold rule, and a plain-language explanation in the artifact.
 
@@ -77,7 +79,9 @@ match_score = clamp(
 )
 ```
 
-Every component is retained from 0 to 1. Tiers are Strong relevance (>= 0.70), Moderate relevance (>= 0.45), and Limited relevance otherwise. Two to four fit reasons are generated only from visible rural/health/category/deadline text and activated-profile tag evidence. Readiness prompts are practical checks—organization type, UEI/SAM.gov, eligibility narrative, scope, budget, partners, and cost sharing where listed—not claims that every item is legally required.
+Every component is retained from 0 to 1. Tiers are Strong relevance (>= 0.70), Moderate relevance (>= 0.45), and Limited relevance otherwise. In practice the committed 2026-08-04 artifact never leaves the bottom tier: all 1,330 stored matches are Limited relevance, with match scores between 0.12 and 0.29. The upper tiers are unreachable with the current TF-IDF cosine scoring because the short profile text overlaps only a little of each grant document's vocabulary, so treat the score as a within-county ordering rather than an absolute grade.
+
+Up to four fit reasons are generated only from visible rural/health/category/deadline text and activated-profile tag evidence; a generic fallback reason keeps the list nonempty. Readiness prompts are practical checks (organization type, UEI/SAM.gov, eligibility narrative, scope, budget, partners, and cost sharing where listed), not claims that every item is legally required.
 
 ## Artifacts and dashboard
 
@@ -124,8 +128,10 @@ uv run python -m http.server 8000
 Offline/reproducible build:
 
 ```bash
-uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportunities.json
+uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportunities.json --output data/raw/grants_gov_opportunities/fixture_artifact.json
 ```
+
+Keep the `--output` flag on fixture runs. The default output path is the committed `dashboard/data/grant_funding_matches.json`, so a fixture run without `--output` overwrites the 18-opportunity live artifact with the 5-record test fixture's output.
 
 The focused tests cover parsing, HTML cleanup, currency/date handling, cache/fixture behavior, deduplication, closed/geographically incompatible exclusion, controlled profile thresholds, TF-IDF fitting, cosine ranking, score bounds, deterministic output, explanation/readiness fields, artifact serialization, tab registration, scoped styling, and existing-view isolation. If a live refresh fails, retain the last fresh raw cache or use the fixture to validate code; do not make `src/build_dataset.py` depend on Grants.gov. If the dashboard says the artifact is missing, run the grant pipeline separately and serve `dashboard/` over HTTP.
 

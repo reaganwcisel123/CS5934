@@ -24,11 +24,11 @@ git push -u origin feature/TICKET-123
 
 ## Branch names
 
-`feature/TICKET-123`, `bug/TICKET-123` — prefix + ticket number.
+`feature/TICKET-123`, `bug/TICKET-123` (prefix + ticket number).
 
 ## Rules of thumb
 
 - One `origin` remote, no forks. Check with `git remote -v`.
 - Keep branches small and focused on one ticket.
 - Rebase or pull `develop` before opening a branch to stay current.
-- Never commit straight to `main`. Only `develop`.
+- Never commit straight to `main`; work lands in `develop` via feature branches.

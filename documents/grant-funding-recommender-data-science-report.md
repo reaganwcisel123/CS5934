@@ -1,4 +1,4 @@
-# Rural Clinic Grant Funding Recommender — data-science report
+# Rural Clinic Grant Funding Recommender: data science report
 
 ## Problem definition
 
@@ -17,7 +17,7 @@ The sole opportunity source is the public [Grants.gov API](https://www.grants.go
 | award/cost-share/count | planning fields | numeric parser, `null` stays unavailable | award range/readiness |
 | applicants/eligibility prose | compatibility evidence | preserve unknown text | restrained screen |
 
-The selected live sample had 30 raw and normalized rows, no duplicates, and no rejected rows. It contained 11 posted and 19 forecasted records; six rows were closed or had a passed deadline, leaving an open-deadline rate of 0.80. Missingness was 0.0% description, 16.7% eligibility prose, 3.3% closing date, and 43.3% award range. The retained 18-record corpus had Health in every selected record's category list, while the raw data also exposed Agriculture, Community Development, Food and Nutrition, Income Security and Social Services, Business and Commerce, and Energy categories.
+The selected live sample had 30 raw and normalized rows, no duplicates, and no rejected rows. It contained 11 posted and 19 forecasted records; six rows were closed or had a passed deadline, leaving an open-deadline rate of 0.80. Missingness was 0.0% description, 16.7% eligibility prose, 3.3% closing date, and 43.3% award range. In the retained 18-record corpus, 15 records list Health as a structured funding category; the other three (a Business and Commerce/Food and Nutrition record, a Community Development record, and an Energy record) passed the text-based healthcare relevance screen instead. The raw batch's category distribution was Health 26, plus one record each in Business and Commerce, Community Development, Energy, Food and Nutrition, and Income Security and Social Services.
 
 ## Filtering and corpus profile
 
@@ -34,11 +34,15 @@ The 133 Virginia Atlas records are converted deterministically into a county-inf
 | rural healthcare delivery | `rural` | >= 0.5 | rurality context |
 | primary care workforce shortage | `hpsaScore` | >= 14 | HPSA planning context |
 | behavioral health access | `outcomes.mhlth` | >= 20 | mental-distress context |
+| mental health services | `outcomes.mhlth` | >= 23 | elevated mental-distress services context |
 | diabetes prevention and management | `outcomes.diabetes` | >= 11 | chronic-condition context |
 | hypertension management | `outcomes.bphigh` | >= 34 | chronic-condition context |
+| obesity prevention | `outcomes.obesity` | >= 35 | chronic-condition context |
 | food access | `dom.food` | >= 60 | social-needs planning context |
 | care coordination | `dom.access` | >= 60 | access planning context |
-| health equity / quality improvement | `needIndex` | >= 65 | elevated aggregate-need context |
+| community outreach | `dom.economic` | >= 65 | economic-barrier context |
+| clinic infrastructure | `dom.environment` | >= 70 | environmental-burden infrastructure context |
+| health equity / quality improvement | `needIndex` | >= 65 | elevated aggregate-need context (two tags share this trigger) |
 
 The profile text labels itself as public county context, not a confirmed operational plan. Each tag keeps its source field, observed value, threshold rule, and human-readable explanation, which is sufficient for audit without inferring organizational facts.
 
@@ -57,7 +61,9 @@ The same vectorizer converts each county profile. `NearestNeighbors(metric="cosi
 | Eligibility compatibility | 0.10 | conservative structured screening |
 | Deadline usability | 0.05 | usable date horizon or forecast/unknown fallback |
 
-All components are clamped to 0–1 and the final score is clamped to 0–1. `Likely incompatible` hard-excludes only clear cases: closed/past deadline, named geography excluding Virginia, or individual-only applicant types. `Likely compatible` indicates organization-type categories are present; otherwise the result is `Needs verification`. The model never determines legal eligibility.
+All components are clamped to 0-1 and the final score is clamped to 0-1. In practice the score sits low: the committed artifact's 1,330 matches range from 0.12 to 0.29, so every stored match lands in the dashboard's lowest tier, `Limited relevance`. The `Strong relevance` (>= 0.70) and `Moderate relevance` (>= 0.45) tiers exist in code but are not reached with the current TF-IDF cosine scoring, since a short profile text shares little vocabulary with long grant documents. Read the score as a relative ordering within a county, not an absolute quality grade.
+
+`Likely incompatible` hard-excludes only clear cases: closed/past deadline, named geography excluding Virginia, or individual-only applicant types. `Likely compatible` indicates organization-type categories are present; otherwise the result is `Needs verification`. The model never determines legal eligibility.
 
 ## Evaluation strategy and results
 
@@ -83,4 +89,6 @@ These are retrieval and data-quality checks, not claims of funding effectiveness
 
 Use Funding Matches to organize grant discovery and prepare a human review queue. Do not use it to assert eligibility, promise award success, rank clinical risk, or infer an individual clinic's plan. The source can change; descriptions may be incomplete; the small topical corpus can omit relevant opportunities; grant language does not capture every implementation constraint; and no PHI is used.
 
-To reproduce the live artifact, run `uv sync --extra model` followed by `uv run python -m src.grants.pipeline --refresh --max-results 30`. To reproduce tests without external calls, run `uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportunities.json` and `uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tests/test_funding_dashboard.py -q`. Raw-response, normalized-record, and fitted-model caches are ignored; the static dashboard artifact is committed so the tab has a usable initial state.
+To reproduce the live artifact, run `uv sync --extra model` followed by `uv run python -m src.grants.pipeline --refresh --max-results 30`. Note the provenance caveat: without `--refresh`, a raw cache younger than 24 hours is reused and the artifact's `sourceRetrievedAt` is recorded as the literal string `cache` rather than the original retrieval timestamp (fixture runs record `fixture`), so pass `--refresh` when the timestamp matters.
+
+For an offline build, run `uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportunities.json --output data/raw/grants_gov_opportunities/fixture_artifact.json`. Pass `--output` here: the default output path is the committed `dashboard/data/grant_funding_matches.json`, and a fixture run without it replaces the 18-opportunity live build with the tiny 5-record fixture result. Tests run with `uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tests/test_funding_dashboard.py -q` and make no external calls. Raw-response, normalized-record, and fitted-model caches are ignored; the static dashboard artifact is committed so the tab has a usable initial state.
