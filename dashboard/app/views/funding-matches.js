@@ -97,7 +97,8 @@
       }).catch(() => { if(active) setError("Funding Matches is not available yet. Run the grant recommendation pipeline to generate the optional artifact."); });
       return () => { active = false; };
     }, []);
-    React.useEffect(() => { if(!selectedFips && initialFips) setSelectedFips(initialFips); }, [initialFips, selectedFips]);
+    // Follow the global county chip whenever it changes.
+    React.useEffect(() => { if(initialFips){ setSelectedFips(initialFips); setSelectedId(null); } }, [initialFips]);
 
     if(error) return <div className="content funding-matches"><div className="empty">{error}</div></div>;
     if(!artifact) return <div className="content funding-matches"><div className="empty">Loading current funding opportunities…</div></div>;
@@ -118,7 +119,8 @@
       ? (a.match.daysRemaining == null ? Infinity : a.match.daysRemaining) - (b.match.daysRemaining == null ? Infinity : b.match.daysRemaining)
       : sort === "award" ? (b.opportunity.awardCeiling || -1) - (a.opportunity.awardCeiling || -1)
       : b.match.matchScore - a.match.matchScore);
-    const selected = rows.find(row => row.match.opportunityId === selectedId) || rows[0] || null;
+    const shownRows = rows.slice(0, 10);
+    const selected = shownRows.find(row => row.match.opportunityId === selectedId) || shownRows[0] || null;
     const setFilter = (key, value) => setFilters(current => ({ ...current, [key]: value }));
     const metadata = artifact.metadata || {};
     return (
@@ -128,7 +130,7 @@
         <Panel icon="map" title="County-informed clinic planning profile" desc="Public county indicators; not a confirmed clinic strategy">
           <div className="fm-context"><div><CountyCombobox records={records} selectedId={selectedFips} onSelect={id => { setSelectedFips(id); setSelectedId(null); }} /><div className="fm-meta"><span>Locality<b>{textOr(profile.countyName)}</b></span><span>Rurality<b>{profile.rurality == null ? "Not provided" : Number(profile.rurality) >= .5 ? "More rural" : "Less rural"}</b></span><span>HPSA score<b>{textOr(profile.hpsaScore)}</b></span></div></div><div><h4>Activated planning priorities</h4><div className="fm-tags">{(profile.profileTags || []).length ? profile.profileTags.slice(0, 8).map(tag => <span className="fm-tag" key={tag.tag} title={tag.explanation}>{tag.label}</span>) : <span className="hint">No planning tags are available from the current county fields.</span>}</div><p className="fm-context-copy">{textOr(profile.profileText)}</p></div></div>
         </Panel>
-        <MetricGrid artifact={artifact} rows={rows} />
+        <MetricGrid artifact={artifact} rows={shownRows} />
         <Panel icon="list-checks" title="Ranked opportunity matches" desc={`${metadata.modelVersion || "Model version not provided"} · retrieved ${textOr(metadata.sourceRetrievedAt)}`}>
           <div className="fm-controls">
             <select className="fm-control" value={sort} onChange={e => setSort(e.target.value)} aria-label="Sort opportunities"><option value="score">Sort: match score</option><option value="deadline">Sort: closing date</option><option value="award">Sort: award ceiling</option></select>
@@ -138,7 +140,7 @@
             <select className="fm-control" value={filters.eligibility} onChange={e => setFilter("eligibility", e.target.value)} aria-label="Filter by eligibility screen"><option value="">All eligibility screens</option><option>Likely compatible</option><option>Needs verification</option></select>
             <select className="fm-control" value={filters.category} onChange={e => setFilter("category", e.target.value)} aria-label="Filter by funding category"><option value="">All funding categories</option>{options.categories.map(item => <option key={item}>{item}</option>)}</select>
           </div>
-          <div className="fm-results"><div className="fm-list">{rows.length ? rows.slice(0, 10).map(row => <FundingCard key={row.match.opportunityId} row={row} selected={selected && row.match.opportunityId === selected.match.opportunityId} onSelect={() => setSelectedId(row.match.opportunityId)} />) : <div className="empty">No current match is available for these filters. Try a broader deadline, agency, or eligibility screen.</div>}</div><FundingDetail row={selected} /></div>
+          <div className="fm-results"><div className="fm-list">{shownRows.length ? shownRows.map(row => <FundingCard key={row.match.opportunityId} row={row} selected={selected && row.match.opportunityId === selected.match.opportunityId} onSelect={() => setSelectedId(row.match.opportunityId)} />) : <div className="empty">No current match is available for these filters. Try a broader deadline, agency, or eligibility screen.</div>}</div><FundingDetail row={selected} /></div>
         </Panel>
         <details className="fm-method"><summary>How Funding Matches works</summary><p>The Atlas converts public county indicators into a controlled planning profile. It represents both that profile and current grant records with TF-IDF terms, then retrieves the nearest opportunities by cosine distance. Semantic relevance is combined with transparent category, deadline, and structured compatibility components; the result is a relevance score, never an award probability.</p></details>
         <p className="fm-source-note"><b>Source:</b> <a href="https://www.grants.gov/api/api-guide" target="_blank" rel="noopener noreferrer">Grants.gov public API</a>. Data retrieved: {textOr(metadata.sourceRetrievedAt)}. Opportunity information can be amended or closed by the publisher after retrieval.</p>

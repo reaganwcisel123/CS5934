@@ -97,13 +97,8 @@ def supervised_frame(panel: pd.DataFrame, horizon: int = FC.HORIZON_WEEKS) -> pd
 
 
 class QuantileForecaster:
-    """Quantile GBMs plus a conformal widening term.
-
-    Raw quantile regression on ~180 rows undercovers badly (60% empirical for an
-    80% nominal band). Split-conformal calibration widens the band by the
-    residual quantile measured on held-out weeks, so the stated interval means
-    what it says.
-    """
+    """Quantile GBMs plus a split-conformal widening term: raw quantile regression
+    on this little data undercovers, so held-out residuals widen the band."""
 
     def __init__(self, models: dict[float, object], delta: float = 0.0) -> None:
         self.models = models
@@ -207,7 +202,8 @@ def backtest(
 
     folds_df = pd.DataFrame(per_fold)
     if folds_df.empty:
-        return {"folds": [], "per_condition": [], "summary": {}}
+        return {"horizon_weeks": horizon, "n_conditions": 0,
+                "folds": [], "per_condition": [], "summary": {}}
 
     def agg(vals) -> dict:
         vals = np.asarray(vals, dtype=float)
@@ -323,19 +319,23 @@ def main() -> int:
 
         s = results["summary"]
         n = results["n_conditions"]
-        print(f"Rolling-origin backtest, horizon {results['horizon_weeks']}w, "
-              f"{n} conditions, {len(results['folds'])} fold-fits")
-        print(f"  skill vs naive       {s['skill_vs_naive']['mean']:.2f} "
-              f"(<1 wins; {s['conditions_beating_naive']}/{n} conditions)")
-        print(f"  skill vs seasonal    {s['skill_vs_seasonal']['mean']:.2f} "
-              f"({s['conditions_beating_seasonal']}/{n} conditions)")
-        print(f"  MAPE                 {s['mape']['mean']:.1f}% +/- {s['mape']['sd']:.1f}")
-        print(f"  interval coverage    {s['interval_coverage']['mean']:.0%} "
-              f"(nominal {max(QUANTILES) - min(QUANTILES):.0%})")
-        print(f"  beats both baselines {beats_baseline(results)}\n")
-        for c in sorted(results["per_condition"], key=lambda r: r["skill_vs_naive"]):
-            print(f"  {c['skill_vs_naive']:.2f}  {c['condition'][:52]:<52} "
-                  f"MAE {c['model_mae']:7.2f} vs naive {c['naive_mae']:7.2f}")
+        if not s:
+            print("Backtest produced no folds (history too thin); "
+                  f"metrics written to {METRICS_PATH}")
+        else:
+            print(f"Rolling-origin backtest, horizon {results['horizon_weeks']}w, "
+                  f"{n} conditions, {len(results['folds'])} fold-fits")
+            print(f"  skill vs naive       {s['skill_vs_naive']['mean']:.2f} "
+                  f"(<1 wins; {s['conditions_beating_naive']}/{n} conditions)")
+            print(f"  skill vs seasonal    {s['skill_vs_seasonal']['mean']:.2f} "
+                  f"({s['conditions_beating_seasonal']}/{n} conditions)")
+            print(f"  MAPE                 {s['mape']['mean']:.1f}% +/- {s['mape']['sd']:.1f}")
+            print(f"  interval coverage    {s['interval_coverage']['mean']:.0%} "
+                  f"(nominal {max(QUANTILES) - min(QUANTILES):.0%})")
+            print(f"  beats both baselines {beats_baseline(results)}\n")
+            for c in sorted(results["per_condition"], key=lambda r: r["skill_vs_naive"]):
+                print(f"  {c['skill_vs_naive']:.2f}  {c['condition'][:52]:<52} "
+                      f"MAE {c['model_mae']:7.2f} vs naive {c['naive_mae']:7.2f}")
 
     if args.train:
         import joblib

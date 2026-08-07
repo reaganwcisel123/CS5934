@@ -1,4 +1,4 @@
-# Model card — Notifiable-disease early warning (US-050)
+# Model card: notifiable-disease early warning (US-050)
 
 **Version** 1.0 · **Evaluated** 2026-07-28 · **Code** `src/model/forecast.py`
 
@@ -24,7 +24,7 @@ capstone prototype for academic evaluation, not a production clinical tool.
 | | |
 |---|---|
 | Source | CDC NNDSS Weekly Data (`cdc_nndss`, Socrata `x9gk-5huc`) |
-| Coverage | Virginia, 2022 W1 – 2026 W28 (237 weeks) |
+| Coverage | Virginia, 2022 W1 to 2026 W28 (237 weeks) |
 | Granularity | State × condition × MMWR week |
 | Conditions forecast | 11 of 139 reported, by volume and reporting continuity |
 | PHI | None. Public aggregate counts only |
@@ -36,28 +36,28 @@ change between runs.
 ## Model
 
 Per-condition gradient-boosted quantile regression (scikit-learn), one model set
-per condition. Features are lags 1–8 and 52, rolling mean/SD over 4 and 8 prior
-weeks, and week-of-year as a sine/cosine pair. All features are strictly past;
-`forecast_dataset.assert_no_leakage()` fails the build if a lag column is ever
-not `target.shift(n)`.
+per condition. Features are lags 1-4 and 8, the 52-week seasonal lag, rolling
+mean/SD over the 4 and 8 prior weeks, and week-of-year as a sine/cosine pair.
+All features are strictly past; `forecast_dataset.assert_no_leakage()` fails the
+build if a lag column is ever not `target.shift(n)`.
 
 Conditions are modelled separately because they span two orders of magnitude
 (Chlamydia ~682/week, Giardiasis ~4/week). Pooling them degraded both error and
 interval calibration.
 
-Intervals are **conformalized** (split-CQR): raw quantile regression covered only
+Intervals are conformalized (split-CQR). Raw quantile regression covered only
 60% at a nominal 80%, so the band is widened by the residual quantile measured on
 held-out weeks.
 
 ## Evaluation
 
 Rolling-origin backtest, 8 conditions with enough contiguous history, 40 fold-fits.
-Skill is model error ÷ baseline error, so **below 1.0 means the model wins**.
+Skill is model error ÷ baseline error, so below 1.0 means the model wins.
 
 | Metric | Result |
 |---|---|
-| Skill vs naive (last week) | **0.91** ± 0.17 — beats naive on 6 of 8 |
-| Skill vs seasonal naive | **0.81** ± 0.20 — beats it on 6 of 8 |
+| Skill vs naive (last week) | **0.91** ± 0.17, beats naive on 6 of 8 |
+| Skill vs seasonal naive | **0.81** ± 0.20, beats it on 6 of 8 |
 | MAPE | 37.5% ± 16.8 |
 | Interval coverage | **81%** ± 7 against a nominal 80% |
 
@@ -74,16 +74,16 @@ Skill is model error ÷ baseline error, so **below 1.0 means the model wins**.
 | **Giardiasis** | **1.03** | 2.1 | 54% | 85% |
 | **Chlamydia trachomatis** | **1.28** | 104.2 | 19% | 65% |
 
-**Two conditions lose to the naive baseline and should be read as such.**
-Chlamydia is the worst (1.28) and also the highest-volume series, so it dominates
-raw error totals — its 65% coverage is the weakest interval in the set. For
-Chlamydia and Giardiasis, last week's count is a better predictor than this model.
+Two conditions lose to the naive baseline and should be read as such. Chlamydia
+is the worst (1.28) and also the highest-volume series, so it dominates raw error
+totals; its 65% coverage is the weakest interval in the set. For Chlamydia and
+Giardiasis, last week's count is a better predictor than this model.
 
 ## Threat ranking (US-056)
 
 A separate inference from the forecast, answering "what is unusual right now"
-rather than "how many cases next month". It runs over **all 139 reported
-conditions**, not just the 11 that are forecast.
+rather than "how many cases next month". It runs over all 139 reported
+conditions, not just the 11 that are forecast.
 
 ```
 recent        = mean weekly cases over the last 8 reported weeks
@@ -108,7 +108,7 @@ above everything regardless of how few cases it represents.
 **Regional corroboration.** Virginia is compared against Maryland, West Virginia,
 Kentucky, Tennessee, North Carolina and DC. All seven report through the same
 MMWR week, so the comparison is fair. Corroboration separates a real regional
-signal from a Virginia reporting artifact — but it cannot separate a regional
+signal from a Virginia reporting artifact, but it cannot separate a regional
 *reporting* change from a regional *disease* change.
 
 ### Ranking as of 2026 W29
@@ -143,14 +143,14 @@ The forecast is state-level, so there is no county-level error to audit. The
 equity risk is in the allocation, measured by comparing each county's population
 share against an access-weighted need share:
 
-- **Nonmetro-adjacent counties (RUCC 4–6) are under-allocated by 1.5 percentage
-  points**, mean need ratio 1.25. Their figures are a **floor**, not an estimate.
-- Most-rural counties (RUCC 7–9) track their need share closely (−0.003).
-- The disparity is **not** where it was expected. A rural-only check would have
+- Nonmetro-adjacent counties (RUCC 4-6) are under-allocated by 1.5 percentage
+  points, mean need ratio 1.25. Their figures are a floor, not an estimate.
+- Most-rural counties (RUCC 7-9) track their need share closely (−0.003).
+- The disparity is not where it was expected. A rural-only check would have
   reported no disparity and missed the worst-served group.
 
 No demographic feature enters the model. Race, ethnicity, income, insurance and
-ZIP are absent by construction — the input is one statewide count per week.
+ZIP are absent by construction: the input is one statewide count per week.
 
 ## Limitations
 

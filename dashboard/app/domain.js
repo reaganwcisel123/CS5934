@@ -38,19 +38,6 @@
   // Fall back to Low so a tier lookup never returns undefined.
   const interventionsForTier = t => TIER_INTERVENTIONS[t] || TIER_INTERVENTIONS.Low;
 
-  // County headline tier: prefer the patient roster's most-urgent tier, else the
-  // county model risk. Drives the county-level recommended-action panel.
-  function countyHeadlineTier(c){
-    const scored = (c.patientsList || []).filter(p => p.risk != null);
-    if(scored.some(p => p.riskTier === "High")) return "High";
-    if(scored.some(p => p.riskTier === "Medium")) return "Medium";
-    if(scored.length) return "Low";
-    // No patient roster (e.g. live API): derive the tier from county model risk.
-    const r = c.modelRisk;
-    if(r == null) return null;
-    return r >= 0.5 ? "High" : r >= 0.25 ? "Medium" : "Low";
-  }
-
   const REGIONS = ["Northern","Central","Valley","Southwest","Tidewater"];
 
   function aggregateOf(list){
@@ -64,5 +51,5 @@
     };
   }
 
-  A.domain = { DOMAINS, OUTCOMES, MEASURES, TIER_INTERVENTIONS, interventionsForTier, countyHeadlineTier, REGIONS, aggregateOf };
+  A.domain = { DOMAINS, OUTCOMES, MEASURES, interventionsForTier, REGIONS, aggregateOf };
 })(window.Atlas);

@@ -46,7 +46,7 @@ Rurality is a locked measure now, not an informal proxy. We use the USDA Economi
 Rural-Urban Continuum Codes for 2023, which assign every county a code from 1, most urban metro, to 9, most
 rural, based on the 2023 OMB metro delineation and 2020 population. We normalize that code to a 0 to 1 rural
 score, where RUCC 1 maps to 0.0 and RUCC 9 maps to 1.0, so it enters the model on the same scale the old
-value used. The codes for Virginia's 133 counties are committed in `data/reference/va_county_rucc.csv`, the
+value used. The codes for Virginia's 133 counties and independent cities are committed in `data/reference/va_county_rucc.csv`, the
 build reads them in `src/build_dataset.py`, and each county record carries a `ruralityMethod` tag so the
 choice is auditable.
 

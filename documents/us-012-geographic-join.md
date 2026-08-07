@@ -22,3 +22,10 @@ Current key flow:
 
 ```text
 community SDoH by county_fips  +  patient county_fips  ->  joined patient SDoH context
+```
+
+## Unmatched records and coverage
+
+A patient whose `county_fips` has no county record is kept, not dropped. The join marks it with null SDoH and rurality context (`unmatched_rule: retain_unmatched_with_null_context`) so downstream code has to handle the gap explicitly instead of silently losing the row.
+
+Coverage is reported per build in the `sdoh_join_coverage` block of `dashboard/data/clinic_atlas.json`. The committed build matches 464 of 464 patient records (100%), which is expected while the synthetic roster is generated from the same county list the SDoH frames use. The coverage number earns its keep once real survey or clinic data arrives with keys we don't control.

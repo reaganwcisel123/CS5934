@@ -1,7 +1,6 @@
 // Explore — analyst tools: scatter, deviation heatmap, quality gaps, and the
 // Needs Forest (demo data). Chart clicks update the global county chip in place.
 (function(A){
-  const Icon = A.Icon;
   const { REGIONS } = A.domain;
   const { fmt0, fmtC } = A.format;
   const { navigate } = A.router;
@@ -222,10 +221,11 @@
 
   /* -------- The view -------------------------------------------------------- */
 
-  function ExploreView({ records, fips, baseline, baselineMode, query }){
+  function ExploreView({ records, fips, baselineMode, provenance, query }){
     const tab = query.tab || "scatter";
     const setTab = id => navigate("/explore", { query: { tab: id }, replace: true });
     const c = A.store.byId(fips);
+    const measuresProv = (provenance && provenance.measures) || { status: "stub" };
 
     // Chart clicks re-scope the global county context without leaving Explore.
     const ctx = {
@@ -260,7 +260,7 @@
 
         {tab === "quality" && (
           <Panel icon="target" title="Quality gap from baseline" desc="UDS clinical measures · ◯ baseline, ● this county"
-            badge={<ProvPill status="stub" label="UDS · pending" />}>
+            badge={<ProvPill status={measuresProv.status} label={"UDS · " + (measuresProv.status === "real" ? "live" : "pending")} />}>
             <D3Panel draw={A.charts.drawGap} ctx={ctx} />
           </Panel>
         )}

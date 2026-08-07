@@ -2,7 +2,7 @@
 // (view, fips, baseline) lives in the URL, not here — see router.js.
 (function(A){
   const { fetchAtlas, getToken } = A.api;
-  const { DOMAINS, OUTCOMES, MEASURES, REGIONS, aggregateOf } = A.domain;
+  const { REGIONS, aggregateOf } = A.domain;
 
   let state = {
     records: [], provenance: null, err: null,
@@ -44,10 +44,13 @@
 
   const byId = id => state.records.find(c => c.id === id);
   // Baseline aggregate for a county under the given mode ("va" | "region").
+  // Null when the aggregate doesn't exist (e.g. a region outside REGIONS).
   function baselineFor(c, baselineMode){
+    const agg = baselineMode === "region" ? state.aggRegion[c.region] : state.aggVA;
+    if(!agg) return null;
     return baselineMode === "region"
-      ? Object.assign({}, state.aggRegion[c.region], { label: c.region + " peers", short: c.region })
-      : Object.assign({}, state.aggVA, { label: "all Virginia", short: "Virginia" });
+      ? Object.assign({}, agg, { label: c.region + " peers", short: c.region })
+      : Object.assign({}, agg, { label: "all Virginia", short: "Virginia" });
   }
 
   A.store = { get, set, subscribe, useStore, load, rememberFips, defaultFips, byId, baselineFor };

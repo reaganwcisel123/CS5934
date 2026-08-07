@@ -1,15 +1,10 @@
-// Needs Forest — "A Commonwealth in Bloom": every VA county drawn through the
-// state flower, a cartogram of dogwoods where petal length and bud circles
-// carry Census ACS need indicators and petal color carries a CDC PLACES
-// health outcome. Ported from dashboard-prototyping/A Commonwealth in Bloom.html.
+// Needs Forest — the dogwood cartogram view; the drawing itself lives in bloom.js.
 (function(A){
   const { fetchGeo } = A.api;
   const { ProvPill } = A.ui;
 
-  // vizRef is the mount point bloom.js owns outright (clears + rebuilds it).
-  // mainRef wraps vizRef *and* the JSX-rendered sidebar (selector mount,
-  // hover note, ramp row, data-lens rows) — bloom.js only reads from that
-  // side, via querySelector, never clears it.
+  // bloom.js owns and clears the vizRef mount; it only reads (via sideRoot
+  // querySelectors) from the JSX sidebar wrapped by mainRef.
   function BloomStage({ records, mainRef }){
     const ref = React.useRef(null);
     const apiRef = React.useRef(null);

@@ -50,7 +50,7 @@ def review_status(supply_map: dict | None = None) -> dict:
 def blurb_for(condition: str, supply_map: dict | None = None) -> str | None:
     data = supply_map if supply_map is not None else load_supply_map()
     entry = (data.get("conditions") or {}).get(condition)
-    return (entry or {}).get("blurb", "").strip() or None
+    return ((entry or {}).get("blurb") or "").strip() or None
 
 
 def supply_needs(

@@ -8,18 +8,17 @@ from src.ingestion.census_acs import CensusAcs
 from src.ingestion.census_pep import CensusPep
 from src.ingestion.cdc_eji import CdcEji
 from src.ingestion.hrsa_hpsa import HrsaHpsa
-from src.ingestion.hrsa_uds import HrsaUds
-from src.ingestion.hud_housing import HudHousing
 from src.ingestion.synthetic_clinical import SyntheticClinical
 from src.ingestion.usda_food_access import UsdaFoodAccess
 from src.ingestion.virginia_chronic_disease_hospitalization import VirginiaChronicDiseaseHospitalization
 
 # Wired (real + synthetic).
-_WIRED = [CdcPlaces, CensusAcs, CensusPep, CdcEji, HrsaHpsa, HrsaUds,
-          HudHousing, UsdaFoodAccess, SyntheticClinical,
+_WIRED = [CdcPlaces, CensusAcs, CensusPep, CdcEji, HrsaHpsa,
+          UsdaFoodAccess, SyntheticClinical,
           VirginiaChronicDiseaseHospitalization]
 # Stubs for a future coder to promote to RealSource.
-_STUBS = [stubs.CmsMedicarePuf, stubs.CmsMipsQpp, stubs.CmsQualityStars,
+_STUBS = [stubs.HrsaUds, stubs.HudHousing,
+          stubs.CmsMedicarePuf, stubs.CmsMipsQpp, stubs.CmsQualityStars,
           stubs.CdcNwss, stubs.GrantsGov, stubs.StateFeeds,
           stubs.AsprHospitalCapacity]
 

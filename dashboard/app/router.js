@@ -47,5 +47,5 @@
 
   const useRoute = () => React.useSyncExternalStore(subscribe, get);
 
-  A.router = { get, navigate, subscribe, useRoute, serialize };
+  A.router = { get, navigate, subscribe, useRoute };
 })(window.Atlas);

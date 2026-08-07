@@ -293,5 +293,5 @@
     return { update };
   }
 
-  A.forest = { AXES, buildDummyData, drawGlyph, drawDualBar, buildForestMap, outerFor, lighten };
+  A.forest = { AXES, buildDummyData, drawGlyph, drawDualBar, buildForestMap, lighten };
 })(window.Atlas);

@@ -2,10 +2,13 @@
 
 A short guide for clinic staff. No statistics background needed.
 
+You'll find this on the **Trends** page. It opens in "Forecast" mode, titled
+Early warning (the other mode is the chronic disease history explorer).
+
 ## What this tab is for
 
-It tells you which reportable illnesses are running **unusually high in Virginia
-right now**, and roughly what supplies that implies — so you can order before you
+It tells you which reportable illnesses are running unusually high in Virginia
+right now, and roughly what supplies that implies, so you can order before you
 need it rather than after.
 
 ## Reading a threat card
@@ -18,8 +21,8 @@ the important one:
 
 That "time of year" part matters. Plenty of illnesses rise every summer. We
 compare this July against the last four Julys, not against this spring, so a
-normal seasonal rise shows as about 1x and does not reach the board. A card only
-appears when something is genuinely out of the ordinary.
+normal seasonal rise reads as about 1x and sinks to the bottom of the ranking.
+The board shows the few illnesses furthest out of the ordinary.
 
 Underneath you will see, for example, `16.0 cases/week now vs 6.1 normal`. Those
 are statewide numbers.
@@ -28,33 +31,30 @@ are statewide numbers.
 
 We check Maryland, West Virginia, Kentucky, Tennessee, North Carolina and DC.
 
-- **Rising in several neighbours** — more likely a real regional trend. Take it
-  more seriously.
-- **"Virginia only"** — could be real, or could be a quirk in how Virginia
-  reported that week. Worth watching rather than acting on immediately.
+Rising in several neighbours is more likely a real regional trend, so take it
+more seriously. "Virginia only" could be real, or could be a quirk in how
+Virginia reported that week. Worth watching rather than acting on immediately.
 
 ### The little bar chart
 
 Reported cases per week over the last 16 weeks, most recent on the right.
-Hatched bars are weeks with **no report** — not weeks with zero cases. A gap
-means we do not know, which is different from nothing happening.
+Hatched bars are weeks with **no report**, not weeks with zero cases. A gap
+means we don't know, which is different from nothing happening.
 
 ## What to hold
 
 Open **"What to hold in this county"** for a supply table with quantity ranges.
 
-Two things about those numbers:
-
-- **They are for your county, not the state.** We take the statewide rate and
-  give your county its share based on population. So they are an estimate of your
-  slice, **not a count of sick people near you**. That is why every one carries an
-  "allocated, not observed" tag.
-- **They come from a written list a person can read and argue with**, not from the
-  model. Each illness explains why it implies each item.
+Two things about those numbers. First, they are for your county, not the state:
+we take the statewide rate and give your county its share based on population.
+They estimate your slice, they are **not a count of sick people near you**, and
+that's why every one carries an "allocated, not observed" tag. Second, they come
+from a written list a person can read and argue with, not from the model. Each
+illness explains why it implies each item.
 
 ## The blurbs are not clinician-reviewed yet
 
-You will see a note saying stocking guidance is **pending clinical review**. That
+You will see a note saying stocking guidance is pending clinical review. That
 is accurate. The blurbs were written from published CDC guidance by the
 development team, not by a doctor or pharmacist on this project.
 
@@ -73,5 +73,5 @@ Use them to start a stocking conversation. Do not use them as clinical direction
 
 This is a planning aid. It informs a decision; it does not make one. Your
 judgement about your own community beats the model, and you are expected to
-override it. If a number looks wrong for your area, it may well be — the model
+override it. If a number looks wrong for your area, it may well be. The model
 card lists where this is weakest.

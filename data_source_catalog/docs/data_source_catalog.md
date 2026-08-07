@@ -2,37 +2,78 @@
 
 ## Purpose
 
-This file documents the data sources used by the rural health analytics pipeline. The machine-readable source of truth is:
+This file documents the data sources used by the rural health analytics
+pipeline. The machine-readable source of truth is:
 
 ```text
-config/data_sources.yml
+data_source_catalog/config/data_sources.yml
 ```
 
-This Markdown file is the human-readable companion. It explains what each source is, how the project expects to access it, and what limitations need to be considered before ingestion.
+with per-field provenance in `data_source_catalog/config/field_lineage.json`.
+This Markdown file is the human-readable companion: what each source is, how
+we expect to access it, and what to watch out for before ingestion. When the
+two disagree, the YAML wins; run the validator
+(`uv run python data_source_catalog/scripts/validate_data_catalog.py`) after
+any edit.
 
-# Data Catalog
+## Catalog metadata fields
 
-## Catalog Metadata Fields
+Every catalog entry has identifiers (`source_id`, `source_name`), context
+(`provider`, `source_category`), and access information (`access_method`,
+`access_url`, `documentation_url`, `auth_required`, `api_key_env_var`, which
+holds an env var name and never a real key). Geography and timing are
+described by `geographic_granularity`, `temporal_granularity`,
+`refresh_cadence`, and `schema_version`. Integration fields (`join_keys`,
+`fields_used`) explain how the source lands in the final dataset, and
+`limitations` and `privacy_classification` record caveats. Implementation
+state lives in `ingestion_status`, `ingestion_script`, and
+`last_verified_date`.
 
-Every catalog entry has identifiers (`source_id`, `source_name`), context (`provider`, `source_category`), and access-related information (`access_method`, `access_url`, `documentation_url`, `auth_required`, `api_key_env_var` - never use real keys). The geographic and temporal aspects are described by `geographic_granularity`, `temporal_granularity`, `refresh_cadence`, and `schema_version`. Integration fields (`join_keys`, `fields_used`) explain how the source relates to the resulting dataset, whereas `limitations` and `privacy_classification` identify any limitations and privacy classification of the data. Finally, the implementation status is described by `ingestion_status`, `ingestion_script`, and `last_verified_date`.
+## Source inventory
 
----
+19 sources as of 2026-08-07. Statuses in parentheses come from
+`ingestion_status` in the YAML.
 
-## source Inventory
+| `source_id` | What it is | Access | Geography | Cadence | Status |
+| --- | --- | --- | --- | --- | --- |
+| `virginia_chronic_disease_hospitalization` | VDH chronic disease hospitalizations via Virginia Open Data | CKAN datastore API / CSV export | county | annual | `access_verified` |
+| `cdc_places` | CDC PLACES: Local Data for Better Health | CDC data portal / Socrata API / CSV | county, place, tract, ZCTA | annual | `access_verified` |
+| `grants_gov_opportunities` | Curated Grants.gov rural-health opportunity corpus | REST API (`search2` + `fetchOpportunity`) | opportunity, agency, eligibility | daily cache freshness | `validated` |
+| `cdc_nwss` | CDC National Wastewater Surveillance System | CDC data portal / Socrata API / CSV | treatment plant, county, state | weekly, generally Friday | `access_verified` |
+| `cdc_nndss` | CDC NNDSS weekly notifiable disease tables | Data.CDC.gov Socrata (`x9gk-5huc`) / CSV | national, state, territory | weekly provisional + annual finalized | `sample_pull_successful` |
+| `hrsa_hpsa` | HRSA Health Professional Shortage Area designations | HRSA Data Warehouse / dashboard / GIS REST | shortage area, county, state, boundaries | publisher-specific | `access_verified` |
+| `hrsa_uds` | HRSA Health Center Program Uniform Data System | UDS dashboard downloads (CSV/XLSX) | health center, state, national | annual | `access_verified` |
+| `cms_medicare_puf` | CMS Medicare public use files | data.cms.gov API / CSV | provider, NPI, facility, county, state | dataset-specific, often annual or quarterly | `schema_reviewed` |
+| `cms_mips_qpp` | CMS Quality Payment Program / MIPS public data | QPP downloads and public APIs | clinician, group, practice, state | annual | `not_started` |
+| `cms_quality_stars` | CMS Provider Data Catalog star ratings | Provider Data Catalog API / CSV | facility (hospital, nursing home, home health), state | CMS scheduled refresh; see the Data Updates dataset | `access_verified` |
+| `census_acs_sdoh` | ACS 5-year SDoH variables | Census Data API (`CENSUS_API_KEY` recommended) | state, county, tract, some block groups | annual | `access_verified` |
+| `cdc_eji` | CDC/ATSDR Environmental Justice Index | national tract-level CSV, population-weighted to county | tract, county | periodic CDC/ATSDR releases | `access_verified` |
+| `aspr_hospital_capacity` | HHS/ASPR hospital capacity (COVID-era feed) | HealthData.gov / Socrata API / CSV | facility, state | stopped updating 2024-05-03 | `deprecated_or_historical` |
+| `usda_food_access` | USDA Food Access Research Atlas | Excel download / map services | census tract | irregular | `access_verified` |
+| `hud_housing` | HUD FMR and income limits | HUD USER API (needs `HUD_API_TOKEN`) / downloads | county, metro, ZIP, state | annual for FMR/income limits; varies otherwise | `access_verified` |
+| `grants_gov` | Grants.gov public opportunity search | REST API (`search2`) | opportunity, agency, assistance listing, eligibility | publisher-driven, continuous | `access_verified` |
+| `state_health_department_feeds` | State health department feeds (states TBD) | state-specific API / dashboard / RSS / Socrata / ArcGIS | state, county, health district | varies by state | `not_started` |
+| `county_population_estimates` | Census PEP county population estimates | keyless PEP bulk CSV download | county, state, nation | annual | `ingestion_wired` |
+| `synthetic_clinical_dataset` | Project synthetic non-PHI clinical dataset | generated in-repo (`src/ingestion/synthetic_clinical.py`) | synthetic patient, clinic, county | regenerate per version | `ingestion_wired` |
 
-3 sources from the CDC. **CDC PLACES: Local Data for Better Health** (`cdc_places`) can be accessed using the CDC Data Portal, Socrata API, and CSV; it has the granularity of county, place, tract, and ZCTA; its cadence is once per year (`access_verified`). **CDC National Wastewater Surveillance System** (`cdc_nwss`) has the same access methods; its granularities are plant, county, and state; it is refreshed weekly, every Friday (`access_verified`). **CDC National Notifiable Diseases Surveillance System Tables** (`cdc_nndss`) can be accessed using NNDSS, CDC WONDER, and Data.CDC.gov; it has the granularity of national, state, and territory; it is published weekly, provisionally and yearly (`schema_reviewed`).
+Note there are two Grants.gov entries on purpose: `grants_gov` is the generic
+opportunity-search source, while `grants_gov_opportunities` is the small
+curated corpus behind the funding recommender (`src/grants/pipeline.py`).
 
-The **HRSA Health Professional Shortage Area Designations** (`hrsa_hpsa`) come from the HRSA Data Warehouse, dashboard, and GIS REST services; they have a publisher-specific schedule; include shortage area, county, and state geographies; and are refreshed on a publisher-specific schedule (`access_verified`). The **HRSA Health Center Program Uniform Data System** (`hrsa_uds`) comes from the UDS dashboard downloads, CSV, and XLSX; includes health center, state, and national geographies; and is refreshed annually (`access_verified`).
+## Notes for other team members
 
-Three CMS data sets provide Medicare and quality payment, as well as provider rating information. The **CMS Medicare Public Use Files and Program Datasets** (`cms_medicare_puf`) come from the data.cms.gov API and CSV; include provider, NPI, facility, county, and state geographies; and refresh annually or quarterly, depending on the particular dataset (`schema_reviewed`). The **CMS Quality Payment Program / MIPS Public Resources** (`cms_mips_qpp`) come from the QPP download and public APIs; include clinician, group, practice, and state geographies; and refresh annually (`not_started`). The **CMS Provider Data Catalog Quality Star Ratings** (`cms_quality_stars`) come from the Provider Data Catalog API and CSV; include facilities and states; and refresh according to the CMS scheduled cadence, which can be found in the Data Updates dataset (`access_verified`).
-
-Two sources from the Census Bureau contain demographic and population statistics. **American Community Survey SDoH Variables** (`census_acs_sdoh`), which are retrieved from the Census Data API, include state, county, tract, and block group geography and are released yearly (`access_verified`). **Census Population Estimates Program County Population Estimates** (`county_population_estimates`) can be obtained using the Census Data API and CSV and involve county, state, and national geographies and are also released yearly (`schema_reviewed`).
-
-Each of the remaining sources has its own distinct sphere of application. The **CDC/ATSDR Environmental Justice Index** (`cdc_eji`) is a national census-tract file whose Environmental Burden Module percentile is population-weighted up to the county, applies to tracts and counties, and is released periodically by CDC/ATSDR (`access_verified`). **HHS/ASPR Hospital Capacity and Utilization Data** (`aspr_hospital_capacity`) can be found on HealthData.gov, CSV, and Socrata API, are applicable to facility and state geographies, but their update ceased on 2024-05-03 (`deprecated_or_historical`). **USDA Food Access Research Atlas** (`usda_food_access`) can be found via Excel and mapping services, apply to census tracts, and are released according to an irregular release schedule (`access_verified`). **HUD Housing Affordability and Fair Market Rent Data** (`hud_housing`) are accessible via HUD USER API and open data downloads, apply to county, metro, ZIP, and state geographies, and are updated annually for FMR and income limits, while other datasets differ (`access_verified`). The **Grants.gov Public Funding Opportunity Search** (`grants_gov`) is available using REST API, includes opportunities, agencies, listings, and eligibility and is continually updated as more agencies post (`access_verified`). The **State Health Department Public Feeds** (`state_health_department_feeds`) include state and territory level health department data sources via state-level specific APIs, dashboards, RSS, Socrata, or ArcGIS Hub, depending on state, with geographic and temporal variation by state, all of which should be described prior to ingest (`not_started`). Lastly, the **Project Synthetic Non-PHI Clinical Dataset** (`synthetic_clinical_dataset`) is a generated repository dataset involving synthetic patient, clinic, and county level data, to be generated anew for each version (`not_started`).
-
-## notes for my other team members
-
-- `cdc_eji` replaced the retired EPA EJSCREEN source, whose download host was deprecated. The environment domain now comes from the CDC/ATSDR EJI Environmental Burden Module, population-weighted from census tracts to the county (`access_verified`).
-- `aspr_hospital_capacity` is marked `deprecated_or_historical` because the COVID-era HealthData.gov feed is historical and should not be treated as current hospital-capacity surveillance.
-- `state_health_department_feeds` is intentionally generic until target states are selected. Once a state is selected, add one child catalog entry per feed or state.
-- `synthetic_clinical_dataset` must remain synthetic and non-PHI. Do not commit real patient data.
+- `cdc_eji` replaced the retired EPA EJSCREEN source, whose download host was
+  deprecated. The environment domain now comes from the CDC/ATSDR EJI
+  Environmental Burden Module, population-weighted from census tracts to the
+  county.
+- `aspr_hospital_capacity` is `deprecated_or_historical` because the
+  COVID-era HealthData.gov feed is frozen. Don't treat it as current
+  hospital-capacity surveillance.
+- `cdc_nndss` is state-keyed only. It has no county dimension, its `states`
+  column changes casing partway through the dataset, and it pulls Virginia
+  plus six neighbouring jurisdictions. Read the `limitations` list in the
+  YAML before touching it.
+- `state_health_department_feeds` stays generic until target states are
+  picked. Once one is, add a child catalog entry per feed or state.
+- `synthetic_clinical_dataset` must stay synthetic and non-PHI. Do not commit
+  real patient data.

@@ -83,7 +83,7 @@
   }
 
   // The two widest quality gaps only; the full dumbbell lives in Explore.
-  function QualitySummary({ c, baseline }){
+  function QualitySummary({ c, baseline, provenance }){
     const gaps = MEASURES.map(mz => {
       const cv = c.measures[mz.key], bv = baseline.measures[mz.key];
       if(cv == null || bv == null) return null;
@@ -91,9 +91,10 @@
       return { ...mz, cv, bv, w };
     }).filter(Boolean).sort((a,b) => b.w - a.w).slice(0, 2);
     if(!gaps.length) return null;
+    const prov = (provenance && provenance.measures) || { status: "stub" };
     return (
       <Panel icon="target" title="Widest quality gaps" desc="HRSA UDS clinical measures"
-        badge={<ProvPill status="stub" label="pending" />}>
+        badge={<ProvPill status={prov.status} label={prov.status === "real" ? "live" : "pending"} />}>
         {gaps.map(gz => (
           <div className="gap-row" key={gz.key}>
             <span className="gap-label">{gz.label}</span>
@@ -135,7 +136,7 @@
     );
   }
 
-  function CountyView({ c, baseline }){
+  function CountyView({ c, baseline, provenance }){
     const topDom = DOMAINS.map(D => ({ ...D, v:c.dom[D.key] })).sort((a,b) => b.v - a.v)[0];
     const scored = (c.patientsList || []).filter(p => p.risk != null);
     const highN = scored.filter(p => p.riskTier === "High").length;
@@ -167,7 +168,7 @@
           <NeedProfile c={c} baseline={baseline} />
           <div className="county-side">
             <OutcomeRow c={c} baseline={baseline} />
-            <QualitySummary c={c} baseline={baseline} />
+            <QualitySummary c={c} baseline={baseline} provenance={provenance} />
             <ForecastSnapshot fips={c.id} />
           </div>
         </div>

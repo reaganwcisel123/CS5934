@@ -7,7 +7,9 @@
 
   function drawGap(el, ctx){
     const { byId, selectedId, baselineFor } = ctx;
-    const c = byId(selectedId), b = baselineFor(c), host = d3.select(el).html("");
+    const host = d3.select(el).html("");
+    const c = byId(selectedId), b = c && baselineFor(c);
+    if(!c || !b){ host.append("div").attr("class", "empty").text("Select a county to compare."); return; }
     const W = 980, rowH = 46, m = { top:22, right:48, bottom:36, left:250 }, H = m.top + rowH * MEASURES.length + m.bottom;
     const svg = host.append("svg").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%").attr("role", "img").attr("aria-label", `Quality gap from ${b.label}.`);
     const x = d3.scaleLinear().domain([0, 100]).range([m.left, W - m.right]);

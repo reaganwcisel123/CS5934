@@ -7,12 +7,10 @@ from datetime import datetime, timezone
 from . import config, db, send
 
 
-# Current UTC timestamp as an ISO string.
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-# Days elapsed since an ISO timestamp, or None if it is missing or unparseable.
 def _days_since(iso_ts: str | None) -> float | None:
     if not iso_ts:
         return None
@@ -26,7 +24,6 @@ def _days_since(iso_ts: str | None) -> float | None:
     return (datetime.now(timezone.utc) - then).total_seconds() / 86400
 
 
-# True if this contact is due for its next follow-up right now.
 def due(contact: db.sqlite3.Row, cfg: dict, today_days=_days_since) -> bool:
     # Only nudge contacts that were sent and have not since changed state.
     if contact["status"] != "sent":
@@ -45,7 +42,6 @@ def due(contact: db.sqlite3.Row, cfg: dict, today_days=_days_since) -> bool:
     return elapsed is not None and elapsed >= offsets[n]
 
 
-# Send (or dry-run) a follow-up to every contact currently due for one.
 def run(cfg: dict | None = None, dry_run: bool = True) -> dict:
     cfg = cfg or config.load()
     service = None

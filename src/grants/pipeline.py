@@ -75,11 +75,10 @@ def main(argv: list[str] | None = None) -> int:
     atlas_path = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
     atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
     raw_records, retrieval = GrantsGovClient().retrieve(refresh=args.refresh, max_results=args.max_results, fixture_path=args.fixture)
-    source_retrieved_at = retrieval["retrieved_at"] if retrieval["retrieved_at"] != "fixture" else "fixture"
     artifact = build_artifact(
         atlas,
         raw_records,
-        source_retrieved_at=source_retrieved_at,
+        source_retrieved_at=retrieval["retrieved_at"],
         cache_status=retrieval["cache"],
         model_directory=args.model_dir,
         normalized_cache_path=C.NORMALIZED_CACHE_PATH,

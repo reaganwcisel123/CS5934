@@ -98,11 +98,8 @@ def join_sdoh_to_patients(
     matched = 0
     unmatched_keys: list[str | None] = []
 
-    # If `patients` are produced as a county-level roster (no per-patient
-    # `county_fips`), it's common for the caller to pass `sdoh_by_geo` that
-    # contains exactly one key (the roster's county). In that case, assume the
-    # single context applies to every patient rather than forcing an
-    # "unmatched" result.
+    # County-level rosters carry no per-patient geo key; when the caller passes
+    # exactly one context (the roster's county), it applies to every patient.
     single_context_key: str | None = None
     if len(normalized_context) == 1:
         single_context_key = next(iter(normalized_context.keys()))
@@ -110,9 +107,6 @@ def join_sdoh_to_patients(
     for patient in patients:
         row = deepcopy(dict(patient))
         key = normalize_county_fips(row.get(geo_key))
-        # Fallback to the roster-level context when individual patients don't
-        # carry the geo key but the provided sdoh context is for a single
-        # county (typical for synthetic rosters).
         if key is None and single_context_key is not None:
             key = single_context_key
         context = normalized_context.get(key)

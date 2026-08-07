@@ -15,13 +15,15 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from pipeline import config, ingest, send, track, followup, report
 
 
-# Parse the stage argument and dispatch to the matching pipeline module.
 def main() -> None:
-    # Define the CLI: one positional stage plus a few shared flags.
     parser = argparse.ArgumentParser(description="US-003 survey outreach pipeline")
     parser.add_argument(
         "stage",
@@ -36,7 +38,6 @@ def main() -> None:
     cfg = config.load(args.config)
     dry = not args.send
 
-    # Run the requested stage.
     if args.stage == "ingest":
         ingest.run(cfg)
     elif args.stage == "send":

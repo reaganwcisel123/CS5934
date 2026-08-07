@@ -51,7 +51,6 @@ CREATE INDEX IF NOT EXISTS idx_events_contact ON events(contact_id);
 """
 
 
-# Open a connection with row access by name and foreign keys on.
 def connect(path: str) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     conn = sqlite3.connect(path)
@@ -60,27 +59,26 @@ def connect(path: str) -> sqlite3.Connection:
     return conn
 
 
-# Create the tables if they do not already exist.
 def init(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
     conn.commit()
 
 
-# Context manager that opens, initializes, commits, and closes a connection.
 @contextmanager
 def session(path: str):
     conn = connect(path)
     init(conn)
     try:
         yield conn
-        conn.commit()
     finally:
+        # Commit even on an aborted run: emails already sent must keep their
+        # 'sent' status, or a re-run would email those contacts again.
+        conn.commit()
         conn.close()
 
 
 # --- writes -----------------------------------------------------------------
 
-# Insert a contact, or update its static fields if the email already exists.
 def upsert_contact(conn: sqlite3.Connection, row: dict) -> None:
     # Keyed on email so re-running ingest is idempotent and keeps campaign state.
     cols = [
@@ -98,7 +96,6 @@ def upsert_contact(conn: sqlite3.Connection, row: dict) -> None:
     )
 
 
-# Move a contact to a new status and set any extra timestamp/flag fields.
 def set_status(conn, contact_id: int, status: str, ts: str, **fields) -> None:
     assert status in STATUSES, f"unknown status {status!r}"
     # Always update status and last_contact_at, plus any keyword fields passed.
@@ -111,7 +108,6 @@ def set_status(conn, contact_id: int, status: str, ts: str, **fields) -> None:
     conn.execute(f"UPDATE contacts SET {', '.join(sets)} WHERE id=?", params)
 
 
-# Append one row to the audit log.
 def log_event(conn, contact_id, ts, event_type, channel="system", detail="") -> None:
     conn.execute(
         "INSERT INTO events (contact_id, ts, event_type, channel, detail) VALUES (?,?,?,?,?)",
@@ -121,12 +117,10 @@ def log_event(conn, contact_id, ts, event_type, channel="system", detail="") -> 
 
 # --- reads ------------------------------------------------------------------
 
-# Return every contact ordered by id.
 def all_contacts(conn) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM contacts ORDER BY id").fetchall()
 
 
-# Return contacts that can be emailed now: not contacted, has email, not opted out / bounced.
 def sendable(conn) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT * FROM contacts WHERE status='not_contacted' AND opted_out=0 "
@@ -134,7 +128,6 @@ def sendable(conn) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-# Return a {status: count} map across all contacts.
 def status_counts(conn) -> dict:
     rows = conn.execute("SELECT status, COUNT(*) n FROM contacts GROUP BY status").fetchall()
     return {r["status"]: r["n"] for r in rows}

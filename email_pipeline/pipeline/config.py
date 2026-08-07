@@ -41,46 +41,17 @@ DEFAULTS = {
 }
 
 
-# Minimal flat YAML parser used only when PyYAML is not installed.
-def _parse_simple_yaml(text: str) -> dict:
-    out: dict = {}
-    # Handle `key: value`, `key: [a, b]`, and `# comments`; skip nested keys.
-    for line in text.splitlines():
-        line = line.split("#", 1)[0].rstrip()
-        if not line or ":" not in line or line[0].isspace():
-            continue
-        key, _, val = line.partition(":")
-        key, val = key.strip(), val.strip()
-        if not val:
-            continue
-        # Coerce simple list and boolean forms, else keep the string.
-        if val.startswith("[") and val.endswith("]"):
-            out[key] = [v.strip().strip("'\"") for v in val[1:-1].split(",") if v.strip()]
-        elif val.lower() in ("true", "false"):
-            out[key] = val.lower() == "true"
-        else:
-            out[key] = val.strip("'\"")
-    return out
-
-
-# Return DEFAULTS merged with config.yaml if it is present.
 def load(path: str | None = None) -> dict:
+    import yaml
+
     cfg = dict(DEFAULTS)
     path = path or os.path.join(ROOT, "config.yaml")
     if os.path.exists(path):
-        # Parse with PyYAML when available, otherwise the flat fallback parser.
         with open(path, encoding="utf-8") as fh:
-            text = fh.read()
-        try:
-            import yaml  # type: ignore
-
-            loaded = yaml.safe_load(text) or {}
-        except ImportError:
-            loaded = _parse_simple_yaml(text)
+            loaded = yaml.safe_load(fh) or {}
         cfg.update({k: v for k, v in loaded.items() if v is not None})
     return cfg
 
 
-# Parse the configured response cutoff into a date.
 def cutoff_date(cfg: dict) -> date:
     return date.fromisoformat(str(cfg["response_cutoff"]))

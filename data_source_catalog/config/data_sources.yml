@@ -423,7 +423,7 @@ sources:
       - Some geographies are limited depending on ACS table type.
     privacy_classification: public_aggregate
     ingestion_status: access_verified
-    ingestion_script: src/ingestion/census_acs_sdoh.py
+    ingestion_script: src/ingestion/census_acs.py
     last_verified_date: "2026-06-29"
   -
     source_id: cdc_eji

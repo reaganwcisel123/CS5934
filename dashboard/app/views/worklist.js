@@ -1,7 +1,6 @@
 // Worklist (WHAT NEXT): the funnel band + ranked patient table with per-patient
 // Accept/Override review (US-021/022), persisted locally and posted to the audit API.
 (function(A){
-  const Icon = A.Icon;
   const { interventionsForTier } = A.domain;
   const { fmt0, fmtC } = A.format;
   const { Panel, ProvPill } = A.ui;

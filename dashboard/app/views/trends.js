@@ -1,10 +1,7 @@
 // Trends, two modes: "Forecast" = the NNDSS early-warning board (ported from
 // clinic-needs-atlas-early-warning.html); "Chronic history" = the chronic explorer.
 (function(A){
-  const Icon = A.Icon;
-  const { Panel } = A.ui;
   const { API_BASE, authHeaders, fetchGeo } = A.api;
-  const { showTT, moveTT, hideTT } = A.tooltip;
   const { navigate } = A.router;
 
   const fmt = n => n == null ? "—" : (n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(1));
@@ -124,7 +121,7 @@
   function ThreatCard({ threat, rank, county }){
     const c = threat.county || county;
     return (
-      <div className={`threat-card rank-${rank}`}>
+      <div className={"threat-card" + (rank <= 2 ? ` rank-${rank}` : "")}>
         <div className="card-h">
           <span className="name">{threat.condition}</span>
           <span className="mult">{threat.ratio}&times;</span>
@@ -611,7 +608,9 @@
     ]), []);
 
     React.useEffect(() => {
+      let alive = true;
       fetchGeo().then(g => {
+        if(!alive) return;
         const atlasFips = new Set((A.store.get().records || []).map(r => String(r.id)));
         if(!atlasFips.size){
           setGeo(g);
@@ -622,11 +621,12 @@
           return atlasFips.has(fips);
         });
         setGeo({ ...g, features: filtered });
-      }).catch(e => setErr("Could not load county geometry (" + e.message + ")."));
+      }).catch(e => alive && setErr("Could not load county geometry (" + e.message + ")."));
       fetch("https://data.virginia.gov/api/3/action/datastore_search?resource_id=d2873933-046c-415a-b858-7fd18060794a&limit=50000")
         .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-        .then(data => setConditionData({ rows: data?.result?.records ?? [] }))
-        .catch(() => setConditionData(null));
+        .then(data => alive && setConditionData({ rows: data?.result?.records ?? [] }))
+        .catch(e => alive && setErr("Could not load chronic-condition history from data.virginia.gov (" + e.message + ")."));
+      return () => { alive = false; };
     }, []);
 
     const rows = React.useMemo(() => normalizeConditionRows(conditionData, geo?.features || []), [conditionData, geo]);

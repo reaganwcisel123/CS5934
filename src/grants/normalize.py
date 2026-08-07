@@ -140,6 +140,9 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
     status = str(_first(search, "oppStatus", "status") or _first(detail, "oppStatus", "status") or "unknown").lower()
     closing = parse_date(_first(body, "responseDate", "estApplicationResponseDate", "closingDate", "closeDate") or _first(search, "closeDate"))
     posting = parse_date(_first(body, "postingDate", "estSynopsisPostingDate") or _first(search, "openDate"))
+    # retrieved_at may be the sentinel "fixture"/"cache" rather than a date.
+    year_source = posting or retrieved_at
+    source_year = int(year_source[:4]) if year_source[:4].isdigit() else None
     record = {
         "opportunity_id": opportunity_id,
         "opportunity_number": clean_text(_first(detail, "opportunityNumber", "number") or _first(search, "number")),
@@ -165,7 +168,7 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
         "status": status,
         "official_url": C.OFFICIAL_RECORD_URL.format(opportunity_id=opportunity_id),
         "retrieved_at": retrieved_at,
-        "source_year": int((posting or retrieved_at)[:4]),
+        "source_year": source_year,
     }
     validate_opportunity(record)
     return record

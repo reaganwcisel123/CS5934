@@ -1,7 +1,7 @@
 # Installation and Configuration Guide
 
-This guide is the reproducible clean-machine setup for the Clinic Needs Atlas.
-It covers three supported run modes:
+Clean-machine setup for the Clinic Needs Atlas. There are three supported ways
+to run it:
 
 1. Static dashboard backed by generated JSON.
 2. FastAPI backed by the generated JSON fallback.
@@ -12,12 +12,10 @@ records. Do not add PHI, real patient identifiers, or production EHR exports.
 
 ## 1. Prerequisites
 
-Required:
-
-- Git.
-- macOS, Linux, or Windows Subsystem for Linux.
-- Outbound HTTPS access for dependency installation and public data downloads.
-- `uv` for Python, virtual environments, and locked dependencies.
+You need git, outbound HTTPS (for dependency installs and public data
+downloads), and [uv](https://docs.astral.sh/uv/), which handles Python
+versions, virtual environments, and locked dependencies. The helper scripts are
+bash, so on Windows use WSL.
 
 Install `uv` on macOS or Linux:
 
@@ -27,14 +25,14 @@ export PATH="$HOME/.local/bin:$PATH"
 uv --version
 ```
 
-The repository requires Python 3.11 or newer. `uv` installs a compatible Python
-interpreter when necessary.
+The repository requires Python 3.11 or newer; `uv` will install a compatible
+interpreter if you don't have one.
 
-Optional:
+Optional, depending on the run mode:
 
-- PostgreSQL 14 or newer for the complete database-backed platform.
-- Census API key for reliable ACS and population retrieval.
-- Anthropic API key for the chatbot.
+- PostgreSQL 14 or newer (Mode C).
+- A Census API key, for reliable ACS and population retrieval.
+- An Anthropic API key, for the chatbot.
 
 ## 2. Clone and install
 
@@ -44,21 +42,21 @@ cd CS5934
 git checkout develop
 ```
 
-Confirm that the commands are being run from the repository root:
+Make sure you're at the repository root:
 
 ```bash
 ls README.md pyproject.toml uv.lock
 ```
 
-Install the complete development environment:
+Install the full development environment:
 
 ```bash
 uv sync --frozen --extra api --extra model
 ```
 
-`--frozen` requires the exact dependency resolution committed in `uv.lock` and
-prevents an installation from silently rewriting the lock file. The virtual
-environment is created at `.venv/`; manual activation is not required.
+`--frozen` installs the exact resolution committed in `uv.lock` instead of
+silently rewriting the lock file. The virtual environment lands in `.venv/`;
+you never need to activate it manually (use `uv run`).
 
 Optional dependency groups:
 
@@ -71,13 +69,11 @@ Optional dependency groups:
 
 ## 3. Configure the environment
 
-Create the local configuration file:
-
 ```bash
 cp .env.example .env
 ```
 
-Populate only the variables required for the selected run mode:
+Fill in only what your run mode needs:
 
 | Variable | Required when | Purpose |
 |---|---|---|
@@ -95,11 +91,11 @@ Generate a JWT secret:
 uv run --frozen python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-`scripts/run-pipeline.sh` and `scripts/verify-install.sh` automatically load
-`.env`. For an individual command, use `--env-file .env` with `uv run`.
+`scripts/run-pipeline.sh` and `scripts/verify-install.sh` load `.env` on their
+own. For an individual command, pass `--env-file .env` to `uv run`.
 
-Never commit `.env`. Rotate any database credential or API key that appears in
-chat, screenshots, tickets, or logs.
+Never commit `.env`. If a database credential or API key ends up in chat,
+screenshots, tickets, or logs, rotate it.
 
 ## 4. Mode A: static dashboard without PostgreSQL
 
@@ -109,12 +105,9 @@ Build the dashboard dataset:
 ./scripts/run-pipeline.sh
 ```
 
-With no `DATABASE_URL`, this command:
-
-1. Installs the locked core dependencies.
-2. Refreshes available public sources.
-3. Uses documented placeholders for unavailable sources.
-4. Writes `dashboard/data/clinic_atlas.json`.
+With no `DATABASE_URL`, this installs the locked core dependencies, refreshes
+whatever public sources are reachable, falls back to documented placeholders
+for the rest, and writes `dashboard/data/clinic_atlas.json`.
 
 Serve the repository over HTTP:
 
@@ -122,18 +115,18 @@ Serve the repository over HTTP:
 uv run --frozen python -m http.server 8000
 ```
 
-Open:
+Then open:
 
 ```text
 http://localhost:8000/dashboard/
 ```
 
-Do not open the dashboard through `file://`; the page loads its dataset through
-`fetch()` and therefore requires an HTTP server.
+Don't open the dashboard via `file://`; the page loads its dataset with
+`fetch()`, which needs an HTTP server.
 
 ## 5. Mode B: FastAPI with JSON fallback
 
-Complete Mode A first so `dashboard/data/clinic_atlas.json` exists.
+Do Mode A first so `dashboard/data/clinic_atlas.json` exists.
 
 Start the API in one terminal:
 
@@ -141,7 +134,7 @@ Start the API in one terminal:
 uv run --frozen --env-file .env uvicorn src.api.main:app --reload --port 8001
 ```
 
-Start the static server in another terminal:
+Start the static server in another:
 
 ```bash
 uv run --frozen python -m http.server 8000
@@ -162,18 +155,19 @@ http://localhost:8001/api/sources
 http://localhost:8001/docs
 ```
 
-Without `DATABASE_URL`, the expected health response is:
+Without `DATABASE_URL`, the health endpoint should return:
 
 ```json
 {"status":"ok","db":false}
 ```
 
-Authentication requires PostgreSQL. The chatbot may run without PostgreSQL when
-`ANTHROPIC_API_KEY` is set, but usage is not tied to a persisted user account.
+Authentication requires PostgreSQL. The chatbot works without PostgreSQL as
+long as `ANTHROPIC_API_KEY` is set, but usage isn't tied to a persisted user
+account.
 
 ## 6. Mode C: complete PostgreSQL platform
 
-Create a PostgreSQL database locally or use the external connection URL from
+Create a PostgreSQL database locally, or use the external connection URL from
 Render. Add the connection and JWT secret to `.env`:
 
 ```dotenv
@@ -181,7 +175,7 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/clinic_atlas
 JWT_SECRET=replace-with-a-long-random-secret
 ```
 
-Run the complete pipeline:
+Run the full pipeline:
 
 ```bash
 ./scripts/run-pipeline.sh
@@ -203,7 +197,7 @@ Start the API:
 uv run --frozen --env-file .env uvicorn src.api.main:app --reload --port 8001
 ```
 
-The expected health response is:
+Health should now report:
 
 ```json
 {"status":"ok","db":true}
@@ -221,45 +215,29 @@ Open the authenticated local dashboard:
 http://localhost:8000/dashboard/app.html?api=http://localhost:8001/api&auth=1
 ```
 
-The migrations currently create a demonstration-only account:
+The migrations create a demonstration-only account:
 
 ```text
 Email: demo@clinicatlas.dev
 Password: triad-demo-2026
 ```
 
-Replace or remove this account before production use.
+Replace or remove it before production use.
 
 ## 7. Data access and cache behavior
 
-Source URLs, ownership, update cadence, and implementation status are defined in:
+Source URLs, ownership, update cadence, and implementation status live in
+`data_source_catalog/config/data_sources.yml`. Field-level lineage is in
+`data_source_catalog/config/field_lineage.json`. The active ingestion registry
+is `src/ingestion/registry.py`.
 
-```text
-data_source_catalog/config/data_sources.yml
-```
+A refreshed build needs outbound HTTPS to the configured Census, CDC, HRSA,
+USDA, and data.virginia.gov endpoints (the EJI environment domain reads a
+committed reference file, so it works offline). Network errors, missing
+credentials, and unavailable sources are reported as warnings; the build
+continues with provenance-labeled placeholders when it can.
 
-Field-level lineage is defined in:
-
-```text
-data_source_catalog/config/field_lineage.json
-```
-
-The active ingestion registry is:
-
-```text
-src/ingestion/registry.py
-```
-
-A refreshed build requires outbound HTTPS access to the configured Census, CDC,
-HRSA, USDA, EPA, and HUD sources. Network errors, missing credentials, and
-unavailable sources are reported as warnings. The dashboard build continues with
-provenance-labeled placeholders when possible.
-
-Raw downloads are cached in:
-
-```text
-data/raw/
-```
+Raw downloads are cached in `data/raw/`.
 
 Use cache files when available:
 
@@ -273,9 +251,9 @@ Force current upstream downloads:
 uv run --frozen --env-file .env python src/build_dataset.py --refresh
 ```
 
-The software environment is reproducible through `uv.lock`. Public datasets can
-change between refresh dates, so exact data reproduction also depends on the
-cached raw files and the provenance recorded in the generated output.
+The software environment is reproducible through `uv.lock`. Public datasets
+change between refresh dates, though, so reproducing exact data also depends on
+the cached raw files and the provenance recorded in the generated output.
 
 ## 8. Model commands
 
@@ -285,7 +263,7 @@ Train both models:
 ./scripts/train-model.sh
 ```
 
-Train one model:
+Or train one:
 
 ```bash
 uv run --frozen python -m src.model.train --target county
@@ -304,9 +282,9 @@ Score and load PostgreSQL:
 uv run --frozen --env-file .env python src/build_dataset.py --score --to-db
 ```
 
-County model training requires usable county outcomes and SDoH features. If all
-live sources are unavailable, the fallback dashboard can still build, but the
-county model cannot train from placeholder-only rows.
+County model training needs usable county outcomes and SDoH features. If every
+live source is unavailable, the fallback dashboard still builds, but the county
+model can't train from placeholder-only rows.
 
 Generated model files:
 
@@ -319,46 +297,21 @@ models/patient_metrics.json
 
 ## 9. Validation and clean-machine verification
 
-Run all tests:
+Run the tests, the architecture contracts, and the catalog validator:
 
 ```bash
 uv run --frozen pytest
-```
-
-Run architecture contracts:
-
-```bash
 uv run --frozen lint-imports
-```
-
-Validate the data catalog:
-
-```bash
 uv run --frozen python data_source_catalog/scripts/validate_data_catalog.py
 ```
 
-Run the automated installation verification:
+Automated installation verification:
 
 ```bash
-./scripts/verify-install.sh
-```
-
-Force fresh upstream downloads:
-
-```bash
-./scripts/verify-install.sh --refresh
-```
-
-Include model training and scoring:
-
-```bash
-./scripts/verify-install.sh --full --refresh
-```
-
-Verify the PostgreSQL path:
-
-```bash
-./scripts/verify-install.sh --with-db --refresh
+./scripts/verify-install.sh                   # dashboard + JSON API fallback
+./scripts/verify-install.sh --refresh         # force fresh upstream downloads
+./scripts/verify-install.sh --full --refresh  # also train and score both models
+./scripts/verify-install.sh --with-db --refresh   # PostgreSQL path
 ```
 
 `--with-db` requires `DATABASE_URL`, implies `--full`, applies migrations, and
@@ -367,7 +320,7 @@ writes to the configured database.
 A successful run ends with:
 
 ```text
-Installation verification passed.
+==> Installation verification passed.
 ```
 
 ## 10. Generated paths
@@ -376,7 +329,7 @@ Installation verification passed.
 |---|---|---:|
 | `.venv/` | `uv sync` | No |
 | `data/raw/*` | Ingestion sources | No |
-| `dashboard/data/clinic_atlas.json` | Dataset build | No |
+| `dashboard/data/clinic_atlas.json` | Dataset build | Not intended (in `.gitignore`, but currently still tracked) |
 | `models/*` | Model training | No |
 | PostgreSQL tables | Migrations and writers | External |
 
@@ -394,7 +347,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Dashboard cannot load data
 
-Confirm the generated file exists and serve the repository over HTTP:
+Check that the generated file exists and serve the repository over HTTP:
 
 ```bash
 ls -lh dashboard/data/clinic_atlas.json
@@ -411,11 +364,11 @@ Add `CENSUS_API_KEY` to `.env` and rerun:
 
 ### API reports `db: false`
 
-Confirm `DATABASE_URL` is populated and start Uvicorn with `--env-file .env`.
+Check that `DATABASE_URL` is populated and start Uvicorn with `--env-file .env`.
 
 ### Authentication returns 503
 
-Authentication requires PostgreSQL and applied migrations. Run the full pipeline
+Authentication needs PostgreSQL and applied migrations. Run the full pipeline
 with `DATABASE_URL` configured.
 
 ### Chatbot returns 503
@@ -424,5 +377,5 @@ Set `ANTHROPIC_API_KEY` and restart the API. The chatbot is optional.
 
 ### Model training reports insufficient rows or one target class
 
-Review the source warnings and provenance. Restore network access or required
-credentials and rerun the build with `--refresh`.
+Look at the source warnings and provenance. Restore network access or the
+missing credentials, then rerun the build with `--refresh`.
