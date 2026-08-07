@@ -7,7 +7,7 @@
   const { ErrorBoundary } = A.ui;
   const { fmt0 } = A.format;
 
-  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "explore", "methods", "funding"]);
+  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "methods", "funding"]);
 
   function crumbsFor(route, c, countyCount){
     const va = { label: `Virginia (${countyCount})`, href: "#/overview" };
@@ -20,7 +20,6 @@
       }
       case "forest":  return [va, { label: "Needs Forest" }];
       case "trends":  return [va, { label: route.query.mode === "chronic" ? "Trends · Chronic history" : "Trends · Early warning" }];
-      case "explore": return [va, { label: "Explore" }];
       case "methods": return [va, { label: "Methods & data" }];
       case "funding": return [va, { label: "Funding Matches" }];
       default:        return [va];
@@ -89,7 +88,7 @@
     const baselineMode = route.query.baseline === "region" ? "region" : "va";
     const setBaseline = m => navigate(route.path, { query: { ...route.query, baseline: m === "va" ? "" : m }, replace: true });
     const baseline = c ? baselineFor(c, baselineMode) : null;
-    const showBaseline = route.view === "county" || route.view === "explore";
+    const showBaseline = route.view === "county";
 
     // The county context shown in the chip: the URL's county, else the last one.
     const chipFips = (c && c.id) || (byId(state.lastFips) && state.lastFips) || null;
@@ -101,8 +100,6 @@
     else if(route.view === "county") view = <A.views.CountyView c={c} baseline={baseline} provenance={provenance} />;
     else if(route.view === "worklist") view = <A.views.WorklistView c={c} records={records} />;
     else if(route.view === "trends") view = <A.views.TrendsView c={byId(urlFips) || chipC || null} mode={route.query.mode === "chronic" ? "chronic" : "forecast"} />;
-    else if(route.view === "explore") view = <A.views.ExploreView records={records} fips={chipFips || defaultFips()} baselineMode={baselineMode}
-      provenance={provenance} query={route.query} />;
     else if(route.view === "methods") view = <A.views.MethodsView provenance={provenance} />;
     else if(route.view === "funding") view = <A.views.FundingMatchesView records={records} initialFips={chipFips || defaultFips()} />;
 

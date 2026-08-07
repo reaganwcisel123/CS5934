@@ -390,7 +390,7 @@ details.more[open] > summary { margin-bottom: 6px; }
 .chronic-card { border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 10px; background: var(--surface-sunken); }
 
 /* ==========================================================================
-   Forest (inside Explore)
+   Glyph forest (Explore view, parked in dashboard/attic/explore/)
    ========================================================================== */
 .needrow { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: var(--radius-md); cursor: pointer; }
 .needrow:hover { background: var(--surface-sunken); }
