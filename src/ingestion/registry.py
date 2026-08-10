@@ -8,19 +8,23 @@ from src.ingestion.census_acs import CensusAcs
 from src.ingestion.census_pep import CensusPep
 from src.ingestion.cdc_eji import CdcEji
 from src.ingestion.hrsa_hpsa import HrsaHpsa
+from src.ingestion.hrsa_hpsa_mental_health import HrsaHpsaMentalHealth
+from src.ingestion.hrsa_hpsa_dental_health import HrsaHpsaDentalHealth
 from src.ingestion.synthetic_clinical import SyntheticClinical
 from src.ingestion.usda_food_access import UsdaFoodAccess
 from src.ingestion.virginia_chronic_disease_hospitalization import VirginiaChronicDiseaseHospitalization
 
 # Wired (real + synthetic).
 _WIRED = [CdcPlaces, CensusAcs, CensusPep, CdcEji, HrsaHpsa,
+          HrsaHpsaMentalHealth, HrsaHpsaDentalHealth,
           UsdaFoodAccess, SyntheticClinical,
           VirginiaChronicDiseaseHospitalization]
 # Stubs for a future coder to promote to RealSource.
 _STUBS = [stubs.HrsaUds, stubs.HudHousing,
           stubs.CmsMedicarePuf, stubs.CmsMipsQpp, stubs.CmsQualityStars,
           stubs.CdcNwss, stubs.GrantsGov, stubs.StateFeeds,
-          stubs.AsprHospitalCapacity]
+          stubs.AsprHospitalCapacity,
+          stubs.CdcAtsdrSvi, stubs.NeighborhoodAtlasAdi]
 
 # NOTE: cdc_nndss (US-048) is intentionally not registered. REGISTRY drives the
 # county-wide merge in build_dataset.py, and NNDSS is state-keyed weekly data

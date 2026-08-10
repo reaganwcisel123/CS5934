@@ -32,3 +32,9 @@ class CdcNwss(StubSource): source_id = "cdc_nwss"
 class GrantsGov(StubSource): source_id = "grants_gov"
 class StateFeeds(StubSource): source_id = "state_health_department_feeds"
 class AsprHospitalCapacity(StubSource): source_id = "aspr_hospital_capacity"
+
+# Scaffolded for a future county-health-burden expansion (Advanced Analytics &
+# County Intelligence epic): high-value, not yet integrated. See
+# documents/county-health-indicators.md for the integration writeup.
+class CdcAtsdrSvi(StubSource): source_id = "cdc_atsdr_svi"
+class NeighborhoodAtlasAdi(StubSource): source_id = "neighborhood_atlas_adi"

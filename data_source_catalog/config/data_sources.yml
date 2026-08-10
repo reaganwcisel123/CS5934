@@ -237,6 +237,157 @@ sources:
     ingestion_script: src/ingestion/hrsa_hpsa.py
     last_verified_date: "2026-06-29"
   -
+    source_id: hrsa_hpsa_mental_health
+    source_name: HRSA Mental Health Professional Shortage Area Designations
+    provider: Health Resources and Services Administration
+    source_category: health_workforce_shortage
+    access_method: HRSA Data Downloads keyless CSV (BCD_HPSA_FCT_DET_MH.csv)
+    access_url: "https://data.hrsa.gov/DataDownload/DD_Files/BCD_HPSA_FCT_DET_MH.csv"
+    documentation_url: "https://data.hrsa.gov/tools/gis-developer-tools"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - shortage_area
+      - county
+      - state
+    temporal_granularity: current_designation_snapshot
+    refresh_cadence: "publisher-specific; verify per HRSA dataset metadata"
+    schema_version: "HRSA HPSA current public release - verify during ingestion"
+    join_keys:
+      - state
+      - county_fips
+      - hpsa_id
+    fields_used:
+      - hpsa_id
+      - designation_type
+      - discipline_class
+      - hpsa_score
+      - designation_status
+      - county
+    limitations:
+      - Same discipline-specific export family as hrsa_hpsa (Primary Care); mental-health
+        designations are sparser, so more counties resolve to null than for primary care.
+      - HPSA boundaries may not match simple county boundaries.
+      - Designation status changes over time.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/hrsa_hpsa_mental_health.py
+    last_verified_date: "2026-08-09"
+  -
+    source_id: hrsa_hpsa_dental_health
+    source_name: HRSA Dental Health Professional Shortage Area Designations
+    provider: Health Resources and Services Administration
+    source_category: health_workforce_shortage
+    access_method: HRSA Data Downloads keyless CSV (BCD_HPSA_FCT_DET_DH.csv)
+    access_url: "https://data.hrsa.gov/DataDownload/DD_Files/BCD_HPSA_FCT_DET_DH.csv"
+    documentation_url: "https://data.hrsa.gov/tools/gis-developer-tools"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - shortage_area
+      - county
+      - state
+    temporal_granularity: current_designation_snapshot
+    refresh_cadence: "publisher-specific; verify per HRSA dataset metadata"
+    schema_version: "HRSA HPSA current public release - verify during ingestion"
+    join_keys:
+      - state
+      - county_fips
+      - hpsa_id
+    fields_used:
+      - hpsa_id
+      - designation_type
+      - discipline_class
+      - hpsa_score
+      - designation_status
+      - county
+    limitations:
+      - Same discipline-specific export family as hrsa_hpsa (Primary Care); dental
+        designations are sparser, so more counties resolve to null than for primary care.
+      - HPSA boundaries may not match simple county boundaries.
+      - Designation status changes over time.
+    privacy_classification: public_aggregate
+    ingestion_status: access_verified
+    ingestion_script: src/ingestion/hrsa_hpsa_dental_health.py
+    last_verified_date: "2026-08-09"
+  -
+    source_id: hrsa_hscd_sites
+    source_name: HRSA Health Center Service Delivery and Look-Alike Sites (FQHCs)
+    provider: Health Resources and Services Administration
+    source_category: health_workforce_shortage
+    access_method: HRSA Data Downloads keyless CSV
+    access_url: "https://data.hrsa.gov/DataDownload/DD_Files/Health_Center_Service_Delivery_and_LookAlike_Sites.csv"
+    documentation_url: "https://data.hrsa.gov/data/download"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - site
+      - county
+    temporal_granularity: current_snapshot
+    refresh_cadence: "publisher-specific; site list updates on HRSA's schedule"
+    schema_version: "HRSA HSCD sites current public release - verify during ingestion"
+    join_keys:
+      - county_fips
+      - bphc_assigned_number
+    fields_used:
+      - site_name
+      - health_center_name
+      - site_type
+      - county_fips
+      - lat
+      - lon
+    limitations:
+      - "Point-level (one row per site), not county-keyed by itself: aggregated to a
+        per-county count via dashboard/data/clinic_sites.json, built separately by
+        src/build_sites.py (not part of the src/build_dataset.py county merge)."
+      - "County-level counts in the atlas are only as fresh as the last `python
+        src/build_sites.py` run; re-run it to refresh fqhcSiteCount."
+      - Federally Qualified Health Center Look-Alikes are included alongside FQHCs;
+        the site record does not currently distinguish them in the count.
+    privacy_classification: public
+    ingestion_status: ingestion_wired
+    ingestion_script: src/ingestion/hscd_sites.py
+    last_verified_date: "2026-08-09"
+  -
+    source_id: cms_hcris_rhc
+    source_name: CMS HCRIS Rural Health Clinic Cost Reports
+    provider: "Centers for Medicare & Medicaid Services"
+    source_category: medicare_utilization_public_use
+    access_method: CMS HCRIS bulk ZIP downloads + HRSA HPSA facility match + Census Geocoder
+    access_url: "https://downloads.cms.gov/Files/hcris/RHC17-ALL-YEARS.zip"
+    documentation_url: "https://www.cms.gov/data-research/statistics-trends-reports/cost-reports/cost-report-data-files"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - site
+      - county
+    temporal_granularity: annual_release
+    refresh_cadence: "annual cost-report cycle"
+    schema_version: "HCRIS RHC-17 cost report series - verify worksheet codes during ingestion"
+    join_keys:
+      - county_fips
+      - provider_number
+    fields_used:
+      - provider_number
+      - clinic_name
+      - county
+      - physician_visits
+      - hpsa_score
+      - lat
+      - lon
+    limitations:
+      - "Point-level (one row per clinic), not county-keyed by itself: aggregated to a
+        per-county count via dashboard/data/clinic_sites.json, built separately by
+        src/build_sites.py (not part of the src/build_dataset.py county merge)."
+      - "Ingestion is expensive (bulk CMS zip downloads plus rate-limited Census
+        geocoding for unmatched addresses); re-run `python src/build_sites.py`
+        deliberately, not on every build."
+      - Not every clinic has a recent settled cost report (real, partial coverage).
+    privacy_classification: public
+    ingestion_status: ingestion_wired
+    ingestion_script: src/ingestion/rural_health_clinics.py
+    last_verified_date: "2026-08-09"
+  -
     source_id: hrsa_uds
     source_name: HRSA Health Center Program Uniform Data System
     provider: Health Resources and Services Administration
@@ -709,3 +860,71 @@ sources:
     ingestion_status: ingestion_wired
     ingestion_script: src/ingestion/synthetic_clinical.py
     last_verified_date: "2026-07-12"
+  -
+    source_id: cdc_atsdr_svi
+    source_name: CDC/ATSDR Social Vulnerability Index
+    provider: CDC / Agency for Toxic Substances and Disease Registry
+    source_category: social_vulnerability
+    access_method: Keyless bulk CSV/shapefile download
+    access_url: "https://www.atsdr.cdc.gov/place-health/php/svi/svi-data-documentation-download.html"
+    documentation_url: "https://www.atsdr.cdc.gov/place-health/php/svi/index.html"
+    auth_required: "no"
+    api_key_env_var: null
+    geographic_granularity:
+      - tract
+      - county
+      - state
+    temporal_granularity: biennial_release
+    refresh_cadence: "every 2 years (last: 2022 release)"
+    schema_version: "SVI 2022 county-level release - verify during ingestion"
+    join_keys:
+      - state_fips
+      - county_fips
+    fields_used:
+      - RPL_THEMES
+      - RPL_THEME1_socioeconomic
+      - RPL_THEME2_household_composition
+      - RPL_THEME3_minority_language
+      - RPL_THEME4_housing_transportation
+    limitations:
+      - Not yet integrated (StubSource scaffold only); no real fetch/extract implemented.
+      - Tract-level release requires population-weighted aggregation to county, the same
+        pattern already used by src/ingestion/usda_food_access.py.
+      - Overlaps conceptually with the existing economic/food/access domains; a composite
+        score risks double-counting SDoH burden already captured elsewhere unless it
+        replaces, not adds to, an existing domain component.
+    privacy_classification: public_aggregate
+    ingestion_status: not_started
+    ingestion_script: src/ingestion/stubs.py
+    last_verified_date: "2026-08-09"
+  -
+    source_id: neighborhood_atlas_adi
+    source_name: Area Deprivation Index (ADI)
+    provider: University of Wisconsin Neighborhood Atlas
+    source_category: social_vulnerability
+    access_method: Registered download (free for non-commercial/academic use)
+    access_url: "https://www.neighborhoodatlas.medicine.wisc.edu/"
+    documentation_url: "https://www.neighborhoodatlas.medicine.wisc.edu/download"
+    auth_required: "yes_for_download_registration"
+    api_key_env_var: null
+    geographic_granularity:
+      - block_group
+      - county
+    temporal_granularity: periodic_release
+    refresh_cadence: "irregular; tied to ACS 5-year vintage updates"
+    schema_version: "ADI 2020 block-group release - verify during ingestion"
+    join_keys:
+      - fips
+    fields_used:
+      - adi_natrank
+      - adi_staterank
+    limitations:
+      - Not yet integrated (StubSource scaffold only); no real fetch/extract implemented.
+      - "Licensing: free for non-commercial and academic use only, requires a registered
+        download (an account, not an API key) -- verify the license terms are compatible
+        before any production or commercial use of this project."
+      - Block-group release requires population-weighted aggregation to county.
+    privacy_classification: public_aggregate
+    ingestion_status: not_started
+    ingestion_script: src/ingestion/stubs.py
+    last_verified_date: "2026-08-09"

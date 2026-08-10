@@ -46,6 +46,10 @@ from src.transform.geographic_join import (
 OUT_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
 REGION_REF = REPO_ROOT / "data" / "reference" / "va_county_region.csv"
 
+# Pre-built by src/build_sites.py (point-level FQHC/RHC sites, not part of this
+# module's own county merge -- see hrsa_hscd_sites / cms_hcris_rhc in the catalog).
+CLINIC_SITES_PATH = REPO_ROOT / "dashboard" / "data" / "clinic_sites.json"
+
 # Locked rurality source: USDA ERS Rural-Urban Continuum Codes 2023 (US-007).
 RUCC_REF = REPO_ROOT / "data" / "reference" / "va_county_rucc.csv"
 
@@ -123,6 +127,10 @@ FIELD_SOURCE = {
     "sdoh": "census_acs_sdoh",
     "patientsList": "synthetic_clinical_dataset",
     "chronicDiseaseRisk": "virginia_chronic_disease_hospitalization",
+    "hpsaScoreMentalHealth": "hrsa_hpsa_mental_health",
+    "hpsaScoreDental": "hrsa_hpsa_dental_health",
+    "fqhcSiteCount": "hrsa_hscd_sites",
+    "ruralClinicCount": "cms_hcris_rhc",
 }
 
 
@@ -203,6 +211,62 @@ def _region_lookup(
             }
 
     return out
+
+
+def _chronic_risk_by_county(df: pd.DataFrame | None) -> dict[str, dict]:
+    """Per county, the condition with the highest age-adjusted rate in that
+    county's most recently reported year. A county absent from the dict has
+    no chronic-disease hospitalization data at all -- the caller must not
+    invent a 0.0 rate for it."""
+    if df is None or df.empty:
+        return {}
+
+    out: dict[str, dict] = {}
+    for fips, group in df.groupby("county_fips"):
+        latest_year = group["year"].max()
+        if pd.isna(latest_year):
+            continue
+
+        latest = group[group["year"] == latest_year]
+        if latest.empty or latest["rate"].isna().all():
+            continue
+
+        top = latest.loc[latest["rate"].idxmax()]
+        out[fips] = {
+            "leadingCondition": str(top["condition"]),
+            "rate": round(float(top["rate"]), 1),
+            "asOfYear": int(latest_year),
+        }
+
+    return out
+
+
+def _site_counts_by_county() -> dict[str, dict[str, int]] | None:
+    """Per-county FQHC ("grantee") and Rural Health Clinic ("rural_clinic")
+    site counts, aggregated from the pre-built dashboard/data/clinic_sites.json
+    (src/build_sites.py; hrsa_hscd_sites + cms_hcris_rhc in the catalog).
+
+    Returns None -- not an empty dict -- when the artifact itself is missing,
+    so a caller can tell "we checked and this county has zero sites" apart
+    from "we don't know how many sites this county has."
+    """
+    if not CLINIC_SITES_PATH.exists():
+        return None
+
+    try:
+        data = json.loads(CLINIC_SITES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    counts: dict[str, dict[str, int]] = {}
+    for site in data.get("sites", []):
+        fips, kind = site.get("county_fips"), site.get("kind")
+        if not fips or not kind:
+            continue
+        counts.setdefault(fips, {})
+        counts[fips][kind] = counts[fips].get(kind, 0) + 1
+
+    return counts
 
 
 def build(refresh: bool = False) -> dict:
@@ -367,6 +431,19 @@ def build(refresh: bool = False) -> dict:
         else {}
     )
 
+    chronic_by_county = _chronic_risk_by_county(
+        frames.get("virginia_chronic_disease_hospitalization")
+    )
+
+    # hrsa_hscd_sites / cms_hcris_rhc never run through the REGISTRY loop above
+    # (they're point-level artifacts consumed via src/build_sites.py, not this
+    # module's county merge -- see the catalog entries), so their provenance
+    # has to be set explicitly rather than falling out of _run_source().
+    site_counts_by_county = _site_counts_by_county()
+    site_status = Provenance.REAL if site_counts_by_county is not None else "unavailable"
+    status["hrsa_hscd_sites"] = site_status
+    status["cms_hcris_rhc"] = site_status
+
     pop_max = merged.get(
         "county_population_total",
         pd.Series(dtype=float),
@@ -501,6 +578,40 @@ def build(refresh: bool = False) -> dict:
                     )
                     for field in SDOH_FIELDS
                 },
+
+                # Discipline-specific HPSA shortage scores, siblings of hpsaScore
+                # (Primary Care). None (not 0) when this county has no
+                # designated shortage area for that discipline -- absence of a
+                # designation is not the same as a measured score of zero.
+                "hpsaScoreMentalHealth": (
+                    _num(merged.at[fips, "mental_health_hpsa_score"])
+                    if "mental_health_hpsa_score" in merged.columns
+                    else None
+                ),
+                "hpsaScoreDental": (
+                    _num(merged.at[fips, "dental_health_hpsa_score"])
+                    if "dental_health_hpsa_score" in merged.columns
+                    else None
+                ),
+
+                # Leading preventable-hospitalization condition (VDH, real,
+                # separate from CDC PLACES prevalence above). None when this
+                # county has no hospitalization rows at all.
+                "chronicDiseaseRisk": chronic_by_county.get(fips),
+
+                # FQHC / Rural Health Clinic counts from the pre-built
+                # clinic_sites.json. 0 is a real count once the artifact
+                # loaded; None only when the whole artifact is unavailable.
+                "fqhcSiteCount": (
+                    site_counts_by_county.get(fips, {}).get("grantee", 0)
+                    if site_counts_by_county is not None
+                    else None
+                ),
+                "ruralClinicCount": (
+                    site_counts_by_county.get(fips, {}).get("rural_clinic", 0)
+                    if site_counts_by_county is not None
+                    else None
+                ),
 
                 "patientsList": roster,
             }

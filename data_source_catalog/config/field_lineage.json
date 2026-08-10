@@ -216,6 +216,41 @@
       "original_field": "opportunity id",
       "transformation": "Build the stable official Grants.gov search-results-detail URL from the normalized opportunity identifier.",
       "required_for_mvp": false
+    },
+    {
+      "final_field": "hpsaScoreMentalHealth",
+      "source_id": "hrsa_hpsa_mental_health",
+      "original_field": "HPSA Score (filtered to HPSA Discipline Class = Mental Health)",
+      "transformation": "Filter to designated mental-health areas; average the HPSA score per county.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "hpsaScoreDental",
+      "source_id": "hrsa_hpsa_dental_health",
+      "original_field": "HPSA Score (filtered to HPSA Discipline Class = Dental Health)",
+      "transformation": "Filter to designated dental-health areas; average the HPSA score per county.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "chronicDiseaseRisk",
+      "source_id": "virginia_chronic_disease_hospitalization",
+      "original_field": "Indicator, Hospitalization Count, Age-Adjusted Rate per 100,000, Year",
+      "transformation": "Per county, select the condition with the highest age-adjusted rate in that county's most recent reported year; expose as {leadingCondition, rate, asOfYear}.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "fqhcSiteCount",
+      "source_id": "hrsa_hscd_sites",
+      "original_field": "one row per active HRSA-funded health center site (county_fips)",
+      "transformation": "Count active sites per county_fips from the pre-built dashboard/data/clinic_sites.json (kind = grantee), produced by src/build_sites.py.",
+      "required_for_mvp": false
+    },
+    {
+      "final_field": "ruralClinicCount",
+      "source_id": "cms_hcris_rhc",
+      "original_field": "one row per Rural Health Clinic matched to a settled cost report (county_fips)",
+      "transformation": "Count clinics per county_fips from the pre-built dashboard/data/clinic_sites.json (kind = ruralClinic), produced by src/build_sites.py.",
+      "required_for_mvp": false
     }
   ]
 }

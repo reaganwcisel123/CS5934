@@ -104,6 +104,8 @@ modules = [
     "src.ingestion.census_acs",
     "src.ingestion.census_pep",
     "src.ingestion.hrsa_hpsa",
+    "src.ingestion.hrsa_hpsa_mental_health",
+    "src.ingestion.hrsa_hpsa_dental_health",
     "src.ingestion.hscd_sites",
     "src.ingestion.rural_health_clinics",
     "src.ingestion.usda_food_access",

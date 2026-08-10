@@ -563,6 +563,14 @@ details.more[open] > summary { margin-bottom: 6px; }
 .bloom-panel-body td.thr { color: var(--text-muted); font-size: 11px; text-align: right; white-space: nowrap; padding-left: 8px; }
 .bloom-summary { font-size: 13px; background: var(--bloom-green-pale); color: var(--bloom-green-dark); padding: 8px 11px; border-radius: var(--radius-md); }
 .bloom-pending-note { font-size: 11.5px; color: var(--command-600); background: var(--surface-sunken); padding: 6px 9px; border-radius: var(--radius-md); margin: 8px 0 0; }
+
+/* Stark worst-quartile threshold treatment (additive; the gradient fill is
+   untouched -- only the petal's outline changes when it crosses threshold). */
+.bloom-bract-critical { filter: drop-shadow(0 0 2px rgba(185, 28, 28, 0.55)); }
+.bloom-row-critical td { color: var(--danger-700, #b91c1c); font-weight: 600; }
+.bloom-critical-note { font-size: 12.5px; line-height: 1.55; color: var(--danger-800, #991b1b);
+  background: var(--danger-50, #fef2f2); border: 1px dashed var(--danger-400, #f87171);
+  border-radius: var(--radius-md); padding: 8px 11px; margin: 8px 0 0; }
 .bloom-panel-close { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; line-height: 1; }
 .bloom-num { display: inline-block; width: 15px; height: 15px; border-radius: 50%; background: var(--surface-sunken); color: var(--text-muted);
   box-shadow: inset 0 0 0 1.2px var(--border-default); font-size: 9.5px; font-weight: 600; text-align: center; line-height: 15px; margin-right: 7px; vertical-align: 1px; }

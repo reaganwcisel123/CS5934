@@ -167,6 +167,45 @@
     );
   }
 
+  // Beyond Pillar 4: discipline-specific HPSA shortage scores, FQHC/Rural
+  // Health Clinic site counts, and the leading chronic-disease hospitalization
+  // risk (VDH, distinct from the CDC PLACES prevalence in OutcomeRow above).
+  // All five fields ride on the atlas record already, no extra fetch needed.
+  function ExpandedProfile({ c, provenance }){
+    const hpsaLabel = v => v != null ? fmt0(v) + "/26" : "—";
+    const siteLabel = v => v != null ? String(v) : "—";
+    const risk = c.chronicDiseaseRisk;
+    const riskProv = (provenance && provenance.chronicDiseaseRisk) || { status: "stub" };
+    return (
+      <Panel icon="heart-pulse" title="Expanded county profile" desc="Beyond Pillar 4 · healthcare access & chronic-disease risk">
+        <div className="gap-row" title="HRSA Mental Health HPSA shortage score, 0–26. — means no designated mental-health shortage area.">
+          <span className="gap-label">Mental-health HPSA</span>
+          <span className="mono gap-vals">{hpsaLabel(c.hpsaScoreMentalHealth)}</span>
+        </div>
+        <div className="gap-row" title="HRSA Dental Health HPSA shortage score, 0–26. — means no designated dental shortage area.">
+          <span className="gap-label">Dental HPSA</span>
+          <span className="mono gap-vals">{hpsaLabel(c.hpsaScoreDental)}</span>
+        </div>
+        <div className="gap-row" title="Federally Qualified Health Center sites in this county (HRSA).">
+          <span className="gap-label">FQHC sites</span>
+          <span className="mono gap-vals">{siteLabel(c.fqhcSiteCount)}</span>
+        </div>
+        <div className="gap-row" title="Rural Health Clinics in this county (CMS cost reports).">
+          <span className="gap-label">Rural Health Clinics</span>
+          <span className="mono gap-vals">{siteLabel(c.ruralClinicCount)}</span>
+        </div>
+        <div className="gap-row" title="The condition with the highest age-adjusted hospitalization rate for this county, most recent reported year (Virginia Dept. of Health).">
+          <span className="gap-label">Leading hospitalization risk</span>
+          <span className="mono gap-vals">
+            {risk ? `${risk.leadingCondition} · ${fmt0(risk.rate)}/100k (${risk.asOfYear})` : "—"}
+          </span>
+        </div>
+        {!risk && <div className="row-sub unknown">No VDH hospitalization rows for this county.</div>}
+        <ProvPill status={riskProv.status} label={riskProv.status === "real" ? "live" : "pending"} />
+      </Panel>
+    );
+  }
+
   function CountyView({ c, baseline, provenance }){
     const topDom = DOMAINS.map(D => ({ ...D, v:c.dom[D.key] })).sort((a,b) => b.v - a.v)[0];
     const scored = (c.patientsList || []).filter(p => p.risk != null);
@@ -199,6 +238,7 @@
           <NeedProfile c={c} baseline={baseline} />
           <div className="county-side">
             <OutcomeRow c={c} baseline={baseline} />
+            <ExpandedProfile c={c} provenance={provenance} />
             <QualitySummary c={c} baseline={baseline} provenance={provenance} />
             <ForecastSnapshot fips={c.id} />
             <ResourcePlanSnapshot fips={c.id} />

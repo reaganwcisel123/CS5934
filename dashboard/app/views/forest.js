@@ -65,7 +65,9 @@
                 <li><span className="dir">Left</span>Access barriers<span className="sub">average of no vehicle (5) and low broadband (6)</span></li>
               </ul>
               <p className="bloom-sidenote">Petal <b>length</b> — depth of need on that axis, from Census ACS.<br />
-                Petal <b>color</b> — its CDC PLACES measure, named on the legend flower.</p>
+                Petal <b>color</b> — its CDC PLACES measure, named on the legend flower.<br />
+                A petal outlined in <b>dashed red</b> is at or above the state's worst-quartile
+                threshold for that measure — a stark cue, not just a darker shade.</p>
             </div>
             <div>
               <h3>Reading the bud</h3>
@@ -83,6 +85,14 @@
                 <span><i className="bloom-dotF" />worst quartile statewide</span>
                 <span><i className="bloom-dotU" />better than worst quartile</span>
               </div>
+            </div>
+            <div>
+              <h3>Beyond the 4 pillars</h3>
+              <p className="bloom-sidenote">A county can be dire on a measure this glyph doesn't
+                draw at all — obesity, a shortage-area score, hospitalization risk, and more. A{" "}
+                <b>⚠</b> next to a county's name on hover means its single most critical factor is
+                one of those hidden measures; click the county for the quantitative breakdown
+                (its value, the dire threshold, and its statewide percentile).</p>
             </div>
           </aside>
         </div>

@@ -14,7 +14,24 @@ from src.ingestion.base import RealSource, TARGET_STATE_FIPS
 
 
 def _normalize_county_name(value: str) -> str:
-    return re.sub(r"\b(county|city)\b", "", str(value or "")).strip().lower()
+    # Anchored to the trailing "County"/"City" suffix, case-insensitively: an
+    # unanchored \b(county|city)\b also stripped "City" out of counties whose
+    # proper name contains it ("Charles City County" -> "charles", not
+    # "charles city"), and being case-sensitive meant "County" (the CSV's
+    # capitalization) never matched at all, so every row silently fell out of
+    # the join instead of raising -- this frame was returning zero rows.
+    return re.sub(r"\s+(county|city)\s*$", "", str(value or ""), flags=re.IGNORECASE).strip().lower()
+
+
+# 51515 (Bedford, an independent city) was retired in July 2013 and merged
+# into Bedford County (51019). dashboard/data/va-counties.geojson still
+# carries a stale feature for it, also named "Bedford" -- without this guard,
+# whichever of the two features iterates last silently wins the "bedford" key
+# in the lookup below, and "Bedford County" hospitalization rows have a
+# roughly 50/50 chance of being attributed to the retired code instead of the
+# real county (growing the county count to 134 and violating the
+# five-digit-standardized-FIPS convention the rest of the atlas relies on).
+RETIRED_COUNTY_FIPS = {"51515"}
 
 
 def _county_fips_lookup() -> dict[str, str]:
@@ -29,6 +46,8 @@ def _county_fips_lookup() -> dict[str, str]:
         props = feature.get("properties", {})
         county_name = props.get("name")
         county_fips = props.get("county_fips")
+        if county_fips in RETIRED_COUNTY_FIPS:
+            continue
         if county_name and county_fips:
             lookup[_normalize_county_name(county_name)] = str(county_fips).zfill(5)
     return lookup
