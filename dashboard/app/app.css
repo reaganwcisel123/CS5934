@@ -323,6 +323,15 @@ body { margin: 0; background: var(--bg-app); color: var(--text-body); font-famil
 .chip.none  { background: var(--slate-200, #e2e8f0); color: var(--slate-600, #475569); }
 .chip.alloc { background: var(--slate-100, #f1f5f9); color: var(--slate-600, #475569); text-transform: none; font-weight: 600; }
 
+/* Resource-plan priority / confidence (Predictive Analytics epic) */
+.chip.priority-critical { background: var(--danger-100, #fee2e2); color: var(--danger-700, #b91c1c); }
+.chip.priority-high     { background: var(--command-100, #ffedd5); color: var(--command-700, #c2410c); }
+.chip.priority-medium   { background: var(--amber-100, #fef3c7); color: var(--amber-900, #78350f); }
+.chip.priority-low      { background: var(--slate-200, #e2e8f0); color: var(--slate-600, #475569); }
+.chip.confidence-high   { background: var(--signal-50, #eff6ff); color: var(--text-link, var(--brand)); }
+.chip.confidence-medium { background: var(--slate-100, #f1f5f9); color: var(--slate-600, #475569); }
+.chip.confidence-low    { background: var(--danger-100, #fee2e2); color: var(--danger-700, #b91c1c); }
+
 .threat-cards { display: grid; gap: 12px; }
 .threat-card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-left: 3px solid var(--brand);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; }

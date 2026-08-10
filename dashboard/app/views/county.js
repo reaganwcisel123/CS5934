@@ -6,7 +6,7 @@
   const { fmt0, fmt1, sgn, glyph, judge } = A.format;
   const { navigate } = A.router;
   const { Panel, StatCard, ProvPill } = A.ui;
-  const { API_BASE, fetchCountyForecast } = A.api;
+  const { API_BASE, fetchCountyForecast, fetchResourcePrediction } = A.api;
   const { DIV_NEG, DIV_POS } = A.theme;
 
   function CountyRiskCard({ county }){
@@ -135,6 +135,38 @@
     );
   }
 
+  // 30-day resource-plan snapshot: priority, confidence, and the top-line
+  // patient volume, with a link into the full categorized plan.
+  function ResourcePlanSnapshot({ fips }){
+    const [plan, setPlan] = React.useState(null);
+    React.useEffect(() => {
+      if(!API_BASE){ setPlan(null); return; }
+      let alive = true;
+      fetchResourcePrediction(fips, 30)
+        .then(d => alive && setPlan(d))
+        .catch(() => alive && setPlan(null));
+      return () => { alive = false; };
+    }, [fips]);
+    if(!API_BASE || !plan || plan.status !== "ok") return null;
+    return (
+      <Panel icon="clipboard-check" title="Resource plan" desc="30-day · medications, supplies, equipment & staffing">
+        <div className="gap-row">
+          <span className="gap-label">Estimated patient volume</span>
+          <span className="mono gap-vals">{plan.estimated_patient_volume.toLocaleString()}</span>
+        </div>
+        <div className="gap-row">
+          <span className="gap-label">Priority</span>
+          <span className={"chip priority-" + plan.priority_level.toLowerCase()}>{plan.priority_level}</span>
+        </div>
+        <div className="gap-row">
+          <span className="gap-label">Confidence</span>
+          <span className={"chip confidence-" + plan.confidence_level.toLowerCase()}>{plan.confidence_level}</span>
+        </div>
+        <a className="methods-link" href={"#/resource-plan/" + fips}>Full resource plan →</a>
+      </Panel>
+    );
+  }
+
   function CountyView({ c, baseline, provenance }){
     const topDom = DOMAINS.map(D => ({ ...D, v:c.dom[D.key] })).sort((a,b) => b.v - a.v)[0];
     const scored = (c.patientsList || []).filter(p => p.risk != null);
@@ -169,6 +201,7 @@
             <OutcomeRow c={c} baseline={baseline} />
             <QualitySummary c={c} baseline={baseline} provenance={provenance} />
             <ForecastSnapshot fips={c.id} />
+            <ResourcePlanSnapshot fips={c.id} />
           </div>
         </div>
 

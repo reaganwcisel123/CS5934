@@ -7,7 +7,7 @@
   const { ErrorBoundary } = A.ui;
   const { fmt0 } = A.format;
 
-  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "methods", "funding"]);
+  const VIEWS = new Set(["overview", "forest", "county", "worklist", "trends", "resource-plan", "methods", "funding"]);
 
   function crumbsFor(route, c, countyCount){
     const va = { label: `Virginia (${countyCount})`, href: "#/overview" };
@@ -20,6 +20,7 @@
       }
       case "forest":  return [va, { label: "Needs Forest" }];
       case "trends":  return [va, { label: route.query.mode === "chronic" ? "Trends · Chronic history" : "Trends · Early warning" }];
+      case "resource-plan": return c ? [va, { label: c.name, href: "#/county/" + c.id }, { label: "Resource plan" }] : [va, { label: "Resource plan" }];
       case "methods": return [va, { label: "Methods & data" }];
       case "funding": return [va, { label: "Funding Matches" }];
       default:        return [va];
@@ -32,6 +33,7 @@
       case "overview": return { sub: "Virginia", starters: [top ? `Why is ${top.name} ranked first?` : "Which county has the most need?", "What goes into the unmet-need index?"] };
       case "forest":   return { sub: "the needs forest", starters: ["What does petal length mean?", "Which county has the biggest bloom?"] };
       case "trends":   return { sub: "the forecast", starters: ["What does 'allocated, not observed' mean?", "Which condition is most above normal right now?"] };
+      case "resource-plan": return { sub: c ? c.name : "the resource plan", starters: ["Why is this county's priority level what it is?", "What does 'confidence' mean here?"] };
       case "worklist": return { sub: c ? c.name : "the worklist", starters: ["Why are these patients ranked first?", "What does a provider do with an override?"] };
       case "methods":  return { sub: "the methods", starters: ["What does 'pending' mean on a badge?", "How are the forecast intervals built?"] };
       case "funding":  return { sub: "funding matches", starters: ["How are funding matches ranked?", "What should a clinic verify before applying?"] };
@@ -100,6 +102,7 @@
     else if(route.view === "county") view = <A.views.CountyView c={c} baseline={baseline} provenance={provenance} />;
     else if(route.view === "worklist") view = <A.views.WorklistView c={c} records={records} />;
     else if(route.view === "trends") view = <A.views.TrendsView c={byId(urlFips) || chipC || null} mode={route.query.mode === "chronic" ? "chronic" : "forecast"} />;
+    else if(route.view === "resource-plan") view = <A.views.ResourcePlanView c={byId(urlFips) || chipC || null} window={[30, 60, 90].includes(Number(route.query.window)) ? Number(route.query.window) : 30} />;
     else if(route.view === "methods") view = <A.views.MethodsView provenance={provenance} />;
     else if(route.view === "funding") view = <A.views.FundingMatchesView records={records} initialFips={chipFips || defaultFips()} />;
 

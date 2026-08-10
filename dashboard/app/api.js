@@ -40,6 +40,15 @@
   // NNDSS forecast endpoint (API-only; callers handle the no-API case).
   const fetchCountyForecast = fips => getJson(API_BASE + "/forecast/counties/" + fips, { headers: authHeaders() });
 
+  // Resource-demand prediction (Predictive Analytics epic).
+  const fetchResourcePrediction = (fips, windowDays) =>
+    getJson(API_BASE + "/resource-predictions/counties/" + fips + "?window=" + (windowDays || 30), { headers: authHeaders() });
+
+  // A direct download link, not a fetch -- the browser handles the
+  // Content-Disposition itself.
+  const resourcePredictionExportUrl = (fips, windowDays, format) =>
+    API_BASE + "/resource-predictions/counties/" + fips + "/export?window=" + windowDays + "&format=" + format;
+
   // Usage-event audit trail (US-022). Fire-and-forget; only in authenticated mode.
   function postEvent(event_type, county_fips, payload){
     if(!(AUTH_ON && getToken())) return;
@@ -58,5 +67,5 @@
     });
   }
 
-  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGrantFundingMatches, fetchGeo, fetchCountyForecast, postEvent, chat };
+  A.api = { API_BASE, AUTH_ON, getToken, setToken, authHeaders, fetchAtlas, fetchGrantFundingMatches, fetchGeo, fetchCountyForecast, fetchResourcePrediction, resourcePredictionExportUrl, postEvent, chat };
 })(window.Atlas);

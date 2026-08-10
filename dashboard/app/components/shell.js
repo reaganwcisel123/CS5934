@@ -136,6 +136,7 @@
     { divider: true },
     { view: "forest",  label: "Needs Forest" },
     { view: "trends",  label: "Trends" },
+    { view: "resource-plan", label: "Resource Plan" },
     { view: "methods", label: "Methods" },
     { view: "funding", label: "Funding Matches" },
   ];

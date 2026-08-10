@@ -1,0 +1,214 @@
+# Clinic resource-planning assumptions (Predictive Analytics epic).
+#
+# Hand-authored and reviewable, in the same spirit as condition_supply_map.yml:
+# nothing here is model-generated, every factor carries a cited rationale, and
+# a clinician has not yet signed off on the numbers (see clinical_review
+# below). This is the ONLY place forecast assumptions live -- changing a
+# planning window, a visit rate, a staffing ratio, or a priority threshold
+# never requires touching src/model/resource_prediction.py.
+#
+# Every input the engine reads is resolved through a three-tier fallback,
+# recorded on every prediction so a caller can see which tier was used:
+#   1. county  - the county's own value in dashboard/data/clinic_atlas.json
+#   2. state   - the mean of that field across every loaded county
+#   3. default - the fixed value in fallback_defaults / each condition's
+#                default_prevalence_pct, used only when neither of the above
+#                is available
+#
+# As of this writing, dashboard/data/clinic_atlas.json's `provenance` block
+# marks `sdoh` and `measures` as "stub" -- every county's uninsured_rate,
+# age65_pct, and child_immun are null today, so those inputs always resolve
+# at tier 3 until a real feed lands. That is expected, not a bug; it is why
+# every prediction also carries a confidence level (see `confidence` below).
+
+version: 1
+planning_windows_days: [30, 60, 90]
+
+clinical_review: pending
+clinical_review_note: >
+  Utilization, staffing-ratio, and per-encounter factors below were compiled
+  by the development team from published primary-care planning benchmarks
+  (CDC, ADA, AHA/ACC, HRSA UDS), not by a clinician or a practice
+  administrator at a Virginia rural clinic. Treat every quantity as a
+  starting point for a stocking and staffing conversation, never as a
+  procurement order, a staffing mandate, or a clinical protocol.
+
+# ---- tier-3 fallback values -------------------------------------------------
+# Used only when a county value AND a statewide mean are both unavailable.
+fallback_defaults:
+  uninsured_rate_pct: 11.0   # VA statewide ACS 1-yr uninsured estimate, planning placeholder
+  age65_pct: 18.0            # VA statewide Census age-65+ share, planning placeholder
+  child_immun_pct: 50.0      # HRSA UDS measure ships as stub data; neutral midpoint until real
+  access_burden: 50.0        # dom.access is real data and rarely missing; midpoint safety net only
+  need_index: 45.0           # observed Virginia mean composite need index, safety net only
+  hpsa_score: 11.5           # observed Virginia mean HPSA shortage score, safety net only
+
+# ---- utilization: how many encounters the panel generates ------------------
+utilization:
+  base_encounters_per_patient_per_30d: 0.18
+    # ~2.2 primary-care encounters/patient/year -- a common rural FQHC/HRSA
+    # UDS planning benchmark.
+  rural_access_uplift_per_point: 0.0015
+    # Each point of dom.access burden (0-100, higher = worse access) raises
+    # encounters/patient by 0.15%: patients in low-access counties defer care
+    # and present more often, and sicker, once they are seen.
+  rural_access_uplift_max: 0.20
+  uninsured_dampening_per_point: 0.004
+    # Each point of uninsured rate dampens *completed* encounters (cost is an
+    # access barrier), capped below.
+  uninsured_dampening_max: 0.25
+
+# ---- condition drivers -------------------------------------------------------
+# outcome_field is the dotted path into the county's `outcomes` block, or
+# null when the atlas has no matching county-level prevalence column today
+# (a documented gap -- the engine always resolves that driver at tier 3).
+conditions:
+  hypertension:
+    outcome_field: outcomes.bphigh
+    annual_visits_per_case: 3.0    # AHA/ACC: routine follow-up every 3-4 months once controlled
+    default_prevalence_pct: 34.3   # CDC PLACES Virginia state average
+  diabetes:
+    outcome_field: outcomes.diabetes
+    annual_visits_per_case: 4.0    # ADA Standards of Care: quarterly visits are typical
+    default_prevalence_pct: 11.8   # CDC PLACES Virginia state average
+  behavioral_health:
+    outcome_field: outcomes.mhlth
+    annual_visits_per_case: 6.0    # frequent mental distress used as a behavioral-health caseload proxy
+    default_prevalence_pct: 18.5   # CDC PLACES Virginia state average
+  weight_related:
+    outcome_field: outcomes.obesity
+    annual_visits_per_case: 1.5
+    default_prevalence_pct: 37.9   # CDC PLACES Virginia state average
+  asthma:
+    outcome_field: null            # no county asthma-prevalence column in the atlas today
+    annual_visits_per_case: 2.0
+    default_prevalence_pct: 8.7    # CDC national adult asthma prevalence, planning placeholder
+  hyperlipidemia:
+    outcome_field: null            # no county cholesterol-prevalence column in the atlas today
+    annual_visits_per_case: 2.0
+    default_prevalence_pct: 28.0   # CDC national adult high-cholesterol prevalence, planning placeholder
+  acute_care:
+    outcome_field: null            # generic acute/walk-in driver, not condition-specific
+    annual_visits_per_case: null
+    encounters_per_patient_per_year: 0.6
+    default_prevalence_pct: null
+
+# ---- medications, categorized per the story's initial resource list --------
+medications:
+  hypertension_medications:
+    condition: hypertension
+    fills_per_encounter: 1.0
+    unit: "30-day fill"
+  diabetes_medications_and_insulin:
+    condition: diabetes
+    fills_per_encounter: 1.2       # oral agents plus a share of patients on insulin
+    unit: "30-day fill (oral + insulin)"
+  cholesterol_medications:
+    condition: hyperlipidemia
+    fills_per_encounter: 1.0
+    unit: "30-day fill"
+  asthma_inhalers:
+    condition: asthma
+    fills_per_encounter: 0.6
+    unit: "inhaler"
+  antibiotics:
+    condition: acute_care
+    fills_per_encounter: 0.35
+    unit: "course"
+  pain_management_medications:
+    condition: weight_related      # musculoskeletal load correlates with the weight-related caseload
+    fills_per_encounter: 0.25
+    unit: "course"
+  vaccines:
+    driver: immunization_gap
+    doses_per_percent_gap_per_patient: 0.002
+      # (100 - child_immun%) is the county's immunization gap; scaled by panel
+      # size. Small on purpose -- this is catch-up demand, not routine supply.
+    unit: "dose"
+
+# ---- medical supplies ---------------------------------------------------------
+medical_supplies:
+  syringes:                 { basis: encounter, per_encounter: 0.45, unit: each }
+  needles:                  { basis: encounter, per_encounter: 0.45, unit: each }
+  gloves:                   { basis: encounter, per_encounter: 3.0,  unit: pair }
+  masks:                    { basis: encounter, per_encounter: 1.0,  unit: each }
+  ppe:                      { basis: encounter, per_encounter: 0.30, unit: kit }
+  bandages:                 { basis: encounter, per_encounter: 0.50, unit: each }
+  iv_supplies:              { basis: encounter, per_encounter: 0.12, unit: kit }
+  test_strips:              { basis: condition, condition: diabetes, per_case_encounter: 6.0, unit: each }
+  specimen_collection_kits: { basis: encounter, per_encounter: 0.35, unit: kit }
+
+# ---- diagnostic equipment (durable -- utilization estimate, not a per-visit
+# consumable quantity) ---------------------------------------------------------
+diagnostic_equipment:
+  blood_pressure_cuffs:
+    basis: panel
+    per_patients: 25
+    unit: cuff
+    note: shared clinic equipment; replaced, not consumed, per visit
+  glucose_monitors:
+    basis: condition_cases
+    condition: diabetes
+    per_cases: 15
+    unit: monitor
+  pulse_oximeters:
+    basis: panel
+    per_patients: 40
+    unit: device
+  ecg_equipment:
+    basis: condition_cases
+    condition: hypertension
+    per_cases: 150
+    unit: unit
+  point_of_care_testing_supplies:
+    basis: encounter
+    per_encounter: 0.20
+    unit: kit
+
+# ---- staffing: a suggested FTE level, not a headcount-per-window -----------
+staffing:
+  physicians:
+    patients_per_fte: 1500         # HRSA UDS national median panel size
+    rural_uplift_max: 0.15
+  nurse_practitioners:
+    patients_per_fte: 900
+    rural_uplift_max: 0.15
+  registered_nurses:
+    patients_per_fte: 500
+  medical_assistants:
+    patients_per_fte: 350
+  behavioral_health_specialists:
+    condition: behavioral_health
+    cases_per_fte: 250
+  care_coordinators:
+    patients_per_fte: 600
+    need_index_uplift_max: 0.30    # higher composite SDoH need -> proportionally more coordination load
+
+# ---- priority scoring: 0-100 composite -> Low/Medium/High/Critical --------
+priority:
+  weights:
+    need_index: 0.4               # county's own composite unmet-need index (0-100)
+    hpsa_score: 0.3                # HRSA HPSA shortage score, normalized to 0-100 (score / 26)
+    uninsured_rate: 0.2            # access-to-payment barrier
+    data_completeness_penalty: 0.1 # thinner data -> plan conservatively high, never silently low
+  thresholds:
+    critical: 75
+    high: 55
+    medium: 35
+
+# ---- confidence scoring: how many source inputs were actually observed ----
+confidence:
+  fields_checked:
+    - outcomes.diabetes
+    - outcomes.bphigh
+    - outcomes.obesity
+    - outcomes.mhlth
+    - sdoh.uninsured_rate
+    - sdoh.age65_pct
+    - measures.child_immun
+    - dom.access
+    - hpsaScore
+    - needIndex
+    - patients
+  high_max_missing: 1     # at most 1 of the fields above at tier 3 -> High confidence
+  medium_max_missing: 5   # at most 5 -> Medium; more than 5 -> Low
