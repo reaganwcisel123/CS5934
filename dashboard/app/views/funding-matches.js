@@ -19,15 +19,15 @@
     : "Not provided";
   const scoreLabel = score => `${Math.round((score || 0) * 100)}%`;
 
-  function MetricGrid({ artifact, rows }){
+  function MetricGrid({ artifact, countyRows }){
     const metadata = artifact.metadata || {};
-    const strong = rows.filter(row => row.match.matchTier === "Strong relevance").length;
-    const upcoming = rows.filter(row => row.opportunity.closingDate && row.match.daysRemaining != null && row.match.daysRemaining >= 0)
+    const strong = countyRows.filter(row => row.match.matchTier === "Strong relevance").length;
+    const upcoming = countyRows.filter(row => row.opportunity.closingDate && row.match.daysRemaining != null && row.match.daysRemaining >= 0)
       .sort((a,b) => a.match.daysRemaining - b.match.daysRemaining)[0];
     return (
       <div className="stat-grid" aria-label="Funding-match summary metrics">
         <StatCard label="Opportunities indexed" value={String(metadata.opportunityCount || 0)} accent="command" />
-        <StatCard label="Recommendations shown" value={String(rows.length)} />
+        <StatCard label="County recommendations" value={String(countyRows.length)} />
         <StatCard label="Strong relevance" value={String(strong)} accent="command" />
         <StatCard label="Nearest deadline" value={upcoming ? dateLabel(upcoming.opportunity.closingDate) : "Not provided"} />
       </div>
@@ -70,7 +70,7 @@
         <div className="fm-detail-grid">{items.map(([label, value]) => <div className="fm-detail-item" key={label}><span>{label}</span><b>{textOr(value)}</b></div>)}</div>
         <h4 style={{ marginTop:16 }}>Match-score breakdown</h4>
         <ul className="fm-breakdown">
-          <li>Semantic relevance: {scoreLabel(match.semanticScore)}</li><li>Category alignment: {scoreLabel(match.categoryScore)}</li>
+          <li>Gemini relevance: {scoreLabel(match.geminiScore)}</li>
           <li>Structured compatibility: {scoreLabel(match.eligibilityScore)}</li><li>Deadline usability: {scoreLabel(match.deadlineScore)}</li>
         </ul>
         <p className="fm-warning"><b>Eligibility screen:</b> {textOr(match.eligibilityScreenReason, "Needs verification against the official opportunity record.")}</p>
@@ -97,7 +97,12 @@
       }).catch(() => { if(active) setError("Funding Matches is not available yet. Run the grant recommendation pipeline to generate the optional artifact."); });
       return () => { active = false; };
     }, []);
-    React.useEffect(() => { if(!selectedFips && initialFips) setSelectedFips(initialFips); }, [initialFips, selectedFips]);
+    React.useEffect(() => {
+      if(initialFips && initialFips !== selectedFips){
+        setSelectedFips(initialFips); setSelectedId(null);
+        setFilters({ agency:"", tier:"", deadline:"", eligibility:"", category:"" });
+      }
+    }, [initialFips]);
 
     if(error) return <div className="content funding-matches"><div className="empty">{error}</div></div>;
     if(!artifact) return <div className="content funding-matches"><div className="empty">Loading current funding opportunities…</div></div>;
@@ -122,13 +127,13 @@
     const setFilter = (key, value) => setFilters(current => ({ ...current, [key]: value }));
     const metadata = artifact.metadata || {};
     return (
-      <div className="content funding-matches">
+      <div className="content funding-matches" data-county-fips={selectedFips}>
         <div className="page-head"><h1>Rural Clinic Funding Opportunities</h1><p>Funding Matches ranks current official grant opportunities against a county-informed rural clinic planning profile.</p></div>
         <div className="fm-intro"><div><b>Planning support, not an award prediction.</b><p>Eligibility must be independently verified, opportunity details can change, and no patient information is used.</p></div><span className="pill" style={{ borderColor:"var(--brand)", color:"var(--brand)" }}>Grants.gov · public source</span></div>
         <Panel icon="map" title="County-informed clinic planning profile" desc="Public county indicators; not a confirmed clinic strategy">
           <div className="fm-context"><div><CountyCombobox records={records} selectedId={selectedFips} onSelect={id => { setSelectedFips(id); setSelectedId(null); }} /><div className="fm-meta"><span>Locality<b>{textOr(profile.countyName)}</b></span><span>Rurality<b>{profile.rurality == null ? "Not provided" : Number(profile.rurality) >= .5 ? "More rural" : "Less rural"}</b></span><span>HPSA score<b>{textOr(profile.hpsaScore)}</b></span></div></div><div><h4>Activated planning priorities</h4><div className="fm-tags">{(profile.profileTags || []).length ? profile.profileTags.slice(0, 8).map(tag => <span className="fm-tag" key={tag.tag} title={tag.explanation}>{tag.label}</span>) : <span className="hint">No planning tags are available from the current county fields.</span>}</div><p className="fm-context-copy">{textOr(profile.profileText)}</p></div></div>
         </Panel>
-        <MetricGrid artifact={artifact} rows={rows} />
+        <MetricGrid artifact={artifact} countyRows={rawRows} />
         <Panel icon="list-checks" title="Ranked opportunity matches" desc={`${metadata.modelVersion || "Model version not provided"} · retrieved ${textOr(metadata.sourceRetrievedAt)}`}>
           <div className="fm-controls">
             <select className="fm-control" value={sort} onChange={e => setSort(e.target.value)} aria-label="Sort opportunities"><option value="score">Sort: match score</option><option value="deadline">Sort: closing date</option><option value="award">Sort: award ceiling</option></select>
@@ -140,7 +145,7 @@
           </div>
           <div className="fm-results"><div className="fm-list">{rows.length ? rows.slice(0, 10).map(row => <FundingCard key={row.match.opportunityId} row={row} selected={selected && row.match.opportunityId === selected.match.opportunityId} onSelect={() => setSelectedId(row.match.opportunityId)} />) : <div className="empty">No current match is available for these filters. Try a broader deadline, agency, or eligibility screen.</div>}</div><FundingDetail row={selected} /></div>
         </Panel>
-        <details className="fm-method"><summary>How Funding Matches works</summary><p>The Atlas converts public county indicators into a controlled planning profile. It represents both that profile and current grant records with TF-IDF terms, then retrieves the nearest opportunities by cosine distance. Semantic relevance is combined with transparent category, deadline, and structured compatibility components; the result is a relevance score, never an award probability.</p></details>
+        <details className="fm-method"><summary>How Funding Matches works</summary><p>The Atlas converts public county indicators into a controlled planning profile. Deterministic public rules select a small active candidate set, then Gemini ranks those candidates using structured output that the server validates against known Grants.gov records. The relevance score is not an award probability and eligibility remains a verification task.</p></details>
         <p className="fm-source-note"><b>Source:</b> <a href="https://www.grants.gov/api/api-guide" target="_blank" rel="noopener noreferrer">Grants.gov public API</a>. Data retrieved: {textOr(metadata.sourceRetrievedAt)}. Opportunity information can be amended or closed by the publisher after retrieval.</p>
       </div>
     );
