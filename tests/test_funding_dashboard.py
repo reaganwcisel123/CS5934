@@ -63,6 +63,7 @@ def test_funding_view_resets_county_scoped_state_and_uses_county_rows_for_metric
     assert "Gemini relevance" in view
     assert "TF-IDF" not in view and "cosine distance" not in view
     assert "LOOKBACK_OPTIONS" in state and "isOpenInWindow" in state
+    assert "artifactHealth" in state and "Recommendations need refresh" in view
 
 
 def test_funding_state_matrix_keeps_county_and_lookback_results_in_sync() -> None:
@@ -91,3 +92,12 @@ def test_funding_state_matrix_keeps_county_and_lookback_results_in_sync() -> Non
     assert (result["a30"], result["b30"], result["c30"], result["c180"]) == (3, 1, 0, 1)
     assert result["metrics"]["strongCount"] == 1
     assert result["metrics"]["nearestDeadline"] == "2026-09-01"
+
+
+def test_funding_state_identifies_legacy_and_stale_artifacts() -> None:
+    state_path = ROOT / "dashboard" / "app" / "funding-state.js"
+    script = "const S=require(process.argv[1]); const legacy={metadata:{modelVersion:'grant-recommender-v1',sourceRetrievedAt:'2026-08-04T17:29:35Z'}}; const current={metadata:{modelVersion:'gemini-grant-recommender-v3',matchingMethod:'gemini-prompt-ranking',sourceRetrievedAt:'2026-08-11T09:24:35Z',model:{geminiModel:'gemini-3.5-flash-lite'}}}; console.log(JSON.stringify({legacy:S.artifactHealth(legacy,'2026-08-11'),current:S.artifactHealth(current,'2026-08-11')}));"
+    completed = subprocess.run(["node", "-e", script, str(state_path)], check=True, capture_output=True, text=True)
+    result = json.loads(completed.stdout)
+    assert result["legacy"] == {"legacy": True, "stale": True, "needsRefresh": True, "sourceRetrievedAt": "2026-08-04"}
+    assert result["current"] == {"legacy": False, "stale": False, "needsRefresh": False, "sourceRetrievedAt": "2026-08-11"}

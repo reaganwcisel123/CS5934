@@ -26,6 +26,16 @@
   const countyRows = (artifact, countyFips, lookbackDays, today) => (artifact.matchesByCounty?.[countyFips] || [])
     .map(match => ({ match, opportunity: artifact.opportunities?.[match.opportunityId] }))
     .filter(row => row.opportunity && isOpenInWindow(row.opportunity, lookbackDays, today));
+  const artifactHealth = (artifact, today) => {
+    const metadata = artifact?.metadata || {};
+    const model = metadata.model || {};
+    const sourceRetrievedAt = dayKey(metadata.sourceRetrievedAt);
+    const legacy = metadata.matchingMethod !== "gemini-prompt-ranking"
+      || metadata.modelVersion !== "gemini-grant-recommender-v3"
+      || !model.geminiModel;
+    const stale = !sourceRetrievedAt || sourceRetrievedAt < addDays(today, -2);
+    return { legacy, stale, needsRefresh: legacy || stale, sourceRetrievedAt };
+  };
   const filteredRows = (rows, filters) => rows.filter(({ match, opportunity }) => {
     const deadlineOk = !filters.deadline || (match.daysRemaining != null && match.daysRemaining >= 0 && match.daysRemaining <= Number(filters.deadline));
     return (!filters.agency || opportunity.agency === filters.agency)
@@ -48,5 +58,5 @@
       nearestDeadline: upcoming?.opportunity.closingDate || null,
     };
   };
-  return { LOOKBACK_OPTIONS, dayKey, isOpenInWindow, availableOpportunities, countyRows, filteredRows, sortedRows, metrics };
+  return { LOOKBACK_OPTIONS, dayKey, isOpenInWindow, availableOpportunities, countyRows, artifactHealth, filteredRows, sortedRows, metrics };
 });

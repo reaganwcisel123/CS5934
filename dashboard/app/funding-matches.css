@@ -2,6 +2,8 @@
 .funding-matches .fm-intro { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 16px 18px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--radius-lg); }
 .funding-matches .fm-intro p { margin: 5px 0 0; color: var(--text-muted); max-width: 800px; line-height: 1.55; }
 .funding-matches .fm-warning { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.funding-matches .fm-refresh-warning { display: flex; align-items: baseline; gap: 7px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--command-600); border-left-width: 3px; background: var(--surface-sunken); color: var(--text-body); font-size: 12px; line-height: 1.5; }
+.funding-matches .fm-refresh-warning b { color: var(--text-strong); white-space: nowrap; }
 .funding-matches .fm-context { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(0, 2fr); gap: 16px; align-items: start; }
 .funding-matches .fm-context h4, .funding-matches .fm-detail h4 { color: var(--text-strong); margin: 0 0 7px; font-size: 13px; }
 .funding-matches .fm-context-copy { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
@@ -44,4 +46,5 @@
 .funding-matches .fm-source-note { color: var(--text-muted); font-size: 12px; line-height: 1.55; margin: 0; }
 .funding-matches .fm-source-note a { color: var(--text-link, var(--brand)); font-weight: 600; }
 @media (max-width: 900px) { .funding-matches .fm-results, .funding-matches .fm-context { grid-template-columns: 1fr; } .funding-matches .fm-detail { position: static; } }
+@media (max-width: 620px) { .funding-matches .fm-refresh-warning { display: block; } .funding-matches .fm-refresh-warning b { display: block; margin-bottom: 3px; } }
 @media (max-width: 620px) { .funding-matches .fm-intro { display: block; } .funding-matches .fm-meta { grid-template-columns: 1fr; } .funding-matches .fm-detail-grid { grid-template-columns: 1fr; } .funding-matches .fm-controls > * { flex: 1 1 140px; } }

@@ -4,12 +4,13 @@
 
 Funding Matches is an isolated `#/funding` decision-support view for rural clinic grant research. It combines public aggregate county planning indicators with public Grants.gov opportunities. It does not predict award success, determine legal eligibility, use patient data, or change another Atlas tab.
 
+The canonical application shell intentionally has no global product-title label. The obsolete top-left title was removed without replacement; the header retains its navigation, county control, routing, and responsive behavior.
+
 ## Why the earlier page could show about two grants
 
 The prior preview fixture contained five records, of which only two were posted, current, relevant, and not explicitly limited to another geography. In the production path, several independent caps could also reduce results: a fixed 60-record retrieval ceiling, a 20-opportunity county prefilter, a 10-recommendation serializer, and a 10-card UI slice. The generated static artifact still reflected the older TF-IDF implementation, while the new Gemini code path used a tiny fixture for local preview. This update removes those artificial retrieval, ranking, serialization, and display limits.
 
 ## Source corpus and dates
-The canonical application shell intentionally has no global product-title label. The obsolete top-left title was removed without replacement; the header retains its navigation, county control, routing, and responsive behavior.
 
 
 The public [Grants.gov API guide](https://www.grants.gov/api/api-guide) documents unauthenticated `POST /v1/api/search2` and `POST /v1/api/fetchOpportunity`. `search2` returns `oppHits`, `hitCount`, and `startRecordNum`; the client requests every page for each configured rural-health search term, deduplicates opportunity IDs, and retrieves each detail record.
@@ -50,6 +51,18 @@ Gemini scores every active opportunity for each county against one fixed relevan
 The artifact keeps hashes for each public opportunity content record and county profile. An existing pair score is reused only when the county profile hash, grant content hash, prompt version, and Gemini model match. This means a 7-day, 30-day, or 365-day view uses the same county-grant score and only filters the rolling corpus locally; new or changed grants are the pairs that need fresh scoring.
 
 Eligibility is display metadata, not a broad corpus exclusion. `Likely compatible`, `Needs verification`, and `Likely incompatible` records remain browseable unless the grant is objectively unusable because it is no longer open, outside the rolling window/scope, or explicitly restricted to a geography that excludes Virginia.
+
+## Snapshot freshness and troubleshooting
+
+The dashboard identifies a snapshot as needing refresh when it was produced by a legacy model contract or its source retrieval date is more than two days old. The page continues to show an explicit status message rather than presenting a legacy ranking as a current Gemini recommendation.
+
+| Symptom | Layer | Diagnostic | Resolution |
+| --- | --- | --- | --- |
+| Blank Funding Matches page | Browser | Check the Babel console for a parse error | Repair the view syntax and reload the route. |
+| Zero current county matches | Artifact/window | Compare `metadata.modelVersion`, `matchingMethod`, and `sourceRetrievedAt` with the selected lookback | Run the scheduled live refresh; do not replace production output with a fixture. |
+| Gemini authentication failure | Server | Confirm the server-only `GEMINI_API_KEY` is configured | Add the key to the hosted API and cron service secret settings. |
+| Gemini 429 or transient failure | Gemini/cache | Inspect refresh logs and `recommendationStatus` | Keep the last known good Gemini snapshot and retry on the next refresh. |
+| Grants.gov failure | Source client | Inspect the public API request error | Retry with the bounded client and preserve the previous snapshot. |
 
 ## Artifact and interface
 

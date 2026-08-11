@@ -109,10 +109,13 @@
     const resetScopedState = () => { setSelectedId(null); setFilters(EMPTY_FILTERS); setVisibleCount(10); };
     const setFilter = (key, value) => { setFilters(current => ({ ...current, [key]: value })); setSelectedId(null); setVisibleCount(10); };
     const metadata = artifact.metadata || {};
+    const artifactHealth = State.artifactHealth(artifact, today);
+    const refreshReason = artifactHealth.legacy ? "This snapshot uses a retired ranking model." : "This snapshot is more than two days old.";
 
     return <div className="content funding-matches" data-county-fips={selectedFips} data-lookback-days={lookbackDays}>
       <div className="page-head"><h1>Rural Clinic Funding Opportunities</h1><p>Funding Matches ranks current official grant opportunities against a county-informed rural clinic planning profile.</p></div>
       <div className="fm-intro"><div><b>Planning support, not an award prediction.</b><p>Eligibility must be independently verified, opportunity details can change, and no patient information is used.</p></div><span className="pill" style={{ borderColor:"var(--brand)", color:"var(--brand)" }}>Grants.gov public source</span></div>
+      {artifactHealth.needsRefresh && <div className="fm-refresh-warning" role="status"><b>Recommendations need refresh.</b><span>{refreshReason} Results may be incomplete until a current Gemini-ranked snapshot is published.</span></div>}
       <Panel icon="map" title="County-informed clinic planning profile" desc="Public county indicators; not a confirmed clinic strategy">
         <div className="fm-context"><div><CountyCombobox records={records} selectedId={selectedFips} onSelect={id => { setSelectedFips(id); resetScopedState(); }} /><div className="fm-meta"><span>Locality<b>{textOr(profile.countyName)}</b></span><span>Rurality<b>{profile.rurality == null ? "Not provided" : Number(profile.rurality) >= .5 ? "More rural" : "Less rural"}</b></span><span>HPSA score<b>{textOr(profile.hpsaScore)}</b></span></div></div><div><h4>Activated planning priorities</h4><div className="fm-tags">{(profile.profileTags || []).length ? profile.profileTags.slice(0, 8).map(tag => <span className="fm-tag" key={tag.tag} title={tag.explanation}>{tag.label}</span>) : <span className="hint">No planning tags are available from the current county fields.</span>}</div><p className="fm-context-copy">{textOr(profile.profileText)}</p></div></div>
       </Panel>
