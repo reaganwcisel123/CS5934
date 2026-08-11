@@ -9,6 +9,8 @@ Funding Matches is an isolated `#/funding` decision-support view for rural clini
 The prior preview fixture contained five records, of which only two were posted, current, relevant, and not explicitly limited to another geography. In the production path, several independent caps could also reduce results: a fixed 60-record retrieval ceiling, a 20-opportunity county prefilter, a 10-recommendation serializer, and a 10-card UI slice. The generated static artifact still reflected the older TF-IDF implementation, while the new Gemini code path used a tiny fixture for local preview. This update removes those artificial retrieval, ranking, serialization, and display limits.
 
 ## Source corpus and dates
+The canonical application shell intentionally has no global product-title label. The obsolete top-left title was removed without replacement; the header retains its navigation, county control, routing, and responsive behavior.
+
 
 The public [Grants.gov API guide](https://www.grants.gov/api/api-guide) documents unauthenticated `POST /v1/api/search2` and `POST /v1/api/fetchOpportunity`. `search2` returns `oppHits`, `hitCount`, and `startRecordNum`; the client requests every page for each configured rural-health search term, deduplicates opportunity IDs, and retrieves each detail record.
 

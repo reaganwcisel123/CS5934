@@ -25,6 +25,23 @@ def test_funding_matches_is_an_isolated_additive_view() -> None:
     assert ".funding-matches" in css
 
 
+def test_canonical_shell_removes_obsolete_title_without_changing_navigation() -> None:
+    shell = (ROOT / "dashboard" / "app" / "components" / "shell.js").read_text(encoding="utf-8")
+    main = (ROOT / "dashboard" / "app" / "main.js").read_text(encoding="utf-8")
+    api = (ROOT / "dashboard" / "app" / "api.js").read_text(encoding="utf-8")
+    funding_view = (ROOT / "dashboard" / "app" / "views" / "funding-matches.js").read_text(encoding="utf-8")
+
+    assert "Triad Signal" not in shell
+    assert "Clinic Needs Atlas" not in shell
+    assert "wordmark" not in shell and "wm-text" not in shell
+    for label in ("Overview", "County", "Worklist", "Needs Forest", "Trends", "Explore", "Methods", "Funding Matches"):
+        assert f'label: "{label}"' in shell
+    assert 'navigate("/overview", { replace: true })' in main
+    assert '"funding"' in main and "FundingMatchesView" in main
+    assert "Funding Matches is an optional static artifact" in api
+    assert "Funding Matches is not available yet" in funding_view
+
+
 def test_existing_views_do_not_receive_funding_content() -> None:
     existing = ["overview.js", "forest.js", "county.js", "worklist.js", "trends.js", "explore.js", "methods.js"]
     prohibited = ("Funding Matches", "Grants.gov", "grant recommender", "opportunity match", "eligibility status")

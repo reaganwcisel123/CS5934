@@ -1,4 +1,4 @@
-// App chrome: top bar (brand + numbered journey nav + county chip), breadcrumb
+// App chrome: top bar (numbered journey nav + county chip), breadcrumb
 // row with the baseline toggle, and the searchable county combobox.
 (function(A){
   const Icon = A.Icon;
@@ -155,10 +155,6 @@
     };
     return (
       <header className="topnav">
-        <a className="wordmark" href="#/overview">
-          <span className="mark">T</span>
-          <span className="wm-text"><b>Triad Signal</b><small>Clinic Needs Atlas</small></span>
-        </a>
         <nav className="topnav-items" aria-label="Main">
           {NAV.map((n, i) => n.divider
             ? <span key={i} className="topnav-div" aria-hidden="true" />
