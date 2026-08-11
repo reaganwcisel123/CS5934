@@ -1,165 +1,86 @@
-# Rural Clinic Grant Funding Recommender — implementation
+# Rural Clinic Funding Recommender Implementation
 
-## Executive summary
+## Purpose
 
-## Gemini migration and daily operation
+Funding Matches is an isolated `#/funding` decision-support view for rural clinic grant research. It combines public aggregate county planning indicators with public Grants.gov opportunities. It does not predict award success, determine legal eligibility, use patient data, or change another Atlas tab.
 
-Funding Matches now uses `gemini-3.5-flash-lite` through the official `google-genai` Python SDK, configured only with the server-side `GEMINI_API_KEY` and optional `GEMINI_MODEL`. The earlier TF-IDF/nearest-neighbor implementation is retired from the production path: a deterministic controlled-vocabulary prefilter selects at most 20 active public opportunities per county profile, Gemini returns structured rankings, and server validation accepts only known opportunity IDs and bounded scores.
+## Why the earlier page could show about two grants
+
+The prior preview fixture contained five records, of which only two were posted, current, relevant, and not explicitly limited to another geography. In the production path, several independent caps could also reduce results: a fixed 60-record retrieval ceiling, a 20-opportunity county prefilter, a 10-recommendation serializer, and a 10-card UI slice. The generated static artifact still reflected the older TF-IDF implementation, while the new Gemini code path used a tiny fixture for local preview. This update removes those artificial retrieval, ranking, serialization, and display limits.
+
+## Source corpus and dates
+
+The public [Grants.gov API guide](https://www.grants.gov/api/api-guide) documents unauthenticated `POST /v1/api/search2` and `POST /v1/api/fetchOpportunity`. `search2` returns `oppHits`, `hitCount`, and `startRecordNum`; the client requests every page for each configured rural-health search term, deduplicates opportunity IDs, and retrieves each detail record.
+
+The normal corpus contains opportunities that are:
+
+- `posted` by Grants.gov, not forecasts, archived, cancelled, or closed records;
+- still accepting applications when a closing date is supplied (`closing_date >= today`);
+- relevant to the configured rural-health, community-development, food/nutrition, workforce, or regional-development scope; and
+- canonically posted within the rolling previous 365 days.
+
+The canonical posting date is the detailed synopsis `postingDate`; normalized search-result `openDate` is used only when that detail field is absent. The API documentation does not define a posted-date request filter for this use, so the client applies the one-year and selected-window boundaries locally after complete pagination and detail normalization. A posted opportunity without a closing date remains visible as `Deadline not provided`.
+
+The centralized lookback options are `7`, `14`, `30`, `90`, `180`, and `365` days. The default is 30 days, and every cutoff is inclusive: `posting_date >= today - lookback_days`.
+
+## Retrieval and refresh flow
 
 ```mermaid
 flowchart TD
-  A[Grants.gov] --> B[Normalization and eligibility filters]
-  B --> C[Public county planning profile]
-  C --> D[Non-vector candidate selection]
-  D --> E[Gemini structured ranking]
-  E --> F[Server validation]
-  F --> G[Durable last-known-good Postgres snapshot]
-  G --> H[API or static artifact]
-  H --> I[Funding Matches tab]
+  A[Grants.gov search2] --> B[Paginate all posted relevant search hits]
+  B --> C[fetchOpportunity details]
+  C --> D[Normalize posting and deadline fields]
+  D --> E[Keep current rolling 365-day corpus]
+  E --> F[Gemini county-grant relevance batches]
+  F --> G[Durable cached matches]
+  G --> H[Selected county plus selected lookback]
+  H --> I[Summary cards, ranked list, detail]
 ```
 
-Only public county FIPS, locality/region, rurality, HPSA score, need index, controlled planning tags, and profile text may enter the Gemini prompt. Patient rosters, clinical measurements, contact data, survey text, credentials, and raw API wrappers are excluded by the prompt allowlist. Grant descriptions are treated as untrusted delimited data, and model output is never sent to the browser until IDs, score bounds, duplicates, and response structure have been validated.
+Raw and normalized data are stored separately under ignored `data/raw/grants_gov_opportunities/`. The Render daily job runs `python -m src.grants.pipeline --daily --refresh --persist`, updates the durable snapshot, and keeps last-known-good match output if Gemini has a transient failure. Changing the dashboard dropdown never calls Grants.gov.
 
-On Render, `clinic-atlas-grants-refresh` runs daily at `05:00 UTC` with `uv run python -m src.grants.pipeline --daily --refresh --persist`. It writes a validated snapshot to Postgres atomically; the API reads that durable snapshot from `/api/funding-matches`. Corpus, profile, model, and prompt hashes skip unnecessary Gemini calls, while a failed ranking retains the last known good result when one exists.
+## Gemini ranking and cache
+
+`gemini-3.5-flash-lite` is used only from Python with server-side `GEMINI_API_KEY` and optional `GEMINI_MODEL`. The browser, static artifact configuration, and HTML never receive the key. The prompt includes only public county FIPS, county/region labels, rurality, HPSA/need context, activated planning tags, and limited public Grants.gov fields. It excludes patients, contacts, survey text, credentials, and raw API wrappers. Publisher text is explicitly delimited as untrusted data.
+
+Gemini scores every active opportunity for each county against one fixed relevance rubric. Opportunities are split into configurable batches of 20; the backend validates that each response has one known, bounded, non-duplicate opportunity ID for every requested county-grant pair before decorating it with eligibility, deadline, tier, evidence, and readiness metadata. There is no TF-IDF, embedding, vector, cosine, nearest-neighbor, top-2, or top-5 path.
+
+The artifact keeps hashes for each public opportunity content record and county profile. An existing pair score is reused only when the county profile hash, grant content hash, prompt version, and Gemini model match. This means a 7-day, 30-day, or 365-day view uses the same county-grant score and only filters the rolling corpus locally; new or changed grants are the pairs that need fresh scoring.
+
+Eligibility is display metadata, not a broad corpus exclusion. `Likely compatible`, `Needs verification`, and `Likely incompatible` records remain browseable unless the grant is objectively unusable because it is no longer open, outside the rolling window/scope, or explicitly restricted to a geography that excludes Virginia.
+
+## Artifact and interface
+
+```text
+metadata                              # source freshness and corpus bounds
+opportunities[opportunityId]          # one normalized public record per grant
+profiles[countyFips]                  # controlled public county profile
+matchesByCounty[countyFips][]         # validated county-grant relevance rows
+```
+
+The Funding Matches page has two primary state dimensions: `selectedCounty` and `selectedLookbackDays`, plus filters and sorting. The selected grant detail is derived from the active rows and cleared whenever a county, window, filter, or sort transition could make it stale.
+
+| Block | Scope | Lookback-sensitive calculation |
+| --- | --- | --- |
+| Available opportunities | Global | All open relevant corpus records in the selected window |
+| County recommendations | County | Active county matches after window and active filters |
+| Strong relevance | County | Active county matches with the Strong tier |
+| Nearest deadline | County | Earliest non-expired deadline in the active county rows |
+| Opportunity detail | County | Selected active match, otherwise the current first row |
+
+The page offers the requested `Opportunity posted within` dropdown, agency/tier/deadline/eligibility/category filters, score/deadline/award sorting, and `Show more` pagination. It does not imply that only Strong relevance grants are the only available grants.
+
+## Verification
+
+Run offline deterministic checks without Gemini credentials:
 
 ```powershell
-$env:GEMINI_API_KEY="your-server-side-key"
-$env:GEMINI_MODEL="gemini-3.5-flash-lite"
-uv sync --extra api --extra grants
-uv run python -m src.grants.pipeline --refresh --persist
-uv run python -m src.grants.pipeline --daily --refresh --persist
-uv run python -m src.grants.pipeline --refresh --force-rerank --persist
-```
-
-The relevance score is not an award probability and Gemini does not determine legal eligibility. County profiles are public aggregate planning context, not a clinic's confirmed strategy, and Grants.gov records may change after retrieval.
-
-Funding Matches is an isolated decision-support capability for rural clinic planning. It ranks a deliberately small, current Grants.gov corpus against a deterministic county-informed clinic planning profile; it does not predict award success, clinical risk, or patient outcomes. The generated dashboard artifact contains shared opportunity details once and compact per-county match records, so the static dashboard stays available without a runtime API.
-
-## User problem and Atlas integration
-
-Rural clinic administrators need a defensible starting point for grant research: which opportunity may fit a community context, why it was surfaced, what is known about the deadline and award amount, and what still needs verification. The existing county Atlas remains unchanged. The feature is a separate `#/funding` route with one additive navigation entry and an optional `dashboard/data/grant_funding_matches.json` loader; an absent artifact only produces the new tab's empty state.
-
-## Official source and API behavior
-
-The source is the public [Grants.gov REST API guide](https://www.grants.gov/api/api-guide), verified on 2026-08-04. It documents unauthenticated `POST https://api.grants.gov/v1/api/search2` for opportunity search and `POST https://api.grants.gov/v1/api/fetchOpportunity` for one detailed record. The client pages `search2` with `rows` and `startRecordNum`, then requests detail with `{ "opportunityId": "…" }`.
-
-The client searches a configurable rural-health planning vocabulary, retains HHS (including HRSA and CDC) plus USDA Rural Development subagencies, and limits the small corpus with `--max-results`. It sets a 25-second timeout, two bounded retries for transient errors, an identifying user agent, and records retrieval timestamps and official API URLs. Raw response data and separately normalized records are cached under ignored `data/raw/grants_gov_opportunities/`; the raw cache deliberately excludes the API's transient response token.
-
-## Extracted fields and normalization
-
-| Official field(s) | Internal field | Cleaning | Use |
-| --- | --- | --- | --- |
-| `id`, `opportunityId` | `opportunity_id` | string, required, deduplicated | stable key and official URL |
-| title/number/agency fields | title, opportunity number, agency | HTML and whitespace cleanup | list and detail views |
-| synopsis or forecast description | synopsis, description | markup removal with paragraphs | TF-IDF corpus and explanation evidence |
-| applicant types and eligibility narrative | applicant types, eligibility description | stable description lists; unknown remains unknown | compatibility screen |
-| activity categories/instruments/ALNs | categories, instruments, listings | stable unique lists | corpus and filters |
-| posting, response, archive dates | ISO dates | safe multi-format parsing | deadline status and sorting |
-| award floor/ceiling/funding/count | numeric fields | currency and number parsing; unavailable stays `null` | planning information |
-| cost sharing | boolean or unavailable | preserved | readiness prompt |
-
-Normalization rejects a record without an ID or title, strips HTML, normalizes whitespace, parses dates and currency safely, preserves missing values, creates a stable `https://www.grants.gov/search-results-detail/{id}` link, validates the canonical fields, and deduplicates by ID. It reports raw, normalized, duplicate, status, missingness, agency, and category statistics before recommendation generation.
-
-The 2026-08-04 live build retrieved 30 records, normalized all 30, found zero duplicates or rejections, and retained 18 active healthcare-relevant candidates after agency and clear-geography screens. Of the raw records, 11 were posted and 19 forecasted; six were already unsuitable by status/deadline. Missing eligibility was 16.7%, missing closing date 3.3%, and missing award range 43.3%; these are presented as unavailable rather than substituted values.
-
-## County-informed planning profiles
-
-`src/grants/profiles.py` creates one deterministic public-data profile for each Atlas locality. It reads only aggregate county fields (`rural`, `hpsaScore`, `needIndex`, Atlas domains, and published outcomes); it never reads synthetic patients, survey placeholders, PHI, or the ignored `accessFailureRisk` object. The text explicitly says it is a county-informed clinic planning profile, not a clinic's confirmed strategy.
-
-Thresholds live in `src/grants/config.py`.
-
-| Profile tag | Source field | Trigger | Meaning |
-| --- | --- | --- | --- |
-| rural healthcare delivery | `rural` | >= 0.5 | rurality context |
-| primary care workforce shortage | `hpsaScore` | >= 14 | shortage-area planning context |
-| behavioral-health access | `outcomes.mhlth` | >= 20 | elevated mental-distress context |
-| diabetes prevention and management | `outcomes.diabetes` | >= 11 | diabetes planning context |
-| hypertension management | `outcomes.bphigh` | >= 34 | blood-pressure planning context |
-| obesity prevention | `outcomes.obesity` | >= 35 | obesity planning context |
-| food access | `dom.food` | >= 60 | food-access burden context |
-| care coordination | `dom.access` | >= 60 | care-access burden context |
-| community outreach | `dom.economic` | >= 65 | economic-barrier context |
-| health equity / quality improvement | `needIndex` | >= 65 | elevated composite community need |
-
-Each activated tag stores its field, observed value, exact threshold rule, and a plain-language explanation in the artifact.
-
-## Content model and retrieval
-
-The model is independent of the Atlas classifiers. `GrantRecommender` fits a `TfidfVectorizer` on title, agency, synopsis, description, categories, instruments, applicant types, and eligibility text, then fits `NearestNeighbors(metric="cosine", algorithm="brute")` on that matrix. The profile text is transformed in the same vocabulary and the nearest documents are retrieved by cosine distance.
-
-The deployed parameters are lowercase text, English stop words, unigrams and bigrams, `min_df=1`, `max_df=1.0`, `max_features=2000`, and `sublinear_tf=True`. The 2026-08-04 corpus produced 2,000 TF-IDF features. Fitted vectorizer/index/ID ordering/parameters/source timestamp are saved under ignored `models/grant_recommender/`, keeping a production model binary out of Git.
-
-## Eligibility, deadline, score, and explanations
-
-The compatibility screen is deliberately restrained:
-
-- `Likely incompatible` is a hard exclusion only for closed/past-deadline records, a clearly non-Virginia named geography, or applicant types limited to individuals.
-- `Likely compatible` means the structured applicant types include an organization category commonly used by a clinic or partner; it is not a legal eligibility conclusion.
-- `Needs verification` is the default when organization type or source language is ambiguous.
-
-The score is a bounded relevance score, not a probability:
-
-```text
-match_score = clamp(
-  0.75 * semantic_similarity
-  + 0.10 * category_alignment
-  + 0.10 * eligibility_compatibility
-  + 0.05 * deadline_usability
-)
-```
-
-Every component is retained from 0 to 1. Tiers are Strong relevance (>= 0.70), Moderate relevance (>= 0.45), and Limited relevance otherwise. Two to four fit reasons are generated only from visible rural/health/category/deadline text and activated-profile tag evidence. Readiness prompts are practical checks—organization type, UEI/SAM.gov, eligibility narrative, scope, budget, partners, and cost sharing where listed—not claims that every item is legally required.
-
-## Artifacts and dashboard
-
-The generated JSON is normalized as follows:
-
-```text
-metadata
-opportunities[opportunityId]     # full detail once
-profiles[countyFips]             # controlled profile and tag evidence
-matchesByCounty[countyFips][]    # IDs, scores, screens, reasons, checklists
-```
-
-This avoids duplicating full opportunity descriptions inside all 133 county records. The `Funding Matches` tab offers a tab-specific locality selector, summary metrics, filters (agency, tier, deadline, compatibility, category), sorting (score, deadline, award ceiling), cards, detail panel, methodology disclosure, source citation, responsive layout, and readable fallbacks for absent data. All new CSS is under `.funding-matches`.
-
-## Flow
-
-```mermaid
-flowchart TD
-    A[Official Grants.gov API] --> B[Raw response cache]
-    B --> C[Opportunity normalization]
-    C --> D[Open and relevant opportunity corpus]
-    E[Clinic Needs Atlas county data] --> F[County-informed clinic profile]
-    D --> G[TF-IDF vectorizer]
-    F --> G
-    G --> H[Cosine nearest-neighbor retrieval]
-    H --> I[Eligibility and deadline rules]
-    I --> J[Ranked grant recommendations]
-    J --> K[Grant recommendation artifact]
-    K --> L[Funding Matches dashboard tab]
-```
-
-## Tests, commands, and troubleshooting
-
-Run the normal project environment with:
-
-```bash
-uv sync --extra model
-uv run python -m src.grants.pipeline --refresh --max-results 30
-uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tests/test_funding_dashboard.py -q
-uv run python data_source_catalog/scripts/validate_data_catalog.py
-uv run python -m http.server 8000
-```
-
-Offline/reproducible build:
-
-```bash
 uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportunities.json
+uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tests/test_gemini_grants.py tests/test_funding_dashboard.py -q
 ```
 
-The focused tests cover parsing, HTML cleanup, currency/date handling, cache/fixture behavior, deduplication, closed/geographically incompatible exclusion, controlled profile thresholds, TF-IDF fitting, cosine ranking, score bounds, deterministic output, explanation/readiness fields, artifact serialization, tab registration, scoped styling, and existing-view isolation. If a live refresh fails, retain the last fresh raw cache or use the fixture to validate code; do not make `src/build_dataset.py` depend on Grants.gov. If the dashboard says the artifact is missing, run the grant pipeline separately and serve `dashboard/` over HTTP.
+Tests cover full pagination and duplicate hits, posted/expired status handling, inclusive lookback boundaries, missing eligibility visibility, multi-batch complete ranking, pair-score reuse, and a County A/B/C plus 7/14/30/90/180/365-day frontend state matrix. The live verification procedure uses a 30-day source query and a small controlled number of counties only; it must record actual API counts and Gemini calls rather than fabricate them. A 365-day code path does not mean a full 365-day live Gemini backfill was performed during a smoke test.
 
-## Maintenance and limitations
+## Limitations
 
-Refresh on a planned cadence, review the selected vocabulary/agency scope, inspect source schema changes, and manually spot-check varied county results after each live refresh. No award-success model, ROC-AUC, PR-AUC, or accuracy is reported because there is no award label. Eligibility must be independently verified; the county profile is not a clinic strategy; opportunity details can change; the feature depends on a public source; and it processes no PHI.
+Gemini relevance is not award probability. Eligibility and geographic applicability require review against the official opportunity record. Grants.gov content can change after the daily refresh, and Gemini quota may constrain historical backfills. The source scope is intentionally limited to credible rural-health and adjacent community/workforce funding, not every federal opportunity.
