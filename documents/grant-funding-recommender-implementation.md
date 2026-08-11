@@ -2,6 +2,37 @@
 
 ## Executive summary
 
+## Gemini migration and daily operation
+
+Funding Matches now uses `gemini-3.5-flash-lite` through the official `google-genai` Python SDK, configured only with the server-side `GEMINI_API_KEY` and optional `GEMINI_MODEL`. The earlier TF-IDF/nearest-neighbor implementation is retired from the production path: a deterministic controlled-vocabulary prefilter selects at most 20 active public opportunities per county profile, Gemini returns structured rankings, and server validation accepts only known opportunity IDs and bounded scores.
+
+```mermaid
+flowchart TD
+  A[Grants.gov] --> B[Normalization and eligibility filters]
+  B --> C[Public county planning profile]
+  C --> D[Non-vector candidate selection]
+  D --> E[Gemini structured ranking]
+  E --> F[Server validation]
+  F --> G[Durable last-known-good Postgres snapshot]
+  G --> H[API or static artifact]
+  H --> I[Funding Matches tab]
+```
+
+Only public county FIPS, locality/region, rurality, HPSA score, need index, controlled planning tags, and profile text may enter the Gemini prompt. Patient rosters, clinical measurements, contact data, survey text, credentials, and raw API wrappers are excluded by the prompt allowlist. Grant descriptions are treated as untrusted delimited data, and model output is never sent to the browser until IDs, score bounds, duplicates, and response structure have been validated.
+
+On Render, `clinic-atlas-grants-refresh` runs daily at `05:00 UTC` with `uv run python -m src.grants.pipeline --daily --refresh --persist`. It writes a validated snapshot to Postgres atomically; the API reads that durable snapshot from `/api/funding-matches`. Corpus, profile, model, and prompt hashes skip unnecessary Gemini calls, while a failed ranking retains the last known good result when one exists.
+
+```powershell
+$env:GEMINI_API_KEY="your-server-side-key"
+$env:GEMINI_MODEL="gemini-3.5-flash-lite"
+uv sync --extra api --extra grants
+uv run python -m src.grants.pipeline --refresh --persist
+uv run python -m src.grants.pipeline --daily --refresh --persist
+uv run python -m src.grants.pipeline --refresh --force-rerank --persist
+```
+
+The relevance score is not an award probability and Gemini does not determine legal eligibility. County profiles are public aggregate planning context, not a clinic's confirmed strategy, and Grants.gov records may change after retrieval.
+
 Funding Matches is an isolated decision-support capability for rural clinic planning. It ranks a deliberately small, current Grants.gov corpus against a deterministic county-informed clinic planning profile; it does not predict award success, clinical risk, or patient outcomes. The generated dashboard artifact contains shared opportunity details once and compact per-county match records, so the static dashboard stays available without a runtime API.
 
 ## User problem and Atlas integration

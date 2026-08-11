@@ -2,6 +2,20 @@
 
 ## Problem definition
 
+## Gemini prompt-ranking update
+
+The production recommender no longer uses TF-IDF, cosine similarity, nearest-neighbor search, embeddings, or a vector database. It first applies deterministic status, deadline, healthcare-relevance, compatibility, agency, and controlled-vocabulary rules, then asks Gemini for a structured qualitative ranking of the bounded candidate set. The server validates every returned opportunity ID against that candidate set and combines the bounded Gemini relevance score with deterministic eligibility and deadline components.
+
+The prompt version is `grant-ranking-v2`; the default stable model is `gemini-3.5-flash-lite`; candidate limit is 20; and profiles are batched eight counties at a time. Hashes over the normalized corpus and public county profiles avoid needless repeat calls. An explicit fixture-only ranker is used for offline tests, never as a hidden production fallback.
+
+| Score component | Weight | Meaning |
+| --- | ---: | --- |
+| Gemini relevance | 0.75 | Structured model assessment of supplied public profile and candidate text |
+| Eligibility screen | 0.15 | Deterministic likely-compatible/needs-verification screen |
+| Deadline usability | 0.10 | Deterministic treatment of current, forecast, and missing deadlines |
+
+No supervised award-success metric is claimed. Automated evaluation covers schema validity, known-ID validation, score bounds, open/deadline filtering, county coverage, duplicate suppression, explanation presence, deterministic fixture behavior, and reuse of an unchanged last-known-good artifact.
+
 The recommender answers a retrieval question: which active public grant opportunities have language most relevant to a county-informed rural clinic planning profile? It is not a classifier and has no historical award-success target. In particular, it is not a replacement for the Atlas `needIndex`, county high-need model, patient model, forecast, or a grant-award probability.
 
 ## Data provenance and extraction
