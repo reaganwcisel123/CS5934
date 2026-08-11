@@ -30,7 +30,7 @@ def _iso_now() -> str:
 
 
 class GrantsGovClient:
-    """Retrieve a small, targeted public opportunity corpus with a local cache."""
+    """Retrieve the complete configured public opportunity scope with a local cache."""
 
     def __init__(
         self,
@@ -141,7 +141,7 @@ class GrantsGovClient:
         searches = 0
         for keyword in C.SEARCH_TERMS:
             start = 0
-            while len(hits) < max_results:
+            while True:
                 body = self.search(keyword, start_record=start)
                 searches += 1
                 data = body["data"]
@@ -152,13 +152,13 @@ class GrantsGovClient:
                     opportunity_id = str(hit.get("id") or "")
                     if opportunity_id and self._allowed_agency(hit):
                         hits.setdefault(opportunity_id, hit)
-                        if len(hits) >= max_results:
+                        if max_results and len(hits) >= max_results:
                             break
                 start += len(page_hits)
                 hit_count = int(data.get("hitCount") or 0)
-                if not page_hits or start >= hit_count:
+                if not page_hits or start >= hit_count or (max_results and len(hits) >= max_results):
                     break
-            if len(hits) >= max_results:
+            if max_results and len(hits) >= max_results:
                 break
 
         retrieved_at = _iso_now()

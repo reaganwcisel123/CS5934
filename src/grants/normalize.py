@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from html import unescape
 from html.parser import HTMLParser
 import json
@@ -140,9 +140,6 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
     status = str(_first(search, "oppStatus", "status") or _first(detail, "oppStatus", "status") or "unknown").lower()
     closing = parse_date(_first(body, "responseDate", "estApplicationResponseDate", "closingDate", "closeDate") or _first(search, "closeDate"))
     posting = parse_date(_first(body, "postingDate", "estSynopsisPostingDate") or _first(search, "openDate"))
-    # retrieved_at may be the sentinel "fixture"/"cache" rather than a date.
-    year_source = posting or retrieved_at
-    source_year = int(year_source[:4]) if year_source[:4].isdigit() else None
     record = {
         "opportunity_id": opportunity_id,
         "opportunity_number": clean_text(_first(detail, "opportunityNumber", "number") or _first(search, "number")),
@@ -168,7 +165,7 @@ def normalize_opportunity(raw: dict[str, Any], *, retrieved_at: str) -> dict[str
         "status": status,
         "official_url": C.OFFICIAL_RECORD_URL.format(opportunity_id=opportunity_id),
         "retrieved_at": retrieved_at,
-        "source_year": source_year,
+        "source_year": int((posting or retrieved_at)[:4]),
     }
     validate_opportunity(record)
     return record
@@ -184,6 +181,7 @@ def validate_opportunity(opportunity: dict[str, Any]) -> None:
 
 
 def is_open_or_forecasted(opportunity: dict[str, Any], *, today: date | None = None) -> bool:
+    """Return whether a posted opportunity is still accepting applications."""
     if opportunity.get("status") not in C.ALLOWED_STATUSES:
         return False
     closing = opportunity.get("closing_date")
@@ -198,7 +196,22 @@ def is_open_or_forecasted(opportunity: dict[str, Any], *, today: date | None = N
 
 def is_healthcare_relevant(opportunity: dict[str, Any]) -> bool:
     document = normalized_document(opportunity).lower()
-    return any(term in document for term in C.HEALTHCARE_RELEVANCE_TERMS)
+    categories = {str(category).lower() for category in opportunity.get("funding_categories") or []}
+    category_match = bool(categories.intersection(C.RELEVANT_FUNDING_CATEGORIES))
+    return any(term in document for term in C.HEALTHCARE_RELEVANCE_TERMS) and (category_match or "health" in document or "rural" in document)
+
+
+def is_within_lookback(opportunity: dict[str, Any], *, today: date, days: int) -> bool:
+    """Use canonical detailed posting dates with an inclusive UTC-day boundary."""
+    if days not in C.GRANT_LOOKBACK_OPTIONS:
+        raise ValueError(f"Unsupported grant lookback: {days}")
+    posting = opportunity.get("posting_date")
+    if not posting:
+        return False
+    try:
+        return date.fromisoformat(posting) >= today - timedelta(days=days)
+    except ValueError:
+        return False
 
 
 def normalize_many(raw_records: Iterable[dict[str, Any]], *, retrieved_at: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
