@@ -66,7 +66,7 @@
               </ul>
               <p className="bloom-sidenote">Petal <b>length</b> — depth of need on that axis, from Census ACS.<br />
                 Petal <b>color</b> — its CDC PLACES measure, named on the legend flower.<br />
-                A petal outlined in <b>dashed red</b> is at or above the state's worst-quartile
+                A petal outlined in <b>bold pink</b> is at or above the state's worst-quartile
                 threshold for that measure — a stark cue, not just a darker shade.</p>
             </div>
             <div>

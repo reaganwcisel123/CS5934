@@ -187,8 +187,13 @@
   const LEN = d3.scaleLinear([0, 1], [5, 32]);
   const budPts = [[0, 0]].concat(d3.range(7).map(k => { const a = k * 2 * Math.PI / 7; return [RING_R * Math.cos(a), RING_R * Math.sin(a)]; }));
   const bractW = L => clamp(L * 0.92, 5, 26);
-  // Per-axis outline color (N/E/S/W) — replaces the old uniform pink stroke.
+  // Per-axis color (N/E/S/W) — the saturated version drives the petal fill
+  // (gradient tip), the desaturated AX_OUTLINE drives the petal's own
+  // boundary stroke so the outline reads as a quiet edge, not a second
+  // competing color signal.
   const AX_STROKE = { N: "#c65461", E: "#5b83c2", S: "#8a63bd", W: "#d59a33" };
+  const muteStroke = hex => { const c = d3.hsl(hex); c.s *= 0.4; c.l = Math.min(0.75, c.l + 0.1); return c.formatHex(); };
+  const AX_OUTLINE = Object.fromEntries(Object.entries(AX_STROKE).map(([k, v]) => [k, muteStroke(v)]));
   // Bud cluster scales with breadth of need: 0.50 (nothing in the worst
   // quartile) up to 0.92 (all 8 indicators flagged) — a second, independent
   // visual signal alongside petal length/color.
@@ -212,12 +217,18 @@
       M 0 ${CORE + 3} Q ${-W * 0.20} ${CORE + L * 0.5}, ${-W * 0.30} ${CORE + L * 0.88}
       M 0 ${CORE + 3} Q ${W * 0.20} ${CORE + L * 0.5}, ${W * 0.30} ${CORE + L * 0.88}`;
   }
+  // Contrast stretch (endpoints and midpoint pinned, 0/0.5/1 -> 0/0.5/1) so
+  // high-value petals read as sharply more saturated/colorful than low-value
+  // ones instead of the muted gradation a raw linear map gives.
+  const CONTRAST_P = 2.6;
+  const contrastCurve = n => n <= 0.5 ? 0.5 * Math.pow(2 * n, CONTRAST_P) : 1 - 0.5 * Math.pow(2 * (1 - n), CONTRAST_P);
   // Radial gradient in the petal's local rotated frame (userSpaceOnUse):
-  // glows outward from the bud to a saturated tip.
-  function pinkStops(sel, id, n, L){
+  // glows outward from the bud to a saturated tip in the axis's own color.
+  function pinkStops(sel, id, rawN, L, color){
+    const n = contrastCurve(rawN);
     const m = clamp(1 - (0.08 + 0.72 * n), 0, 1);
-    const pink = d3.interpolateLab("#f5e4ea", "#d63074")(n);
-    const soft = d3.interpolateLab("#f5e4ea", "#e2679a")(n * 0.85);
+    const pink = d3.interpolateLab("#f5e4ea", color)(n);
+    const soft = d3.interpolateLab("#f5e4ea", color)(n * 0.85);
     const g = sel.append("radialGradient").attr("id", id).attr("gradientUnits", "userSpaceOnUse")
       .attr("cx", 0).attr("cy", 0).attr("r", CORE + L);
     g.append("stop").attr("offset", 0).attr("stop-color", "#fcfaf2");
@@ -262,7 +273,7 @@
       const ctr = path.centroid(c.feature);
       c.mx = ctr[0]; c.my = ctr[1];
       c.rot = (Math.sin(parseInt(c.id, 10) * 12.9898) * 43758.5453 % 1) * 70 - 35;
-      AXES.forEach(ax => pinkStops(defs, `bloom-g${c.id}${ax.key}`, c.measureNorm[ax.key], LEN(c.ax[ax.key])));
+      AXES.forEach(ax => pinkStops(defs, `bloom-g${c.id}${ax.key}`, c.measureNorm[ax.key], LEN(c.ax[ax.key]), AX_STROKE[ax.key]));
     });
     counties.forEach(c => { c.maxL = LEN(Math.max(c.ax.N, c.ax.E, c.ax.S, c.ax.W)); c.R = CORE + c.maxL + 0.4; c.x = c.mx; c.y = c.my; });
 
@@ -320,17 +331,17 @@
         const rot = bloomG.append("g").attr("transform", `rotate(${ANGLE[axKey]})`);
         // Stark, additive threshold treatment: the gradient fill (severity as
         // a smooth gradient) is untouched; a petal at/above its own statewide
-        // worst-quartile threshold instead gets a bold dashed red outline in
-        // place of its normal thin axis color, so a dire county is
+        // worst-quartile threshold instead gets a bold pink outline in place
+        // of its normal desaturated axis color, so a dire county is
         // unmistakable at a glance next to a healthy one, not just a shade
-        // darker.
+        // darker. Every outline is solid — the fill gradient alone carries
+        // the color signal, so the boundary always stays a quiet, solid edge.
         const critical = c.axCritical[axKey];
         const br = rot.append("g").attr("class", "bloom-bract" + (critical ? " bloom-bract-critical" : "")).attr("transform", "scale(0)");
         // Outline stays bold and solid even when ACS is pending (see header note).
         br.append("path").attr("d", bractPath(L)).attr("fill", `url(#bloom-g${c.id}${axKey})`)
-          .attr("stroke", critical ? "#b91c1c" : AX_STROKE[axKey])
+          .attr("stroke", critical ? "#db2777" : AX_OUTLINE[axKey])
           .attr("stroke-width", critical ? 2.6 : 1.6)
-          .attr("stroke-dasharray", critical ? "3 2" : null)
           .attr("stroke-opacity", 1)
           .attr("stroke-linejoin", "round");
         br.append("path").attr("d", bractVeins(L)).attr("fill", "none").attr("stroke", "#c98ba1").attr("stroke-width", 0.6).attr("stroke-opacity", 0.32);
@@ -482,14 +493,14 @@
       const SK = 2.15, SL = 30, SCX = 131, SCY = 122;
       const sel = selHost.append("svg").attr("width", 262).attr("height", 238).attr("viewBox", "0 0 262 238");
       const selDefs = sel.append("defs");
-      AXES.forEach((m, i) => pinkStops(selDefs, "bloom-selg" + i, 0.55, SL));
+      AXES.forEach((m, i) => pinkStops(selDefs, "bloom-selg" + i, 0.55, SL, AX_STROKE[m.key]));
       const selRoot = sel.append("g").attr("transform", `translate(${SCX},${SCY})`);
       const petal = selRoot.selectAll("g.p").data(AXES).join("g").attr("class", "p");
       const petalLabels = {};
       petal.each(function(m, i){
         const g = d3.select(this);
         const frame = g.append("g").attr("transform", `scale(${SK}) rotate(${ANGLE[m.key]})`);
-        frame.append("path").attr("class", "body").attr("d", bractPath(SL)).attr("fill", `url(#bloom-selg${i})`).attr("stroke", AX_STROKE[m.key]).attr("stroke-width", 1.1).attr("stroke-opacity", 0.95);
+        frame.append("path").attr("class", "body").attr("d", bractPath(SL)).attr("fill", `url(#bloom-selg${i})`).attr("stroke", AX_OUTLINE[m.key]).attr("stroke-width", 1.1).attr("stroke-opacity", 0.95);
         frame.append("path").attr("d", bractVeins(SL)).attr("fill", "none").attr("stroke", "#c98ba1").attr("stroke-width", 0.5).attr("stroke-opacity", 0.32);
         const W = bractW(SL);
         frame.append("circle").attr("class", "bloom-hitzone").attr("cy", CORE + SL * 0.30).attr("r", SL * 0.30).attr("fill", "transparent").datum({ lens: "ax" + m.key, petal: g });
