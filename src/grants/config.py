@@ -58,7 +58,7 @@ GRANT_LOOKBACK_OPTIONS = (7, 14, 30, 90, 180, 365)
 DEFAULT_GRANT_LOOKBACK_DAYS = 30
 MAX_GRANT_LOOKBACK_DAYS = 365
 
-MODEL_VERSION = "gemini-grant-recommender-v2"
+MODEL_VERSION = "gemini-grant-recommender-v3"
 MODEL_ARTIFACT_DIR = REPO_ROOT / "models" / "grant_recommender"
 DASHBOARD_ARTIFACT_PATH = REPO_ROOT / "dashboard" / "data" / "grant_funding_matches.json"
 
@@ -67,7 +67,7 @@ DASHBOARD_ARTIFACT_PATH = REPO_ROOT / "dashboard" / "data" / "grant_funding_matc
 GEMINI_ENV_KEY = "GEMINI_API_KEY"
 GEMINI_MODEL_ENV = "GEMINI_MODEL"
 GEMINI_MODEL_DEFAULT = "gemini-3.5-flash-lite"
-GEMINI_PROMPT_VERSION = "grant-ranking-v2"
+GEMINI_PROMPT_VERSION = "grant-ranking-v3"
 GEMINI_PROFILE_BATCH_SIZE = 8
 GEMINI_GRANTS_PER_RANKING_BATCH = 20
 GEMINI_MAX_RETRIES = 2

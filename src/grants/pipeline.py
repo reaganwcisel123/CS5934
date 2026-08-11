@@ -42,8 +42,32 @@ def _hash(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
 
 
-def _model_metadata(*, source_retrieved_at: str, corpus_hash: str, profile_hash: str) -> dict[str, Any]:
-    return {"modelVersion": C.MODEL_VERSION, "matchingMethod": "gemini-prompt-ranking", "geminiModel": model_name(), "promptVersion": C.GEMINI_PROMPT_VERSION, "candidateLimit": C.GEMINI_CANDIDATE_LIMIT, "profileBatchSize": C.GEMINI_PROFILE_BATCH_SIZE, "sourceRetrievedAt": source_retrieved_at, "corpusHash": corpus_hash, "profileHash": profile_hash}
+def _model_metadata(*, source_retrieved_at: str, corpus_hash: str, profile_hash: str, opportunity_hashes: dict[str, str], profile_hashes: dict[str, str]) -> dict[str, Any]:
+    return {
+        "modelVersion": C.MODEL_VERSION, "matchingMethod": "gemini-prompt-ranking", "geminiModel": model_name(),
+        "promptVersion": C.GEMINI_PROMPT_VERSION, "profileBatchSize": C.GEMINI_PROFILE_BATCH_SIZE,
+        "grantsPerRankingBatch": C.GEMINI_GRANTS_PER_RANKING_BATCH, "sourceRetrievedAt": source_retrieved_at,
+        "corpusHash": corpus_hash, "profileHash": profile_hash, "opportunityContentHashes": opportunity_hashes,
+        "countyProfileHashes": profile_hashes,
+    }
+
+
+def _reusable_matches(previous: dict[str, Any] | None, *, opportunity_hashes: dict[str, str], profile_hashes: dict[str, str], model: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Reuse only pair scores whose public county and grant inputs are unchanged."""
+    old_model = (previous or {}).get("metadata", {}).get("model", {})
+    if old_model.get("geminiModel") != model["geminiModel"] or old_model.get("promptVersion") != model["promptVersion"]:
+        return {}
+    old_opportunity_hashes = old_model.get("opportunityContentHashes", {})
+    old_profile_hashes = old_model.get("countyProfileHashes", {})
+    reusable: dict[str, list[dict[str, Any]]] = {}
+    for fips, rows in (previous or {}).get("matchesByCounty", {}).items():
+        if old_profile_hashes.get(fips) != profile_hashes.get(fips):
+            continue
+        reusable[fips] = [
+            row for row in rows
+            if old_opportunity_hashes.get(row.get("opportunityId")) == opportunity_hashes.get(row.get("opportunityId"))
+        ]
+    return reusable
 
 
 def build_artifact(
@@ -61,29 +85,30 @@ def build_artifact(
     profiles = build_profiles(atlas.get("records") or [])
     corpus_hash = _hash(candidates)
     profile_hash = _hash(profiles)
-    model_metadata = _model_metadata(source_retrieved_at=source_retrieved_at, corpus_hash=corpus_hash, profile_hash=profile_hash)
-    old_meta = (previous_artifact or {}).get("metadata", {}).get("model", {})
-    unchanged = not force_rerank and old_meta.get("corpusHash") == corpus_hash and old_meta.get("profileHash") == profile_hash and old_meta.get("geminiModel") == model_metadata["geminiModel"] and old_meta.get("promptVersion") == C.GEMINI_PROMPT_VERSION
-    if unchanged and previous_artifact and previous_artifact.get("matchesByCounty"):
+    opportunity_hashes = {item["opportunity_id"]: _hash(item) for item in candidates}
+    profile_hashes = {fips: _hash(profile) for fips, profile in profiles.items()}
+    model_metadata = _model_metadata(source_retrieved_at=source_retrieved_at, corpus_hash=corpus_hash, profile_hash=profile_hash, opportunity_hashes=opportunity_hashes, profile_hashes=profile_hashes)
+    reusable = {} if force_rerank else _reusable_matches(previous_artifact, opportunity_hashes=opportunity_hashes, profile_hashes=profile_hashes, model=model_metadata)
+    try:
+        matches_by_county = rank_profiles(profiles, candidates, ranker=ranker or GeminiRanker(), today=today, cached_matches=reusable)
+        model_metadata["reusedMatchCount"] = sum(len(rows) for rows in reusable.values())
+    except GeminiRankingError:
+        if not previous_artifact or not previous_artifact.get("matchesByCounty"):
+            raise
         matches_by_county = previous_artifact["matchesByCounty"]
         model_metadata["reusedLastKnownGood"] = True
-    else:
-        try:
-            matches_by_county = rank_profiles(profiles, candidates, ranker=ranker or GeminiRanker(), today=today)
-        except GeminiRankingError:
-            if not previous_artifact or not previous_artifact.get("matchesByCounty"):
-                raise
-            matches_by_county = previous_artifact["matchesByCounty"]
-            model_metadata["reusedLastKnownGood"] = True
-            model_metadata["generationStatus"] = "degraded-last-known-good"
+        model_metadata["generationStatus"] = "degraded-last-known-good"
     model_directory.mkdir(parents=True, exist_ok=True)
     (model_directory / "metadata.json").write_text(json.dumps(model_metadata, indent=2, sort_keys=True), encoding="utf-8")
     evaluation = evaluation_metrics(opportunities, candidates, matches_by_county, today=today)
+    posting_dates = sorted(item["posting_date"] for item in candidates if item.get("posting_date"))
     return {
         "metadata": {
             "generatedAt": _now(), "source": "Grants.gov", "sourceUrl": C.SOURCE_DOCUMENTATION_URL,
             "sourceRetrievedAt": source_retrieved_at, "cacheStatus": cache_status, "modelVersion": C.MODEL_VERSION,
-            "opportunityCount": len(candidates), "countyCount": len(profiles), "topRecommendations": C.TOP_RECOMMENDATIONS,
+            "opportunityCount": len(candidates), "openOpportunityCount": len(candidates), "countyCount": len(profiles),
+            "maxLookbackDays": C.MAX_GRANT_LOOKBACK_DAYS, "defaultLookbackDays": C.DEFAULT_GRANT_LOOKBACK_DAYS,
+            "earliestPostingDate": posting_dates[0] if posting_dates else None, "latestPostingDate": posting_dates[-1] if posting_dates else None,
             "quality": quality, "evaluation": evaluation, "model": model_metadata,
             "matchingMethod": "gemini-prompt-ranking", "recommendationStatus": model_metadata.get("generationStatus", "current"),
         },

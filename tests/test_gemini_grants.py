@@ -76,4 +76,4 @@ def test_identical_hash_reuses_last_known_good_without_a_new_rank_call(tmp_path:
     first = build_artifact(atlas, json.loads(FIXTURE.read_text(encoding="utf-8"))["records"], source_retrieved_at="fixture", cache_status="fixture", model_directory=tmp_path / "model", today=TODAY, ranker=ranker)
     second = build_artifact(atlas, json.loads(FIXTURE.read_text(encoding="utf-8"))["records"], source_retrieved_at="fixture", cache_status="fixture", model_directory=tmp_path / "model", today=TODAY, ranker=ranker, previous_artifact=first)
     assert ranker.calls == 1
-    assert second["metadata"]["model"]["reusedLastKnownGood"] is True
+    assert second["metadata"]["model"]["reusedMatchCount"] == len(second["matchesByCounty"]["51001"])

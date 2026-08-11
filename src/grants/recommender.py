@@ -12,7 +12,7 @@ from typing import Any
 
 from src.grants import config as C
 from src.grants.gemini import GeminiRankingError, RankingClient, validate_rankings
-from src.grants.normalize import is_healthcare_relevant, is_open_or_forecasted, normalized_document
+from src.grants.normalize import is_healthcare_relevant, is_open_or_forecasted, is_within_lookback, normalized_document
 
 GEOGRAPHIC_EXCLUSION_TERMS = (
     "guam", "american samoa", "northern mariana", "u.s. virgin islands", "puerto rico",
@@ -44,16 +44,28 @@ def screen_eligibility(opportunity: dict[str, Any], *, today: date) -> tuple[str
     return "Needs verification", "The clinic's legal organization type and the full applicant requirements must be confirmed."
 
 
+def _geographically_impossible(opportunity: dict[str, Any]) -> bool:
+    text = " ".join((opportunity.get("title") or "", opportunity.get("eligibility_description") or "", opportunity.get("description") or "")).lower()
+    return any(term in text for term in GEOGRAPHIC_EXCLUSION_TERMS) and "virginia" not in text
+
+
 def candidate_opportunities(opportunities: list[dict[str, Any]], *, today: date) -> list[dict[str, Any]]:
-    return [item for item in opportunities if is_open_or_forecasted(item, today=today) and is_healthcare_relevant(item) and screen_eligibility(item, today=today)[0] != "Likely incompatible"]
+    """Keep every current, relevant, posted opportunity in the rolling year.
 
-
-def candidate_prefilter(profile: dict[str, Any], opportunities: list[dict[str, Any]], *, limit: int = C.GEMINI_CANDIDATE_LIMIT) -> list[dict[str, Any]]:
-    """Transparent controlled-vocabulary candidate selection before Gemini.
-
-    Opportunity text is only checked for exact controlled terms.  This bounded
-    shortlist keeps API cost predictable without pretending to be semantic ML.
+    Eligibility is display metadata. It must not silently remove a grant from
+    the available corpus; only an explicit incompatible geography is excluded.
     """
+    return [
+        item for item in opportunities
+        if is_open_or_forecasted(item, today=today)
+        and is_within_lookback(item, today=today, days=C.MAX_GRANT_LOOKBACK_DAYS)
+        and is_healthcare_relevant(item)
+        and not _geographically_impossible(item)
+    ]
+
+
+def candidate_prefilter(profile: dict[str, Any], opportunities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Order the complete corpus deterministically without limiting it."""
     tags = [str(tag.get("tag")) for tag in profile.get("profileTags") or []]
     rows = []
     for item in opportunities:
@@ -61,8 +73,7 @@ def candidate_prefilter(profile: dict[str, Any], opportunities: list[dict[str, A
         hits = [(tag, term) for tag in tags for term in C.PREFILTER_TERMS.get(tag, ()) if term in text]
         health = any(str(category).lower() == "health" for category in item.get("funding_categories") or [])
         rows.append((len(hits) + (1 if health else 0), str(item["opportunity_id"]), item))
-    # Retain a limited fallback corpus even when the county has no activated tags.
-    return [item for _, _, item in sorted(rows, key=lambda row: (-row[0], row[1]))[:limit]]
+    return [item for _, _, item in sorted(rows, key=lambda row: (-row[0], row[1]))]
 
 
 def _deadline_score(opportunity: dict[str, Any], today: date) -> tuple[float, str, int | None]:
@@ -103,17 +114,36 @@ def _decorate(match: dict[str, Any], opportunity: dict[str, Any], *, today: date
     return {"opportunityId": opportunity["opportunity_id"], "matchScore": round(score, 4), "geminiScore": round(gemini_score, 4), "eligibilityScore": round(_eligibility_score(eligibility), 4), "deadlineScore": round(deadline_score, 4), "eligibilityStatus": eligibility, "eligibilityScreenReason": eligibility_reason, "deadlineStatus": deadline_status, "daysRemaining": days, "matchTier": _tier(score), "fitReasons": reasons[:3], "matchedTags": tags, "readinessChecklist": readiness_checklist(opportunity)}
 
 
-def rank_profiles(profiles: dict[str, dict[str, Any]], opportunities: list[dict[str, Any]], *, ranker: RankingClient, today: date) -> dict[str, list[dict[str, Any]]]:
-    """Batch county profiles through Gemini and validate its IDs server-side."""
-    output = {fips: [] for fips in profiles}
+def rank_profiles(
+    profiles: dict[str, dict[str, Any]], opportunities: list[dict[str, Any]], *, ranker: RankingClient, today: date,
+    cached_matches: dict[str, list[dict[str, Any]]] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Batch rubric scoring across the full corpus, reusing unchanged pair scores."""
+    current_ids = {item["opportunity_id"] for item in opportunities}
+    output = {
+        fips: [match for match in (cached_matches or {}).get(fips, []) if match.get("opportunityId") in current_ids]
+        for fips in profiles
+    }
     for start in range(0, len(profiles), C.GEMINI_PROFILE_BATCH_SIZE):
         batch = list(profiles.values())[start:start + C.GEMINI_PROFILE_BATCH_SIZE]
-        allowed_by_fips = {profile["countyFips"]: candidate_prefilter(profile, opportunities) for profile in batch}
-        candidates = {item["opportunity_id"]: item for rows in allowed_by_fips.values() for item in rows}
-        validated = validate_rankings(ranker.rank(batch, list(candidates.values())), batch, candidates.values())
+        ordered = {profile["countyFips"]: candidate_prefilter(profile, opportunities) for profile in batch}
+        cached_ids = {fips: {match["opportunityId"] for match in output[fips]} for fips in ordered}
+        pending_ids = {item["opportunity_id"] for fips, rows in ordered.items() for item in rows if item["opportunity_id"] not in cached_ids[fips]}
+        for offset in range(0, len(pending_ids), C.GEMINI_GRANTS_PER_RANKING_BATCH):
+            batch_ids = sorted(pending_ids)[offset:offset + C.GEMINI_GRANTS_PER_RANKING_BATCH]
+            candidates = [item for item in opportunities if item["opportunity_id"] in batch_ids]
+            validated = validate_rankings(ranker.rank(batch, candidates), batch, candidates)
+            for profile in batch:
+                fips = profile["countyFips"]
+                required = {item["opportunity_id"] for item in candidates if item["opportunity_id"] not in cached_ids[fips]}
+                received = {match["opportunityId"] for match in validated[fips]}
+                if required - received:
+                    raise GeminiRankingError(f"Gemini did not return a ranking for every requested opportunity in county {fips}.")
+                by_id = {item["opportunity_id"]: item for item in candidates}
+                output[fips].extend(_decorate(match, by_id[match["opportunityId"]], today=today) for match in validated[fips] if match["opportunityId"] in required)
         for profile in batch:
-            allowed = {item["opportunity_id"] for item in allowed_by_fips[profile["countyFips"]]}
-            output[profile["countyFips"]] = sorted((_decorate(match, candidates[match["opportunityId"]], today=today) for match in validated[profile["countyFips"]] if match["opportunityId"] in allowed), key=lambda item: (-item["matchScore"], item["opportunityId"]))[:C.TOP_RECOMMENDATIONS]
+            fips = profile["countyFips"]
+            output[fips] = sorted(output[fips], key=lambda item: (-item["matchScore"], item["opportunityId"]))
     return output
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -71,6 +72,15 @@ def test_named_non_virginia_program_area_is_hard_excluded() -> None:
     assert "senegal-only" not in {item["opportunity_id"] for item in candidates}
 
 
+def test_unknown_or_likely_incompatible_organization_eligibility_remains_visible() -> None:
+    opportunities = _opportunities()
+    individual = next(item for item in opportunities if item["opportunity_id"] == "workforce").copy()
+    individual["opportunity_id"] = "individual-review"
+    individual["applicant_types"] = ["Individuals"]
+    candidates = candidate_opportunities(opportunities + [individual], today=TODAY)
+    assert "individual-review" in {item["opportunity_id"] for item in candidates}
+
+
 def test_scores_explanations_and_evaluation_are_bounded_and_deterministic() -> None:
     candidates = candidate_opportunities(_opportunities(), today=TODAY)
     profile = build_profile(_county())
@@ -103,3 +113,28 @@ def test_pipeline_artifact_is_compact_json_with_all_county_profiles(tmp_path: Pa
     assert "description" not in artifact["matchesByCounty"]["51001"][0]
     assert (tmp_path / "normalized.json").exists()
     assert encoded
+
+
+def test_gemini_ranks_every_candidate_in_configured_batches() -> None:
+    raw = json.loads(FIXTURE.read_text(encoding="utf-8"))["records"]
+    for index in range(23):
+        copy = deepcopy(raw[0])
+        copy["search_hit"]["id"] = f"batch-{index}"
+        copy["detail"]["id"] = f"batch-{index}"
+        copy["detail"]["opportunityNumber"] = f"BATCH-{index}"
+        raw.append(copy)
+    opportunities, _ = normalize_many(raw, retrieved_at="fixture")
+    candidates = candidate_opportunities(opportunities, today=TODAY)
+
+    class CountingRanker(FixtureGeminiRanker):
+        calls = 0
+        def rank(self, profiles, candidates):
+            self.calls += 1
+            return super().rank(profiles, candidates)
+
+    ranker = CountingRanker()
+    profile = build_profile(_county())
+    matches = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=ranker, today=TODAY)[profile["countyFips"]]
+    assert len(matches) == len(candidates) == 25
+    assert ranker.calls == 2
+    assert len({match["opportunityId"] for match in matches}) == len(matches)
