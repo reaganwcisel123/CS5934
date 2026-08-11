@@ -138,7 +138,19 @@ def rank_profiles(
                 required = {item["opportunity_id"] for item in candidates if item["opportunity_id"] not in cached_ids[fips]}
                 received = {match["opportunityId"] for match in validated[fips]}
                 if required - received:
-                    raise GeminiRankingError(f"Gemini did not return a ranking for every requested opportunity in county {fips}.")
+                    # A multi-county response can occasionally omit a row or
+                    # truncate one county's rankings. Retry just that county
+                    # so successful counties do not needlessly consume another
+                    # request and the retry has a smaller response payload.
+                    retried = validate_rankings(
+                        ranker.rank([profile], candidates), [profile], candidates
+                    )
+                    retried_received = {match["opportunityId"] for match in retried[fips]}
+                    if required - retried_received:
+                        raise GeminiRankingError(
+                            f"Gemini did not return a ranking for every requested opportunity in county {fips}, including its individual retry."
+                        )
+                    validated[fips] = retried[fips]
                 by_id = {item["opportunity_id"]: item for item in candidates}
                 output[fips].extend(_decorate(match, by_id[match["opportunityId"]], today=today) for match in validated[fips] if match["opportunityId"] in required)
         for profile in batch:

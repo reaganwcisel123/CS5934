@@ -56,6 +56,32 @@ def test_non_vector_prefilter_and_fixture_ranking_exclude_closed_and_are_determi
     assert all(0 <= match["matchScore"] <= 1 and match["fitReasons"] for match in first["51001"])
 
 
+def test_incomplete_multi_county_response_retries_only_missing_county():
+    first = build_profile(county(id="51001"))
+    second = build_profile(county(id="51003", name="Second County"))
+
+    class PartialBatchRanker(FixtureGeminiRanker):
+        calls: list[int] = []
+
+        def rank(self, profiles, candidates):
+            self.calls.append(len(profiles))
+            if len(profiles) > 1:
+                return super().rank(profiles[:1], candidates)
+            return super().rank(profiles, candidates)
+
+    ranker = PartialBatchRanker()
+    matches = rank_profiles(
+        {first["countyFips"]: first, second["countyFips"]: second},
+        candidate_opportunities(opportunities(), today=TODAY),
+        ranker=ranker,
+        today=TODAY,
+    )
+
+    assert ranker.calls == [2, 1]
+    assert matches[first["countyFips"]]
+    assert matches[second["countyFips"]]
+
+
 def test_malicious_grant_text_cannot_change_known_id_boundary():
     profile = build_profile(county())
     grant = opportunities()[0].copy()
