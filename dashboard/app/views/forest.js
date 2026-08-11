@@ -70,7 +70,7 @@
                 <li><span className="dir">Left</span><i className="bloom-swatch" style={{ background: AX.W }} />Access barriers<span className="sub">average of no vehicle (5) and low broadband (6) — colored by Smoking</span></li>
               </ul>
               <p className="bloom-sidenote">Longer petal = deeper need. Darker fill = worse on its color
-                measure. A petal outlined in <b>pink</b> is at or above the state's worst-quartile
+                measure. A petal outlined in <b>red</b> is at or above the state's worst-quartile
                 threshold for that measure — a stark cue, not just a darker shade.</p>
             </div>
             <div>

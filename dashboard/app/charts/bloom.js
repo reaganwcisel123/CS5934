@@ -331,7 +331,7 @@
         const rot = bloomG.append("g").attr("transform", `rotate(${ANGLE[axKey]})`);
         // Stark, additive threshold treatment: the gradient fill (severity as
         // a smooth gradient) is untouched; a petal at/above its own statewide
-        // worst-quartile threshold instead gets a bold pink outline in place
+        // worst-quartile threshold instead gets a bold red outline in place
         // of its normal desaturated axis color, so a dire county is
         // unmistakable at a glance next to a healthy one, not just a shade
         // darker. Every outline is solid — the fill gradient alone carries
@@ -340,7 +340,7 @@
         const br = rot.append("g").attr("class", "bloom-bract" + (critical ? " bloom-bract-critical" : "")).attr("transform", "scale(0)");
         // Outline stays bold and solid even when ACS is pending (see header note).
         br.append("path").attr("d", bractPath(L)).attr("fill", `url(#bloom-g${c.id}${axKey})`)
-          .attr("stroke", critical ? "#f472b6" : AX_OUTLINE[axKey])
+          .attr("stroke", critical ? "#b91c1c" : AX_OUTLINE[axKey])
           .attr("stroke-width", critical ? 2.6 : 1.6)
           .attr("stroke-opacity", 1)
           .attr("stroke-linejoin", "round");
