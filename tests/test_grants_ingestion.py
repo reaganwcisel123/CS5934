@@ -10,6 +10,7 @@ from src.grants.normalize import (
     clean_text,
     is_healthcare_relevant,
     is_open_or_forecasted,
+    is_within_lookback,
     normalize_many,
     parse_date,
     parse_number,
@@ -66,10 +67,47 @@ def test_fixture_mode_is_offline_and_deterministic() -> None:
     assert metadata["cache"] == "fixture"
 
 
-def test_client_scope_keeps_hhs_and_usda_rural_development_only() -> None:
+def test_client_scope_keeps_relevant_health_and_community_agencies() -> None:
     assert GrantsGovClient._allowed_agency({"agencyCode": "HHS-HRSA"})
     assert GrantsGovClient._allowed_agency({"agencyCode": "USDA-RUS"})
-    assert not GrantsGovClient._allowed_agency({"agencyCode": "USDA-NIFA"})
+    assert GrantsGovClient._allowed_agency({"agencyCode": "DOL-ETA"})
+    assert not GrantsGovClient._allowed_agency({"agencyCode": "NEA"})
+
+
+def test_lookback_boundary_is_inclusive_and_uses_posting_date() -> None:
+    opportunity, _ = normalize_many(_records()[:1], retrieved_at="2026-08-04T00:00:00Z")
+    item = opportunity[0]
+    item["posting_date"] = "2026-07-28"
+    assert is_within_lookback(item, today=date(2026, 8, 4), days=7)
+    item["posting_date"] = "2026-07-27"
+    assert not is_within_lookback(item, today=date(2026, 8, 4), days=7)
+
+
+def test_client_paginates_every_page_and_deduplicates_hits(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("src.grants.client.C.SEARCH_TERMS", ("health",))
+
+    class PagedClient(GrantsGovClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls: list[int] = []
+
+        def search(self, keyword: str, *, start_record: int = 0, rows: int = 10) -> dict:
+            self.calls.append(start_record)
+            pages = {
+                0: [{"id": "one", "agencyCode": "HHS"}, {"id": "two", "agencyCode": "HHS"}],
+                2: [{"id": "two", "agencyCode": "HHS"}, {"id": "three", "agencyCode": "HHS"}],
+                4: [{"id": "four", "agencyCode": "HHS"}],
+            }
+            return {"data": {"oppHits": pages[start_record], "hitCount": 5}}
+
+        def fetch_detail(self, opportunity_id: str) -> dict:
+            return {"data": {"id": opportunity_id}}
+
+    client = PagedClient()
+    records, metadata = client.retrieve(refresh=True, cache_path=tmp_path / "raw.json")
+    assert client.calls == [0, 2, 4]
+    assert [record["detail"]["id"] for record in records] == ["four", "one", "three", "two"]
+    assert metadata["search_pages"] == 3
 
 
 def test_processed_cache_is_separate_from_raw_fixture(tmp_path: Path) -> None:

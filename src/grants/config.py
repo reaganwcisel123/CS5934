@@ -20,14 +20,15 @@ DEFAULT_FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "grants_gov_opportunit
 REQUEST_TIMEOUT_SECONDS = 25
 REQUEST_RETRIES = 2
 CACHE_FRESHNESS_HOURS = 24
-PAGE_SIZE = 10
-MAX_RESULTS = 60
-MIN_DAYS_REMAINING = 1
+PAGE_SIZE = 100
+# Zero means "retrieve every page". The rolling source cache, rather than an
+# arbitrary result count, bounds the corpus used by Funding Matches.
+MAX_RESULTS = 0
 
-# HHS includes HRSA and CDC. USDA is intentionally limited to Rural Development
-# subagencies so the planning corpus does not become a broad agriculture search.
-ALLOWED_AGENCY_PREFIXES = ("HHS", "USDA-RBCS", "USDA-RUS", "USDA-RD")
-ALLOWED_STATUSES = ("posted", "forecasted")
+# These agency families cover the practical rural-health, workforce, community,
+# and regional-development scope. Relevance is still screened locally.
+ALLOWED_AGENCY_PREFIXES = ("HHS", "USDA", "DOL", "DOC-EDA")
+ALLOWED_STATUSES = ("posted",)
 SEARCH_TERMS = (
     "rural health",
     "primary care",
@@ -43,7 +44,19 @@ HEALTHCARE_RELEVANCE_TERMS = (
     "behavioral", "mental health", "telehealth", "workforce", "diabetes",
     "hypertension", "obesity", "maternal", "community health", "mobile health",
     "prevention", "care access", "health equity", "quality improvement",
+    "community development", "food and nutrition", "food security",
+    "regional development", "economic development", "employment", "job training",
 )
+
+RELEVANT_FUNDING_CATEGORIES = (
+    "health", "community development", "food and nutrition",
+    "employment, labor and training", "regional development",
+    "agriculture", "income security and social services",
+)
+
+GRANT_LOOKBACK_OPTIONS = (7, 14, 30, 90, 180, 365)
+DEFAULT_GRANT_LOOKBACK_DAYS = 30
+MAX_GRANT_LOOKBACK_DAYS = 365
 
 MODEL_VERSION = "gemini-grant-recommender-v2"
 MODEL_ARTIFACT_DIR = REPO_ROOT / "models" / "grant_recommender"
@@ -55,8 +68,8 @@ GEMINI_ENV_KEY = "GEMINI_API_KEY"
 GEMINI_MODEL_ENV = "GEMINI_MODEL"
 GEMINI_MODEL_DEFAULT = "gemini-3.5-flash-lite"
 GEMINI_PROMPT_VERSION = "grant-ranking-v2"
-GEMINI_CANDIDATE_LIMIT = 20
 GEMINI_PROFILE_BATCH_SIZE = 8
+GEMINI_GRANTS_PER_RANKING_BATCH = 20
 GEMINI_MAX_RETRIES = 2
 GEMINI_RETRY_SECONDS = 1.0
 DAILY_REFRESH_HOURS = 24
@@ -83,7 +96,6 @@ SCORE_WEIGHTS = {
     "eligibility": 0.15,
     "deadline": 0.10,
 }
-TOP_RECOMMENDATIONS = 10
 
 # Values use the Atlas's existing 0--100 domain scale and published outcome
 # percentages. They are deliberately centralized, deterministic, and reviewable.
