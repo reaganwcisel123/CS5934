@@ -93,7 +93,9 @@ def build_artifact(
         matches_by_county = rank_profiles(profiles, candidates, ranker=ranker or GeminiRanker(), today=today, cached_matches=reusable)
         model_metadata["reusedMatchCount"] = sum(len(rows) for rows in reusable.values())
     except GeminiRankingError:
-        if not previous_artifact or not previous_artifact.get("matchesByCounty"):
+        previous_model = (previous_artifact or {}).get("metadata", {}).get("model", {})
+        same_gemini_contract = previous_model.get("geminiModel") == model_metadata["geminiModel"] and previous_model.get("promptVersion") == model_metadata["promptVersion"]
+        if not same_gemini_contract or not previous_artifact or not previous_artifact.get("matchesByCounty"):
             raise
         matches_by_county = previous_artifact["matchesByCounty"]
         model_metadata["reusedLastKnownGood"] = True
