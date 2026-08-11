@@ -1,4 +1,4 @@
-"""Reviewable defaults for the Grants.gov rural-health recommender."""
+"""Reviewable defaults for the Grants.gov Gemini funding recommender."""
 
 from __future__ import annotations
 
@@ -45,24 +45,43 @@ HEALTHCARE_RELEVANCE_TERMS = (
     "prevention", "care access", "health equity", "quality improvement",
 )
 
-MODEL_VERSION = "grant-recommender-v1"
+MODEL_VERSION = "gemini-grant-recommender-v2"
 MODEL_ARTIFACT_DIR = REPO_ROOT / "models" / "grant_recommender"
 DASHBOARD_ARTIFACT_PATH = REPO_ROOT / "dashboard" / "data" / "grant_funding_matches.json"
 
-TFIDF_PARAMETERS = {
-    "lowercase": True,
-    "stop_words": "english",
-    "ngram_range": (1, 2),
-    "min_df": 1,
-    "max_df": 1.0,
-    "max_features": 2000,
-    "sublinear_tf": True,
+# Gemini is intentionally only ever called by Python.  The exact stable model
+# name is configurable, but never sourced from browser-visible configuration.
+GEMINI_ENV_KEY = "GEMINI_API_KEY"
+GEMINI_MODEL_ENV = "GEMINI_MODEL"
+GEMINI_MODEL_DEFAULT = "gemini-3.5-flash-lite"
+GEMINI_PROMPT_VERSION = "grant-ranking-v2"
+GEMINI_CANDIDATE_LIMIT = 20
+GEMINI_PROFILE_BATCH_SIZE = 8
+GEMINI_MAX_RETRIES = 2
+GEMINI_RETRY_SECONDS = 1.0
+DAILY_REFRESH_HOURS = 24
+
+# Controlled vocabulary overlap is deliberately boolean/term based.  It is a
+# small transparent prefilter, not a vector, embedding, or cosine retrieval.
+PREFILTER_TERMS = {
+    "rural_healthcare_delivery": ("rural", "health", "clinic", "primary care"),
+    "primary_care_workforce_shortage": ("workforce", "recruit", "retain", "primary care"),
+    "behavioral_health_access": ("behavioral health", "mental health", "substance"),
+    "mental_health_services": ("mental health", "behavioral health"),
+    "diabetes_prevention_and_management": ("diabetes", "chronic disease", "prevention"),
+    "hypertension_management": ("hypertension", "blood pressure", "cardiovascular"),
+    "obesity_prevention": ("obesity", "nutrition", "physical activity"),
+    "food_access": ("food access", "food insecurity", "nutrition"),
+    "care_coordination": ("care coordination", "care access", "navigation"),
+    "community_outreach": ("community outreach", "community health", "outreach"),
+    "health_equity": ("health equity", "health disparities", "underserved"),
+    "clinic_infrastructure": ("infrastructure", "facility", "equipment"),
+    "quality_improvement": ("quality improvement", "quality of care"),
 }
 SCORE_WEIGHTS = {
-    "semantic": 0.75,
-    "category": 0.10,
-    "eligibility": 0.10,
-    "deadline": 0.05,
+    "gemini": 0.75,
+    "eligibility": 0.15,
+    "deadline": 0.10,
 }
 TOP_RECOMMENDATIONS = 10
 

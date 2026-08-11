@@ -6,12 +6,11 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("sklearn")
-
 from src.grants.normalize import normalize_many
 from src.grants.pipeline import build_artifact
 from src.grants.profiles import build_profile
-from src.grants.recommender import GrantRecommender, candidate_opportunities, evaluation_metrics
+from src.grants.gemini import FixtureGeminiRanker
+from src.grants.recommender import candidate_opportunities, evaluation_metrics, rank_profiles
 
 FIXTURE = Path(__file__).parent / "fixtures" / "grants_gov_opportunities.json"
 TODAY = date(2026, 8, 4)
@@ -46,7 +45,7 @@ def test_profile_generation_is_controlled_and_traceable() -> None:
 def test_behavioral_profile_ranks_behavioral_grant_above_workforce_grant() -> None:
     candidates = candidate_opportunities(_opportunities(), today=TODAY)
     profile = build_profile(_county(hpsaScore=0.0))
-    matches = GrantRecommender().fit(candidates).recommend(profile, today=TODAY)
+    matches = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=FixtureGeminiRanker(), today=TODAY)[profile["countyFips"]]
     ids = [match["opportunityId"] for match in matches]
     assert ids.index("rural-behavioral") < ids.index("workforce")
 
@@ -57,7 +56,7 @@ def test_workforce_profile_ranks_workforce_grant_and_excludes_hard_mismatches() 
     assert "closed-health" not in ids
     assert "incompatible-geo" not in ids
     profile = build_profile(_county(outcomes={"diabetes": 0, "obesity": 0, "mhlth": 0, "bphigh": 0}, dom={"food": 0, "access": 0, "economic": 0, "environment": 0}))
-    matches = GrantRecommender().fit(candidates).recommend(profile, today=TODAY)
+    matches = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=FixtureGeminiRanker(), today=TODAY)[profile["countyFips"]]
     assert matches[0]["opportunityId"] == "workforce"
 
 
@@ -75,9 +74,8 @@ def test_named_non_virginia_program_area_is_hard_excluded() -> None:
 def test_scores_explanations_and_evaluation_are_bounded_and_deterministic() -> None:
     candidates = candidate_opportunities(_opportunities(), today=TODAY)
     profile = build_profile(_county())
-    recommender = GrantRecommender().fit(candidates)
-    first = recommender.recommend(profile, today=TODAY)
-    second = recommender.recommend(profile, today=TODAY)
+    first = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=FixtureGeminiRanker(), today=TODAY)[profile["countyFips"]]
+    second = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=FixtureGeminiRanker(), today=TODAY)[profile["countyFips"]]
     assert first == second
     assert all(0.0 <= match["matchScore"] <= 1.0 for match in first)
     assert all(match["fitReasons"] and match["readinessChecklist"] for match in first)
@@ -96,7 +94,7 @@ def test_pipeline_artifact_is_compact_json_with_all_county_profiles(tmp_path: Pa
         cache_status="fixture",
         model_directory=tmp_path / "model",
         normalized_cache_path=tmp_path / "normalized.json",
-        today=TODAY,
+        today=TODAY, ranker=FixtureGeminiRanker(),
     )
     encoded = json.dumps(artifact, allow_nan=False)
     assert artifact["metadata"]["countyCount"] == 2

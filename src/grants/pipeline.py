@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import date, datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,8 @@ from src.grants import config as C
 from src.grants.client import GrantsGovClient
 from src.grants.normalize import normalize_many, write_normalized_cache
 from src.grants.profiles import build_profiles
-from src.grants.recommender import GrantRecommender, candidate_opportunities, evaluation_metrics
+from src.grants.gemini import FixtureGeminiRanker, GeminiRanker, GeminiRankingError, RankingClient, model_name
+from src.grants.recommender import candidate_opportunities, evaluation_metrics, rank_profiles
 
 
 def _now() -> str:
@@ -35,9 +37,18 @@ def _opportunity_for_dashboard(opportunity: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _hash(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
+
+
+def _model_metadata(*, source_retrieved_at: str, corpus_hash: str, profile_hash: str) -> dict[str, Any]:
+    return {"modelVersion": C.MODEL_VERSION, "matchingMethod": "gemini-prompt-ranking", "geminiModel": model_name(), "promptVersion": C.GEMINI_PROMPT_VERSION, "candidateLimit": C.GEMINI_CANDIDATE_LIMIT, "profileBatchSize": C.GEMINI_PROFILE_BATCH_SIZE, "sourceRetrievedAt": source_retrieved_at, "corpusHash": corpus_hash, "profileHash": profile_hash}
+
+
 def build_artifact(
     atlas: dict[str, Any], raw_records: list[dict[str, Any]], *, source_retrieved_at: str, cache_status: str,
     model_directory: Path = C.MODEL_ARTIFACT_DIR, normalized_cache_path: Path | None = None, today: date | None = None,
+    ranker: RankingClient | None = None, previous_artifact: dict[str, Any] | None = None, force_rerank: bool = False,
 ) -> dict[str, Any]:
     today = today or date.today()
     opportunities, quality = normalize_many(raw_records, retrieved_at=source_retrieved_at)
@@ -47,9 +58,25 @@ def build_artifact(
     if not candidates:
         raise ValueError("No active, healthcare-relevant Grants.gov opportunities remain after filtering.")
     profiles = build_profiles(atlas.get("records") or [])
-    recommender = GrantRecommender().fit(candidates)
-    matches_by_county = {county_id: recommender.recommend(profile, today=today) for county_id, profile in profiles.items()}
-    model_metadata = recommender.save(model_directory, source_retrieved_at=source_retrieved_at)
+    corpus_hash = _hash(candidates)
+    profile_hash = _hash(profiles)
+    model_metadata = _model_metadata(source_retrieved_at=source_retrieved_at, corpus_hash=corpus_hash, profile_hash=profile_hash)
+    old_meta = (previous_artifact or {}).get("metadata", {}).get("model", {})
+    unchanged = not force_rerank and old_meta.get("corpusHash") == corpus_hash and old_meta.get("profileHash") == profile_hash and old_meta.get("geminiModel") == model_metadata["geminiModel"] and old_meta.get("promptVersion") == C.GEMINI_PROMPT_VERSION
+    if unchanged and previous_artifact and previous_artifact.get("matchesByCounty"):
+        matches_by_county = previous_artifact["matchesByCounty"]
+        model_metadata["reusedLastKnownGood"] = True
+    else:
+        try:
+            matches_by_county = rank_profiles(profiles, candidates, ranker=ranker or GeminiRanker(), today=today)
+        except GeminiRankingError:
+            if not previous_artifact or not previous_artifact.get("matchesByCounty"):
+                raise
+            matches_by_county = previous_artifact["matchesByCounty"]
+            model_metadata["reusedLastKnownGood"] = True
+            model_metadata["generationStatus"] = "degraded-last-known-good"
+    model_directory.mkdir(parents=True, exist_ok=True)
+    (model_directory / "metadata.json").write_text(json.dumps(model_metadata, indent=2, sort_keys=True), encoding="utf-8")
     evaluation = evaluation_metrics(opportunities, candidates, matches_by_county, today=today)
     return {
         "metadata": {
@@ -57,6 +84,7 @@ def build_artifact(
             "sourceRetrievedAt": source_retrieved_at, "cacheStatus": cache_status, "modelVersion": C.MODEL_VERSION,
             "opportunityCount": len(candidates), "countyCount": len(profiles), "topRecommendations": C.TOP_RECOMMENDATIONS,
             "quality": quality, "evaluation": evaluation, "model": model_metadata,
+            "matchingMethod": "gemini-prompt-ranking", "recommendationStatus": model_metadata.get("generationStatus", "current"),
         },
         "opportunities": {item["opportunity_id"]: _opportunity_for_dashboard(item) for item in candidates},
         "profiles": profiles,
@@ -71,18 +99,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-results", type=int, default=C.MAX_RESULTS, help="Maximum targeted opportunity details to retrieve.")
     parser.add_argument("--output", type=Path, default=C.DASHBOARD_ARTIFACT_PATH, help="Dashboard JSON output path.")
     parser.add_argument("--model-dir", type=Path, default=C.MODEL_ARTIFACT_DIR, help="Ignored fitted model artifact directory.")
+    parser.add_argument("--force-rerank", action="store_true", help="Ignore matching hashes and request a fresh Gemini ranking.")
+    parser.add_argument("--daily", action="store_true", help="Run the idempotent daily refresh behavior.")
     args = parser.parse_args(argv)
     atlas_path = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
     atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
     raw_records, retrieval = GrantsGovClient().retrieve(refresh=args.refresh, max_results=args.max_results, fixture_path=args.fixture)
     source_retrieved_at = retrieval["retrieved_at"] if retrieval["retrieved_at"] != "fixture" else "fixture"
+    previous = None
+    if args.output.exists():
+        try:
+            previous = json.loads(args.output.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            previous = None
+    # Fixture mode is explicit test behavior; normal runs never fall back to
+    # the retired TF-IDF path when Gemini is unavailable.
+    ranker = FixtureGeminiRanker() if args.fixture else None
     artifact = build_artifact(
         atlas,
         raw_records,
         source_retrieved_at=source_retrieved_at,
         cache_status=retrieval["cache"],
         model_directory=args.model_dir,
-        normalized_cache_path=C.NORMALIZED_CACHE_PATH,
+        normalized_cache_path=C.NORMALIZED_CACHE_PATH, ranker=ranker,
+        previous_artifact=previous, force_rerank=args.force_rerank,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(artifact, indent=2, allow_nan=False), encoding="utf-8")

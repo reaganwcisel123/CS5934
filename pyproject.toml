@@ -37,6 +37,9 @@ model = [
     "scikit-learn>=1.9.0",
     "joblib>=1.5.3",
 ]
+grants = [
+    "google-genai>=1.0",
+]
 
 [dependency-groups]
 # Dev tooling. `uv sync` installs this by default; run checks with `uv run <tool>`.
