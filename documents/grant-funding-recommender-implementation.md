@@ -96,6 +96,24 @@ uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tes
 
 Tests cover full pagination and duplicate hits, posted/expired status handling, inclusive lookback boundaries, missing eligibility visibility, multi-batch complete ranking, pair-score reuse, and a County A/B/C plus 7/14/30/90/180/365-day frontend state matrix. The live verification procedure uses a 30-day source query and a small controlled number of counties only; it must record actual API counts and Gemini calls rather than fabricate them. A 365-day code path does not mean a full 365-day live Gemini backfill was performed during a smoke test.
 
+## Live-source and capacity audit (2026-08-11)
+
+A controlled live Grants.gov run completed against the configured public client and temporary local cache. It paged 46 search pages, retrieved 394 unique opportunity details, normalized 394 records, and found 394 open records. Of those, 73 were posted in the preceding 30 days before relevance screening; 51 remained in the current 30-day rural-clinic corpus and 185 remained in the rolling 365-day corpus. The dashboard JSON checked into source at that time was not this result: it was an August 4 legacy `grant-recommender-v1` TF-IDF snapshot, so local static preview correctly displays a refresh warning rather than treating it as current Gemini output.
+
+The configured code default and Render environment value are `gemini-3.5-flash-lite`; `GEMINI_MODEL` can override the code default. Gemini is called only by `GeminiRanker` through the official `google-genai` SDK method `client.models.generate_content` with JSON schema output. Authentication is explicit (`genai.Client(api_key=...)`) from the server-only `GEMINI_API_KEY` environment variable. The local audit runtime had no key and therefore made no Gemini call; the browser, static artifact, API response, and tracked documentation contain no key. Render expects the secret in both the API service and the daily cron service.
+
+The full corpus is scored in batches of 8 county profiles by 20 grants. A score is reused across all six lookback windows when the county-profile hash, grant-content hash, prompt version, and model identity match. This avoids a county x grant x lookback multiplication. The following are measured character volumes from the live corpus, with token estimates using a conservative 4 characters/token approximation and fixture-response serialization as an output-size proxy; they are planning estimates, not billable Gemini usage.
+
+| Scenario | Grants | Counties | Requests | Estimated input tokens | Output proxy tokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| One county, 30 days | 51 | 1 | 3 | 50,206 | 3,320 |
+| All Virginia localities, 30 days | 51 | 133 | 51 | 973,852 | 381,195 |
+| One county, 365 days | 185 | 1 | 10 | 184,052 | 12,037 |
+| All Virginia localities, 365 days | 185 | 133 | 170 | 3,530,058 | 1,382,120 |
+| One changed grant, all localities | 1 | 133 | 17 | 62,571 | 8,602 |
+
+The largest controllable cost is prompt size because current requests include public grant descriptions. Preserve recommendation quality while reducing quota consumption by applying a deterministic description budget, retaining title, synopsis, eligibility, categories, deadline, and the most relevant description passage; also cap rationale length. Do not weaken pair-score caching or rerank each lookback window. Exact RPM, TPM, RPD, active tier, live model resolution, and remaining quota require the owning Google AI Studio project because API limits are project-level and not exposed in this repository.
+
 ## Limitations
 
 Gemini relevance is not award probability. Eligibility and geographic applicability require review against the official opportunity record. Grants.gov content can change after the daily refresh, and Gemini quota may constrain historical backfills. The source scope is intentionally limited to credible rural-health and adjacent community/workforce funding, not every federal opportunity.
