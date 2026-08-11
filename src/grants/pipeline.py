@@ -16,6 +16,7 @@ from src.grants.normalize import normalize_many, write_normalized_cache
 from src.grants.profiles import build_profiles
 from src.grants.gemini import FixtureGeminiRanker, GeminiRanker, GeminiRankingError, RankingClient, model_name
 from src.grants.recommender import candidate_opportunities, evaluation_metrics, rank_profiles
+from src.grants.storage import load_last_known_good, save_snapshot
 
 
 def _now() -> str:
@@ -98,15 +99,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fixture", type=Path, help="Use a local response fixture instead of the network.")
     parser.add_argument("--max-results", type=int, default=C.MAX_RESULTS, help="Maximum targeted opportunity details to retrieve.")
     parser.add_argument("--output", type=Path, default=C.DASHBOARD_ARTIFACT_PATH, help="Dashboard JSON output path.")
+    parser.add_argument("--atlas", type=Path, help="Atlas JSON input; defaults to dashboard/data/clinic_atlas.json.")
     parser.add_argument("--model-dir", type=Path, default=C.MODEL_ARTIFACT_DIR, help="Ignored fitted model artifact directory.")
     parser.add_argument("--force-rerank", action="store_true", help="Ignore matching hashes and request a fresh Gemini ranking.")
     parser.add_argument("--daily", action="store_true", help="Run the idempotent daily refresh behavior.")
+    parser.add_argument("--persist", action="store_true", help="Promote the validated artifact to configured Postgres storage.")
     args = parser.parse_args(argv)
-    atlas_path = REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
+    atlas_path = args.atlas or REPO_ROOT / "dashboard" / "data" / "clinic_atlas.json"
+    if not atlas_path.exists():
+        parser.error(f"Atlas input is missing: {atlas_path}. Build the Atlas first or pass --atlas.")
     atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
     raw_records, retrieval = GrantsGovClient().retrieve(refresh=args.refresh, max_results=args.max_results, fixture_path=args.fixture)
     source_retrieved_at = retrieval["retrieved_at"] if retrieval["retrieved_at"] != "fixture" else "fixture"
-    previous = None
+    previous = load_last_known_good() if args.persist else None
     if args.output.exists():
         try:
             previous = json.loads(args.output.read_text(encoding="utf-8"))
@@ -126,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(artifact, indent=2, allow_nan=False), encoding="utf-8")
+    if args.persist:
+        save_snapshot(artifact)
     print(f"Built {args.output} with {artifact['metadata']['opportunityCount']} opportunities and {artifact['metadata']['countyCount']} county profiles.")
     return 0
 

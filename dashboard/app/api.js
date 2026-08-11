@@ -19,7 +19,7 @@
 
   // Funding Matches is an optional static artifact. Its absence must never
   // affect the Atlas data load or any pre-existing view.
-  const fetchGrantFundingMatches = () => getJson("data/grant_funding_matches.json");
+  const fetchGrantFundingMatches = () => getJson(API_BASE ? API_BASE + "/funding-matches" : "data/grant_funding_matches.json", { headers: authHeaders() });
 
   // County geometry, fetched once and cached for every map in the app.
   let geoPromise = null;

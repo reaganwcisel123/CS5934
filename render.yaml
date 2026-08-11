@@ -46,7 +46,7 @@ services:
     # are gitignored); the uvicorn runtime never imports sklearn -- build-only dep.
     buildCommand: >-
       pip install uv &&
-      uv sync --extra api --extra model &&
+      uv sync --extra api --extra model --extra grants &&
       uv run python -m src.db.migrate &&
       uv run python src/build_dataset.py --refresh --seed &&
       uv run python -m src.model.train --target both &&
@@ -63,6 +63,26 @@ services:
       # Enables the grounded chatbot; without it /api/chat returns 503.
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
       # Signs login session tokens (Phase 3 auth).
       - key: JWT_SECRET
         sync: false
+  - type: cron
+    name: clinic-atlas-grants-refresh
+    runtime: python
+    branch: main
+    schedule: "0 5 * * *"
+    buildCommand: pip install uv && uv sync --extra api --extra grants
+    startCommand: uv run python -m src.grants.pipeline --daily --refresh --persist
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinic-atlas-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
