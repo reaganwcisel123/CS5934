@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "id": "51001",
+      "name": "Fixture County",
+      "region": "Tidewater",
+      "rural": 1.0,
+      "needIndex": 74.0,
+      "hpsaScore": 18.0,
+      "dom": {"food": 72.0, "access": 82.0, "economic": 70.0, "environment": 40.0},
+      "outcomes": {"diabetes": 13.0, "obesity": 38.0, "mhlth": 26.0, "bphigh": 37.0}
+    }
+  ]
+}

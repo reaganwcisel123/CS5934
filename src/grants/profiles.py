@@ -61,6 +61,7 @@ def build_profile(record: dict[str, Any]) -> dict[str, Any]:
         "This profile is derived from public county indicators and is not a confirmed clinic strategy."
     )
     return {
+        "countyFips": str(record.get("id") or ""),
         "countyName": locality,
         "region": region,
         "rurality": record.get("rural"),

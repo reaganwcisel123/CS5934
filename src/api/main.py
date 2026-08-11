@@ -16,10 +16,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 from src.api.auth import router as auth_router  # noqa: E402
 from src.api.chat import router as chat_router  # noqa: E402
 from src.api.forecast import router as forecast_router  # noqa: E402
+from src.api.funding import router as funding_router  # noqa: E402
 from src.api.resource_prediction import router as resource_prediction_router  # noqa: E402
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(forecast_router)
+app.include_router(funding_router)
 app.include_router(resource_prediction_router)
 
 

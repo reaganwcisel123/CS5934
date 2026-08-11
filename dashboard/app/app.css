@@ -15,13 +15,6 @@ body { margin: 0; background: var(--bg-app); color: var(--text-body); font-famil
   background: var(--surface-inverse, var(--slate-900)); color: var(--slate-300);
   position: sticky; top: 0; z-index: 40; flex-wrap: wrap;
 }
-.topnav .wordmark { display: flex; align-items: center; gap: 9px; color: #fff; text-decoration: none;
-  padding: 8px 14px 8px 0; margin-right: 10px; border-right: 1px solid rgba(255,255,255,.12); }
-.topnav .wordmark .mark { width: 24px; height: 24px; border-radius: 6px; background: var(--brand);
-  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
-.topnav .wm-text b { display: block; font-size: 13.5px; font-weight: 650; line-height: 1.15; }
-.topnav .wm-text small { display: block; font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--command-500); }
 .topnav-items { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .topnav-item { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; cursor: pointer;
   color: var(--slate-400); font-family: var(--font-sans); font-size: 13px; font-weight: 500;
@@ -502,7 +495,6 @@ details.more[open] > summary { margin-bottom: 6px; }
 }
 @media (max-width: 860px) {
   .topnav { padding: 0 10px; }
-  .topnav .wordmark .wm-text { display: none; }
   .topnav-item { padding: 12px 8px 10px; font-size: 12px; }
   .topnav-div { margin: 0 4px; }
   .county-chip .chip-name { max-width: 90px; }
