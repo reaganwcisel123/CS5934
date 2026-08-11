@@ -8,6 +8,8 @@ Funding Matches is an isolated decision-support capability for rural clinic plan
 
 Rural clinic administrators need a defensible starting point for grant research: which opportunity may fit a community context, why it was surfaced, what is known about the deadline and award amount, and what still needs verification. The existing county Atlas remains unchanged. The feature is a separate `#/funding` route with one additive navigation entry and an optional `dashboard/data/grant_funding_matches.json` loader; an absent artifact only produces the new tab's empty state.
 
+The canonical application shell intentionally has no global product-title label. The obsolete top-left title was removed without replacement; the header retains its navigation, county control, routing, and responsive behavior.
+
 ## Official source and API behavior
 
 The source is the public [Grants.gov REST API guide](https://www.grants.gov/api/api-guide), verified on 2026-08-04. It documents unauthenticated `POST https://api.grants.gov/v1/api/search2` for opportunity search and `POST https://api.grants.gov/v1/api/fetchOpportunity` for one detailed record. The client pages `search2` with `rows` and `startRecordNum`, then requests detail with `{ "opportunityId": "…" }`.
