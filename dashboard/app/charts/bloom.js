@@ -340,7 +340,7 @@
         const br = rot.append("g").attr("class", "bloom-bract" + (critical ? " bloom-bract-critical" : "")).attr("transform", "scale(0)");
         // Outline stays bold and solid even when ACS is pending (see header note).
         br.append("path").attr("d", bractPath(L)).attr("fill", `url(#bloom-g${c.id}${axKey})`)
-          .attr("stroke", critical ? "#db2777" : AX_OUTLINE[axKey])
+          .attr("stroke", critical ? "#f472b6" : AX_OUTLINE[axKey])
           .attr("stroke-width", critical ? 2.6 : 1.6)
           .attr("stroke-opacity", 1)
           .attr("stroke-linejoin", "round");
