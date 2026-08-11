@@ -2,6 +2,7 @@
 (function(A){
   const { fetchGeo } = A.api;
   const { ProvPill } = A.ui;
+  const AX = A.bloom.AX_STROKE;
 
   // bloom.js owns and clears the vizRef mount; it only reads (via sideRoot
   // querySelectors) from the JSX sidebar wrapped by mainRef.
@@ -50,6 +51,10 @@
           <aside className="bloom-side">
             <div>
               <h3>Choose a lens</h3>
+              <p className="bloom-sidenote">Each petal packs two measures: how long it is shows the
+                <b> need</b> (Census ACS), and its color shows a related <b>health outcome</b> (CDC
+                PLACES). Click a petal's outer tip for its color measure, or its inner base for its
+                length axis.</p>
               <div className="bloom-selector-mount" />
               <div className="bloom-hovernote">&nbsp;</div>
               <div className="bloom-ramp-row" style={{ visibility: "hidden" }}>
@@ -59,14 +64,13 @@
             <div>
               <h3>Reading the bloom</h3>
               <ul className="bloom-axes-key">
-                <li><span className="dir">Top</span>Economic deprivation<span className="sub">poverty rate (bud 1)</span></li>
-                <li><span className="dir">Right</span>Uninsured<span className="sub">uninsured share (bud 2)</span></li>
-                <li><span className="dir">Bottom</span>Demographic demand<span className="sub">average of age 65+ (3) and disability (4)</span></li>
-                <li><span className="dir">Left</span>Access barriers<span className="sub">average of no vehicle (5) and low broadband (6)</span></li>
+                <li><span className="dir">Top</span><i className="bloom-swatch" style={{ background: AX.N }} />Economic deprivation<span className="sub">poverty rate (bud 1) — colored by Hypertension</span></li>
+                <li><span className="dir">Right</span><i className="bloom-swatch" style={{ background: AX.E }} />Uninsured<span className="sub">uninsured share (bud 2) — colored by Diabetes</span></li>
+                <li><span className="dir">Bottom</span><i className="bloom-swatch" style={{ background: AX.S }} />Demographic demand<span className="sub">average of age 65+ (3) and disability (4) — colored by Depression</span></li>
+                <li><span className="dir">Left</span><i className="bloom-swatch" style={{ background: AX.W }} />Access barriers<span className="sub">average of no vehicle (5) and low broadband (6) — colored by Smoking</span></li>
               </ul>
-              <p className="bloom-sidenote">Petal <b>length</b> — depth of need on that axis, from Census ACS.<br />
-                Petal <b>color</b> — its CDC PLACES measure, named on the legend flower.<br />
-                A petal outlined in <b>bold pink</b> is at or above the state's worst-quartile
+              <p className="bloom-sidenote">Longer petal = deeper need. Darker fill = worse on its color
+                measure. A petal outlined in <b>pink</b> is at or above the state's worst-quartile
                 threshold for that measure — a stark cue, not just a darker shade.</p>
             </div>
             <div>

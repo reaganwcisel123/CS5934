@@ -580,5 +580,5 @@
     };
   }
 
-  A.bloom = { mountBloom };
+  A.bloom = { mountBloom, AX_STROKE };
 })(window.Atlas);
