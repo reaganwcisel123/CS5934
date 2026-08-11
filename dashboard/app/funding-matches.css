@@ -11,7 +11,9 @@
 .funding-matches .fm-meta span { color: var(--text-muted); font-size: 11px; }
 .funding-matches .fm-meta b { display: block; color: var(--text-strong); font-size: 13px; margin-top: 2px; }
 .funding-matches .fm-controls { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
+.funding-matches .fm-control-stack { display: grid; gap: 3px; color: var(--text-muted); font-size: 11px; font-weight: 650; }
 .funding-matches .fm-control { min-width: 136px; height: 34px; padding: 0 9px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-body); font-family: var(--font-sans); font-size: 12px; }
+.funding-matches .fm-show-more { align-self: flex-start; min-height: 34px; padding: 0 12px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-card); color: var(--text-strong); cursor: pointer; font-family: var(--font-sans); font-size: 12px; font-weight: 650; }
 .funding-matches .fm-results { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 16px; margin-top: 16px; align-items: start; }
 .funding-matches .fm-list { display: flex; flex-direction: column; gap: 10px; }
 .funding-matches .fm-card { border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-card); padding: 13px; }
