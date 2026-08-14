@@ -3,7 +3,7 @@
 #  - clinic-atlas-api   : FastAPI backend reading Render Postgres
 #  - clinic-atlas-db    : Render Postgres (the atlas database)
 #
-# Deploy: in Render, New > Blueprint, connect this repo. Prod tracks `main`.
+# Deploy: in Render, New > Blueprint, connect this repo. Prod tracks `develop`.
 
 databases:
   - name: clinic-atlas-db
@@ -16,7 +16,7 @@ services:
   - type: web
     name: clinic-needs-atlas
     runtime: static
-    branch: main
+    branch: develop
     buildCommand: bash scripts/build-site.sh
     staticPublishPath: ./dashboard
     pullRequestPreviewsEnabled: true
@@ -39,7 +39,7 @@ services:
   - type: web
     name: clinic-atlas-api
     runtime: python
-    branch: main
+    branch: develop
     plan: free
     # Install deps, migrate, build + seed, TRAIN the risk models, then score
     # (patients + counties) and load into Postgres. Training runs at build (models
@@ -76,7 +76,7 @@ services:
   - type: cron
     name: clinic-atlas-grants-refresh
     runtime: python
-    branch: main
+    branch: develop
     schedule: "0 5 * * *"
     buildCommand: pip install uv && uv sync --extra api --extra grants
     startCommand: uv run python -m src.grants.pipeline --daily --refresh --persist

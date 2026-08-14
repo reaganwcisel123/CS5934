@@ -194,13 +194,6 @@ def is_open_or_forecasted(opportunity: dict[str, Any], *, today: date | None = N
         return False
 
 
-def is_healthcare_relevant(opportunity: dict[str, Any]) -> bool:
-    document = normalized_document(opportunity).lower()
-    categories = {str(category).lower() for category in opportunity.get("funding_categories") or []}
-    category_match = bool(categories.intersection(C.RELEVANT_FUNDING_CATEGORIES))
-    return any(term in document for term in C.HEALTHCARE_RELEVANCE_TERMS) and (category_match or "health" in document or "rural" in document)
-
-
 def is_within_lookback(opportunity: dict[str, Any], *, today: date, days: int) -> bool:
     """Use canonical detailed posting dates with an inclusive UTC-day boundary."""
     if days not in C.GRANT_LOOKBACK_OPTIONS:

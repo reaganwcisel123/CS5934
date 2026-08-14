@@ -51,25 +51,35 @@ def test_behavioral_profile_ranks_behavioral_grant_above_workforce_grant() -> No
     assert ids.index("rural-behavioral") < ids.index("workforce")
 
 
-def test_workforce_profile_ranks_workforce_grant_and_excludes_hard_mismatches() -> None:
+def test_workforce_profile_ranks_workforce_grant_and_excludes_closed_records() -> None:
     candidates = candidate_opportunities(_opportunities(), today=TODAY)
     ids = {item["opportunity_id"] for item in candidates}
     assert "closed-health" not in ids
-    assert "incompatible-geo" not in ids
+    assert "incompatible-geo" in ids
     profile = build_profile(_county(outcomes={"diabetes": 0, "obesity": 0, "mhlth": 0, "bphigh": 0}, dom={"food": 0, "access": 0, "economic": 0, "environment": 0}))
     matches = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=FixtureGeminiRanker(), today=TODAY)[profile["countyFips"]]
     assert matches[0]["opportunityId"] == "workforce"
 
 
-def test_named_non_virginia_program_area_is_hard_excluded() -> None:
+def test_broad_source_corpus_has_no_topic_agency_or_text_geography_filter() -> None:
     opportunities = _opportunities()
-    global_opportunity = next(item for item in opportunities if item["opportunity_id"] == "rural-behavioral").copy()
-    global_opportunity["opportunity_id"] = "senegal-only"
-    global_opportunity["title"] = "Health partnerships in Senegal"
-    global_opportunity["description"] = "Funds health services in Senegal through local partnerships."
-    global_opportunity["eligibility_description"] = "Applicants must serve Senegal."
-    candidates = candidate_opportunities(opportunities + [global_opportunity], today=TODAY)
-    assert "senegal-only" not in {item["opportunity_id"] for item in candidates}
+    base = next(item for item in opportunities if item["opportunity_id"] == "workforce")
+    arts = base | {
+        "opportunity_id": "arts-300-days", "agency_code": "NEA", "title": "Community arts grant",
+        "description": "Arts programming with no healthcare topic.", "funding_categories": ["Arts"],
+        "posting_date": "2025-10-08", "closing_date": "2026-12-15",
+    }
+    foreign_text = base | {
+        "opportunity_id": "foreign-text-only", "agency_code": "USAID", "title": "Partnerships in Senegal",
+        "description": "Supports work in Senegal.", "eligibility_description": "Applicants must serve Senegal.",
+        "posting_date": "2026-07-15", "closing_date": "2026-12-15",
+    }
+    old = base | {"opportunity_id": "old-open", "posting_date": "2025-08-03", "closing_date": "2026-12-15"}
+    closed = base | {"opportunity_id": "closed-current", "posting_date": "2026-07-15", "closing_date": "2026-08-03"}
+    ids = {item["opportunity_id"] for item in candidate_opportunities(opportunities + [arts, foreign_text, old, closed], today=TODAY)}
+    assert {"arts-300-days", "foreign-text-only"}.issubset(ids)
+    assert "old-open" not in ids
+    assert "closed-current" not in ids
 
 
 def test_unknown_or_likely_incompatible_organization_eligibility_remains_visible() -> None:
@@ -135,6 +145,6 @@ def test_gemini_ranks_every_candidate_in_configured_batches() -> None:
     ranker = CountingRanker()
     profile = build_profile(_county())
     matches = rank_profiles({profile["countyFips"]: profile}, candidates, ranker=ranker, today=TODAY)[profile["countyFips"]]
-    assert len(matches) == len(candidates) == 25
+    assert len(matches) == len(candidates) == 27
     assert ranker.calls == 2
     assert len({match["opportunityId"] for match in matches}) == len(matches)

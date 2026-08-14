@@ -8,7 +8,6 @@ from pathlib import Path
 from src.grants.client import GrantsGovClient
 from src.grants.normalize import (
     clean_text,
-    is_healthcare_relevant,
     is_open_or_forecasted,
     is_within_lookback,
     normalize_many,
@@ -53,12 +52,10 @@ def test_normalization_retains_canonical_fields_and_missing_values() -> None:
     assert metrics["missing_award_range_rate"] > 0
 
 
-def test_status_and_relevance_rules_do_not_recommend_closed_or_arts_records() -> None:
+def test_status_rules_exclude_closed_records_without_topic_screening() -> None:
     opportunities, _ = normalize_many(_records(), retrieved_at="2026-08-04T00:00:00Z")
     closed = next(item for item in opportunities if item["opportunity_id"] == "closed-health")
-    arts = next(item for item in opportunities if item["opportunity_id"] == "arts")
     assert not is_open_or_forecasted(closed, today=date(2026, 8, 4))
-    assert not is_healthcare_relevant(arts)
 
 
 def test_fixture_mode_is_offline_and_deterministic() -> None:
@@ -67,11 +64,22 @@ def test_fixture_mode_is_offline_and_deterministic() -> None:
     assert metadata["cache"] == "fixture"
 
 
-def test_client_scope_keeps_relevant_health_and_community_agencies() -> None:
-    assert GrantsGovClient._allowed_agency({"agencyCode": "HHS-HRSA"})
-    assert GrantsGovClient._allowed_agency({"agencyCode": "USDA-RUS"})
-    assert GrantsGovClient._allowed_agency({"agencyCode": "DOL-ETA"})
-    assert not GrantsGovClient._allowed_agency({"agencyCode": "NEA"})
+def test_client_broad_search_has_no_keyword_agency_or_category_filter(monkeypatch) -> None:
+    client = GrantsGovClient()
+    captured = {}
+
+    def fake_post(url, payload):
+        captured["url"] = url
+        captured["payload"] = payload
+        return {"data": {"oppHits": []}}
+
+    monkeypatch.setattr(client, "_post", fake_post)
+    client.search()
+    assert captured["payload"] == {
+        "rows": 100, "keyword": "", "oppStatuses": "posted", "startRecordNum": 0,
+        "eligibilities": "", "agencies": "", "fundingCategories": "",
+        "fundingInstruments": "", "aln": "",
+    }
 
 
 def test_lookback_boundary_is_inclusive_and_uses_posting_date() -> None:
@@ -84,19 +92,17 @@ def test_lookback_boundary_is_inclusive_and_uses_posting_date() -> None:
 
 
 def test_client_paginates_every_page_and_deduplicates_hits(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("src.grants.client.C.SEARCH_TERMS", ("health",))
-
     class PagedClient(GrantsGovClient):
         def __init__(self) -> None:
             super().__init__()
             self.calls: list[int] = []
 
-        def search(self, keyword: str, *, start_record: int = 0, rows: int = 10) -> dict:
+        def search(self, *, start_record: int = 0, rows: int = 10) -> dict:
             self.calls.append(start_record)
             pages = {
-                0: [{"id": "one", "agencyCode": "HHS"}, {"id": "two", "agencyCode": "HHS"}],
-                2: [{"id": "two", "agencyCode": "HHS"}, {"id": "three", "agencyCode": "HHS"}],
-                4: [{"id": "four", "agencyCode": "HHS"}],
+                0: [{"id": "one", "agencyCode": "HHS"}, {"id": "two", "agencyCode": "NEA"}],
+                2: [{"id": "two", "agencyCode": "NEA"}, {"id": "three", "agencyCode": "USAID"}],
+                4: [{"id": "four", "agencyCode": "DOL"}],
             }
             return {"data": {"oppHits": pages[start_record], "hitCount": 5}}
 

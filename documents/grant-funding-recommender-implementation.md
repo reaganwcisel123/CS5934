@@ -13,16 +13,15 @@ The prior preview fixture contained five records, of which only two were posted,
 ## Source corpus and dates
 
 
-The public [Grants.gov API guide](https://www.grants.gov/api/api-guide) documents unauthenticated `POST /v1/api/search2` and `POST /v1/api/fetchOpportunity`. `search2` returns `oppHits`, `hitCount`, and `startRecordNum`; the client requests every page for each configured rural-health search term, deduplicates opportunity IDs, and retrieves each detail record.
+The public [Grants.gov API guide](https://www.grants.gov/api/api-guide) documents unauthenticated `POST /v1/api/search2` and `POST /v1/api/fetchOpportunity`. `search2` returns `oppHits`, `hitCount`, and `startRecordNum`; the client sends one blank-keyword query, requests every page, deduplicates opportunity IDs, and retrieves each detail record.
 
 The normal corpus contains opportunities that are:
 
 - `posted` by Grants.gov, not forecasts, archived, cancelled, or closed records;
 - still accepting applications when a closing date is supplied (`closing_date >= today`);
-- relevant to the configured rural-health, community-development, food/nutrition, workforce, or regional-development scope; and
 - canonically posted within the rolling previous 365 days.
 
-The canonical posting date is the detailed synopsis `postingDate`; normalized search-result `openDate` is used only when that detail field is absent. The API documentation does not define a posted-date request filter for this use, so the client applies the one-year and selected-window boundaries locally after complete pagination and detail normalization. A posted opportunity without a closing date remains visible as `Deadline not provided`.
+There is no source-level health, rural, agency, category, keyword, or Gemini filter. The retained Grants.gov fields do not provide a reliable normalized U.S.-applicability flag, so the client does not invent a text-based geography exclusion. Geography and organization eligibility remain visible downstream as planning screens. The canonical posting date is the detailed synopsis `postingDate`; normalized search-result `openDate` is used only when that detail field is absent. The API documentation does not define a posted-date request filter for this use, so the client applies the one-year and selected-window boundaries locally after complete pagination and detail normalization. A posted opportunity without a closing date remains visible as `Deadline not provided`.
 
 The centralized lookback options are `7`, `14`, `30`, `90`, `180`, and `365` days. The default is 30 days, and every cutoff is inclusive: `posting_date >= today - lookback_days`.
 
@@ -30,7 +29,7 @@ The centralized lookback options are `7`, `14`, `30`, `90`, `180`, and `365` day
 
 ```mermaid
 flowchart TD
-  A[Grants.gov search2] --> B[Paginate all posted relevant search hits]
+  A[Grants.gov search2 with blank keyword] --> B[Paginate all posted search hits]
   B --> C[fetchOpportunity details]
   C --> D[Normalize posting and deadline fields]
   D --> E[Keep current rolling 365-day corpus]
@@ -50,7 +49,7 @@ Gemini scores every active opportunity for each county against one fixed relevan
 
 The artifact keeps hashes for each public opportunity content record and county profile. An existing pair score is reused only when the county profile hash, grant content hash, prompt version, and Gemini model match. This means a 7-day, 30-day, or 365-day view uses the same county-grant score and only filters the rolling corpus locally; new or changed grants are the pairs that need fresh scoring.
 
-Eligibility is display metadata, not a broad corpus exclusion. `Likely compatible`, `Needs verification`, and `Likely incompatible` records remain browseable unless the grant is objectively unusable because it is no longer open, outside the rolling window/scope, or explicitly restricted to a geography that excludes Virginia.
+Eligibility is display metadata, not a broad corpus exclusion. `Likely compatible`, `Needs verification`, and `Likely incompatible` records remain browseable unless the grant is objectively unusable because it is no longer open or outside the rolling window. A named non-Virginia geography is shown as an eligibility warning rather than silently removed from the source corpus.
 
 ## Snapshot freshness and troubleshooting
 
@@ -94,11 +93,11 @@ uv run python -m src.grants.pipeline --fixture tests/fixtures/grants_gov_opportu
 uv run pytest tests/test_grants_ingestion.py tests/test_grant_recommender.py tests/test_gemini_grants.py tests/test_funding_dashboard.py -q
 ```
 
-Tests cover full pagination and duplicate hits, posted/expired status handling, inclusive lookback boundaries, missing eligibility visibility, multi-batch complete ranking, pair-score reuse, and a County A/B/C plus 7/14/30/90/180/365-day frontend state matrix. The live verification procedure uses a 30-day source query and a small controlled number of counties only; it must record actual API counts and Gemini calls rather than fabricate them. A 365-day code path does not mean a full 365-day live Gemini backfill was performed during a smoke test.
+Tests cover broad blank-keyword pagination and duplicate hits, posted/expired status handling, inclusive lookback boundaries, missing eligibility visibility, multi-batch complete ranking, pair-score reuse, last-known-good fallback after a Gemini failure, and a County A/B/C plus 7/14/30/90/180/365-day frontend state matrix. A source refresh must record actual API counts and Gemini calls rather than fabricate them. A 365-day code path does not mean a full 365-day live Gemini backfill was performed during a smoke test.
 
 ## Live-source and capacity audit (2026-08-11)
 
-A controlled live Grants.gov run completed against the configured public client and temporary local cache. It paged 46 search pages, retrieved 394 unique opportunity details, normalized 394 records, and found 394 open records. Of those, 73 were posted in the preceding 30 days before relevance screening; 51 remained in the current 30-day rural-clinic corpus and 185 remained in the rolling 365-day corpus. The dashboard JSON checked into source at that time was not this result: it was an August 4 legacy `grant-recommender-v1` TF-IDF snapshot, so local static preview correctly displays a refresh warning rather than treating it as current Gemini output.
+The August 11 controlled run predated the broad-corpus policy and used the former narrow retrieval strategy. Its counts must not be interpreted as the result of the current broad policy. The checked-in dashboard JSON is a current Gemini-ranked August 11 cached snapshot with 16 opportunities and 133 county profiles; it is deliberately preserved for review, static deployment, and no-key fallback. This change does not run a new Grants.gov pull or a new full Gemini backfill.
 
 The configured code default and Render environment value are `gemini-3.5-flash-lite`; `GEMINI_MODEL` can override the code default. Gemini is called only by `GeminiRanker` through the official `google-genai` SDK method `client.models.generate_content` with JSON schema output. Authentication is explicit (`genai.Client(api_key=...)`) from the server-only `GEMINI_API_KEY` environment variable. The local audit runtime had no key and therefore made no Gemini call; the browser, static artifact, API response, and tracked documentation contain no key. Render expects the secret in both the API service and the daily cron service.
 
@@ -116,4 +115,4 @@ The largest controllable cost is prompt size because current requests include pu
 
 ## Limitations
 
-Gemini relevance is not award probability. Eligibility and geographic applicability require review against the official opportunity record. Grants.gov content can change after the daily refresh, and Gemini quota may constrain historical backfills. The source scope is intentionally limited to credible rural-health and adjacent community/workforce funding, not every federal opportunity.
+Gemini relevance is not award probability. Eligibility and geographic applicability require review against the official opportunity record. Grants.gov content can change after the daily refresh, and Gemini quota may constrain historical backfills. The future source corpus intentionally includes all current posted Grants.gov opportunities in the rolling 365-day window; the page's county-focused relevance and eligibility screens are planning support, not a source exclusion policy.

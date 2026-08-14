@@ -70,16 +70,11 @@ class GrantsGovClient:
             raise GrantsGovError("Grants.gov response has no object-valued data field.")
         return body
 
-    @staticmethod
-    def _allowed_agency(hit: dict[str, Any]) -> bool:
-        code = str(hit.get("agencyCode") or hit.get("owningAgencyCode") or "").upper()
-        return any(code == prefix or code.startswith(prefix + "-") for prefix in C.ALLOWED_AGENCY_PREFIXES)
-
-    def search(self, keyword: str, *, start_record: int = 0, rows: int = C.PAGE_SIZE) -> dict[str, Any]:
-        """Search a page using the current documented `search2` request shape."""
+    def search(self, *, start_record: int = 0, rows: int = C.PAGE_SIZE) -> dict[str, Any]:
+        """Search every posted opportunity without topic, agency, or category filters."""
         return self._post(C.SEARCH_ENDPOINT, {
             "rows": rows,
-            "keyword": keyword,
+            "keyword": C.SEARCH_KEYWORD,
             "oppStatuses": "|".join(C.ALLOWED_STATUSES),
             "startRecordNum": start_record,
             "eligibilities": "",
@@ -139,26 +134,23 @@ class GrantsGovClient:
 
         hits: dict[str, dict[str, Any]] = {}
         searches = 0
-        for keyword in C.SEARCH_TERMS:
-            start = 0
-            while True:
-                body = self.search(keyword, start_record=start)
-                searches += 1
-                data = body["data"]
-                page_hits = data.get("oppHits") or []
-                if not isinstance(page_hits, list):
-                    raise GrantsGovError("Grants.gov search2 response has an invalid oppHits field.")
-                for hit in page_hits:
-                    opportunity_id = str(hit.get("id") or "")
-                    if opportunity_id and self._allowed_agency(hit):
-                        hits.setdefault(opportunity_id, hit)
-                        if max_results and len(hits) >= max_results:
-                            break
-                start += len(page_hits)
-                hit_count = int(data.get("hitCount") or 0)
-                if not page_hits or start >= hit_count or (max_results and len(hits) >= max_results):
-                    break
-            if max_results and len(hits) >= max_results:
+        start = 0
+        while True:
+            body = self.search(start_record=start)
+            searches += 1
+            data = body["data"]
+            page_hits = data.get("oppHits") or []
+            if not isinstance(page_hits, list):
+                raise GrantsGovError("Grants.gov search2 response has an invalid oppHits field.")
+            for hit in page_hits:
+                opportunity_id = str(hit.get("id") or "")
+                if opportunity_id:
+                    hits.setdefault(opportunity_id, hit)
+                    if max_results and len(hits) >= max_results:
+                        break
+            start += len(page_hits)
+            hit_count = int(data.get("hitCount") or 0)
+            if not page_hits or start >= hit_count or (max_results and len(hits) >= max_results):
                 break
 
         retrieved_at = _iso_now()

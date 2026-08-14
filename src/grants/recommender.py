@@ -12,7 +12,7 @@ from typing import Any
 
 from src.grants import config as C
 from src.grants.gemini import GeminiRankingError, RankingClient, validate_rankings
-from src.grants.normalize import is_healthcare_relevant, is_open_or_forecasted, is_within_lookback, normalized_document
+from src.grants.normalize import is_open_or_forecasted, is_within_lookback, normalized_document
 
 GEOGRAPHIC_EXCLUSION_TERMS = (
     "guam", "american samoa", "northern mariana", "u.s. virgin islands", "puerto rico",
@@ -44,23 +44,18 @@ def screen_eligibility(opportunity: dict[str, Any], *, today: date) -> tuple[str
     return "Needs verification", "The clinic's legal organization type and the full applicant requirements must be confirmed."
 
 
-def _geographically_impossible(opportunity: dict[str, Any]) -> bool:
-    text = " ".join((opportunity.get("title") or "", opportunity.get("eligibility_description") or "", opportunity.get("description") or "")).lower()
-    return any(term in text for term in GEOGRAPHIC_EXCLUSION_TERMS) and "virginia" not in text
-
-
 def candidate_opportunities(opportunities: list[dict[str, Any]], *, today: date) -> list[dict[str, Any]]:
-    """Keep every current, relevant, posted opportunity in the rolling year.
+    """Keep every open posted opportunity in the rolling 365-day source corpus.
 
-    Eligibility is display metadata. It must not silently remove a grant from
-    the available corpus; only an explicit incompatible geography is excluded.
+    Grants.gov does not expose a reliable normalized U.S.-applicability field
+    in the data retained by this client.  Geography and eligibility language
+    therefore remain downstream display metadata rather than fabricated source
+    corpus exclusions.
     """
     return [
         item for item in opportunities
         if is_open_or_forecasted(item, today=today)
         and is_within_lookback(item, today=today, days=C.MAX_GRANT_LOOKBACK_DAYS)
-        and is_healthcare_relevant(item)
-        and not _geographically_impossible(item)
     ]
 
 
@@ -164,4 +159,4 @@ def evaluation_metrics(opportunities: list[dict[str, Any]], candidates: list[dic
     agency = {item["opportunity_id"]: item.get("agency_code") or "Unknown" for item in candidates}
     categories = {item["opportunity_id"]: item.get("funding_categories") or [] for item in candidates}
     total = len(opportunities) or 1
-    return {"validOpportunityRate": sum(bool(item.get("opportunity_id") and item.get("title")) for item in opportunities) / total, "openDeadlineRate": sum(is_open_or_forecasted(item, today=today) for item in opportunities) / total, "healthcareRelevanceFilteringRate": len(candidates) / total, "opportunityCoverage": len({match["opportunityId"] for match in all_matches}) / max(len(candidates), 1), "countyRecommendationCoverage": sum(bool(matches) for matches in matches_by_county.values()) / max(len(matches_by_county), 1), "duplicateRecommendationRate": 1 - len({(county, match["opportunityId"]) for county, matches in matches_by_county.items() for match in matches}) / max(len(all_matches), 1), "recommendationAgencyDiversity": len({agency.get(match["opportunityId"]) for match in all_matches}), "recommendationCategoryDiversity": len({category for match in all_matches for category in categories.get(match["opportunityId"], [])}), "nonemptyExplanationRate": sum(bool(match.get("fitReasons")) for match in all_matches) / max(len(all_matches), 1), "officialLinkValidityRate": sum(item.get("official_url", "").startswith("https://www.grants.gov/") for item in candidates) / max(len(candidates), 1)}
+    return {"validOpportunityRate": sum(bool(item.get("opportunity_id") and item.get("title")) for item in opportunities) / total, "openDeadlineRate": sum(is_open_or_forecasted(item, today=today) for item in opportunities) / total, "sourceCorpusRetentionRate": len(candidates) / total, "opportunityCoverage": len({match["opportunityId"] for match in all_matches}) / max(len(candidates), 1), "countyRecommendationCoverage": sum(bool(matches) for matches in matches_by_county.values()) / max(len(matches_by_county), 1), "duplicateRecommendationRate": 1 - len({(county, match["opportunityId"]) for county, matches in matches_by_county.items() for match in matches}) / max(len(all_matches), 1), "recommendationAgencyDiversity": len({agency.get(match["opportunityId"]) for match in all_matches}), "recommendationCategoryDiversity": len({category for match in all_matches for category in categories.get(match["opportunityId"], [])}), "nonemptyExplanationRate": sum(bool(match.get("fitReasons")) for match in all_matches) / max(len(all_matches), 1), "officialLinkValidityRate": sum(item.get("official_url", "").startswith("https://www.grants.gov/") for item in candidates) / max(len(candidates), 1)}

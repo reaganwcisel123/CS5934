@@ -81,7 +81,7 @@ def build_artifact(
         write_normalized_cache(opportunities, quality, retrieved_at=source_retrieved_at, path=normalized_cache_path)
     candidates = candidate_opportunities(opportunities, today=today)
     if not candidates:
-        raise ValueError("No active, healthcare-relevant Grants.gov opportunities remain after filtering.")
+        raise ValueError("No open Grants.gov opportunities remain inside the 365-day source window.")
     profiles = build_profiles(atlas.get("records") or [])
     corpus_hash = _hash(candidates)
     profile_hash = _hash(profiles)

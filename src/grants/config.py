@@ -25,34 +25,10 @@ PAGE_SIZE = 100
 # arbitrary result count, bounds the corpus used by Funding Matches.
 MAX_RESULTS = 0
 
-# These agency families cover the practical rural-health, workforce, community,
-# and regional-development scope. Relevance is still screened locally.
-ALLOWED_AGENCY_PREFIXES = ("HHS", "USDA", "DOL", "DOC-EDA")
+# Grants.gov ``search2`` accepts a blank keyword.  Future refreshes use that
+# broad posted-opportunity query instead of a topic or agency-specific search.
+SEARCH_KEYWORD = ""
 ALLOWED_STATUSES = ("posted",)
-SEARCH_TERMS = (
-    "rural health",
-    "primary care",
-    "behavioral health",
-    "telehealth",
-    "health workforce",
-    "chronic disease",
-    "maternal health",
-    "community health",
-)
-HEALTHCARE_RELEVANCE_TERMS = (
-    "rural", "health", "healthcare", "health care", "clinic", "primary care",
-    "behavioral", "mental health", "telehealth", "workforce", "diabetes",
-    "hypertension", "obesity", "maternal", "community health", "mobile health",
-    "prevention", "care access", "health equity", "quality improvement",
-    "community development", "food and nutrition", "food security",
-    "regional development", "economic development", "employment", "job training",
-)
-
-RELEVANT_FUNDING_CATEGORIES = (
-    "health", "community development", "food and nutrition",
-    "employment, labor and training", "regional development",
-    "agriculture", "income security and social services",
-)
 
 GRANT_LOOKBACK_OPTIONS = (7, 14, 30, 90, 180, 365)
 DEFAULT_GRANT_LOOKBACK_DAYS = 30
