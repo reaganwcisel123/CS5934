@@ -115,3 +115,37 @@ def test_legacy_non_gemini_artifact_is_not_used_as_a_failure_fallback(tmp_path: 
     legacy = {"metadata": {"model": {"modelVersion": "grant-recommender-v1"}}, "matchesByCounty": {"51001": [{"opportunityId": "rural-behavioral"}]}}
     with pytest.raises(GeminiRankingError):
         build_artifact({"records": [county()]}, json.loads(FIXTURE.read_text(encoding="utf-8"))["records"], source_retrieved_at="fixture", cache_status="fixture", model_directory=tmp_path / "model", today=TODAY, ranker=FailingRanker(), previous_artifact=legacy)
+
+
+def test_compatible_last_known_good_remains_usable_when_gemini_fails(tmp_path: Path):
+    class FailingRanker:
+        def rank(self, profiles, candidates):
+            raise GeminiRankingError("fixture Gemini outage")
+
+    atlas = {"records": [county()]}
+    raw = json.loads(FIXTURE.read_text(encoding="utf-8"))["records"]
+    previous = build_artifact(
+        atlas,
+        raw,
+        source_retrieved_at="fixture",
+        cache_status="fixture",
+        model_directory=tmp_path / "model",
+        today=TODAY,
+        ranker=FixtureGeminiRanker(),
+    )
+
+    fallback = build_artifact(
+        atlas,
+        raw,
+        source_retrieved_at="fixture",
+        cache_status="fixture",
+        model_directory=tmp_path / "model",
+        today=TODAY,
+        ranker=FailingRanker(),
+        previous_artifact=previous,
+        force_rerank=True,
+    )
+
+    assert fallback["metadata"]["recommendationStatus"] == "degraded-last-known-good"
+    assert fallback["metadata"]["model"]["reusedLastKnownGood"] is True
+    assert fallback["matchesByCounty"] == previous["matchesByCounty"]
