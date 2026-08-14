@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from src.api import funding
@@ -32,6 +31,14 @@ def test_checked_in_cached_recommendations_are_complete_and_public() -> None:
 def test_funding_api_uses_checked_in_cache_without_gemini_or_database(monkeypatch) -> None:
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(funding, "load_last_known_good", lambda: None)
+    artifact = funding.funding_matches()
+    assert artifact["metadata"]["matchingMethod"] == "gemini-prompt-ranking"
+    assert artifact["matchesByCounty"]["51001"]
+
+
+def test_funding_api_prefers_checked_in_gemini_cache_over_legacy_database_snapshot(monkeypatch) -> None:
+    legacy = {"metadata": {"modelVersion": "grant-recommender-v1"}, "matchesByCounty": {"51001": []}}
+    monkeypatch.setattr(funding, "load_last_known_good", lambda: legacy)
     artifact = funding.funding_matches()
     assert artifact["metadata"]["matchingMethod"] == "gemini-prompt-ranking"
     assert artifact["matchesByCounty"]["51001"]

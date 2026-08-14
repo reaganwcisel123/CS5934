@@ -39,7 +39,7 @@ flowchart TD
   H --> I[Summary cards, ranked list, detail]
 ```
 
-Raw and normalized data are stored separately under ignored `data/raw/grants_gov_opportunities/`. The Render daily job runs `python -m src.grants.pipeline --daily --refresh --persist`, updates the durable snapshot, and keeps last-known-good match output if Gemini has a transient failure. Changing the dashboard dropdown never calls Grants.gov.
+Raw and normalized data are stored separately under ignored `data/raw/grants_gov_opportunities/`. The Render daily job runs `python -m src.grants.pipeline --daily --refresh --persist`, updates the durable snapshot, and keeps last-known-good match output if Gemini has a transient failure. The API uses a compatible persisted Gemini snapshot when present; a legacy persisted snapshot yields to the checked-in current Gemini artifact. Changing the dashboard dropdown never calls Grants.gov.
 
 ## Gemini ranking and cache
 
